@@ -17,7 +17,7 @@ struct TaskCardView: View {
                         .font(.callout)
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(task.isDone ? .green : .secondary)
+                .foregroundStyle(task.isDone ? AppTheme.success : .secondary)
                 .frame(width: 24, height: 24)
 
                 AssigneeAvatarView(name: task.assignedTo)
@@ -87,7 +87,7 @@ struct TaskCardView: View {
             }
         }
         .padding(8)
-        .background(Color(.tertiarySystemGroupedBackground))
+        .background(AppTheme.surfaceMuted)
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 }

@@ -24,9 +24,8 @@ struct AssigneeAvatarView: View {
     }
 
     private var avatarColor: Color {
-        let palette: [Color] = [.blue, .green, .indigo, .mint, .orange, .pink, .purple, .teal]
         let source = name.isEmpty ? "Unassigned" : name
-        let index = abs(source.hashValue) % palette.count
-        return palette[index]
+        let index = abs(source.hashValue) % AppTheme.avatarPalette.count
+        return AppTheme.avatarPalette[index]
     }
 }

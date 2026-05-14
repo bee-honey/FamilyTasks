@@ -57,6 +57,8 @@ struct FamilyMembersView: View {
             }
             .navigationTitle("Family")
             .navigationBarTitleDisplayMode(.inline)
+            .scrollContentBackground(.hidden)
+            .background(AppTheme.background)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }

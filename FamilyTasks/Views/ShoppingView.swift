@@ -18,7 +18,7 @@ struct ShoppingView: View {
                 }
                 .padding(14)
             }
-            .background(Color(.systemGroupedBackground))
+            .background(AppTheme.background)
             .navigationTitle("Shopping")
             .navigationBarTitleDisplayMode(.inline)
         }
@@ -38,7 +38,7 @@ struct ShoppingView: View {
             .disabled(newShopName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
         .padding(12)
-        .background(.background, in: RoundedRectangle(cornerRadius: 12))
+        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 12))
     }
 
     private func addShop() {
@@ -126,7 +126,7 @@ private struct ShopSectionView: View {
                 .padding(.bottom, 14)
             }
         }
-        .background(.background, in: RoundedRectangle(cornerRadius: 14))
+        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))
         .onDrop(of: [UTType.text], isTargeted: nil) { providers in
             guard let provider = providers.first else { return false }
             provider.loadItem(forTypeIdentifier: UTType.text.identifier, options: nil) { item, _ in
@@ -166,7 +166,7 @@ private struct ShopSectionView: View {
             .disabled(newItemName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
         .padding(10)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 10))
+        .background(AppTheme.surfaceMuted, in: RoundedRectangle(cornerRadius: 10))
     }
 
     private var usualItems: some View {
@@ -188,7 +188,7 @@ private struct ShopSectionView: View {
                                 .font(.caption.weight(.medium))
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 7)
-                                .background(Color(.secondarySystemGroupedBackground), in: Capsule())
+                                .background(AppTheme.primarySoft, in: Capsule())
                         }
                         .buttonStyle(.plain)
                         .contextMenu {
@@ -205,7 +205,7 @@ private struct ShopSectionView: View {
                         .frame(width: 110)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 7)
-                        .background(Color(.secondarySystemGroupedBackground), in: Capsule())
+                        .background(AppTheme.surfaceMuted, in: Capsule())
                         .submitLabel(.done)
                         .onSubmit(addUsualItem)
                 }
@@ -236,7 +236,7 @@ private struct ShoppingItemRow: View {
             } label: {
                 Image(systemName: item.isPurchased ? "checkmark.circle.fill" : "circle")
                     .font(.title3)
-                    .foregroundStyle(item.isPurchased ? .green : .secondary)
+                    .foregroundStyle(item.isPurchased ? AppTheme.success : .secondary)
             }
             .buttonStyle(.plain)
 
@@ -264,11 +264,11 @@ private struct ShoppingItemRow: View {
             } label: {
                 Image(systemName: "trash")
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.red)
+                    .foregroundStyle(AppTheme.destructive)
             }
             .buttonStyle(.plain)
         }
         .padding(12)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 10))
+        .background(AppTheme.surfaceMuted, in: RoundedRectangle(cornerRadius: 10))
     }
 }

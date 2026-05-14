@@ -28,7 +28,7 @@ struct TaskBoardView: View {
                 .padding(.top, 12)
                 .padding(.bottom, 76)
             }
-            .background(Color(.systemGroupedBackground))
+            .background(AppTheme.background)
             .safeAreaInset(edge: .bottom) {
                 addTaskButton
                     .padding(.bottom, 6)
@@ -60,7 +60,7 @@ struct TaskBoardView: View {
                 .font(.subheadline.weight(.semibold))
                 .padding(.horizontal, 14)
                 .padding(.vertical, 9)
-                .background(.blue, in: Capsule())
+                .background(AppTheme.primary, in: Capsule())
                 .foregroundStyle(.white)
                 .shadow(color: .black.opacity(0.14), radius: 8, y: 3)
         }

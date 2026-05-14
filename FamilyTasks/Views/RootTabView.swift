@@ -36,6 +36,7 @@ struct RootTabView: View {
                 ProfileView()
             }
         }
+        .tint(AppTheme.primary)
     }
 }
 

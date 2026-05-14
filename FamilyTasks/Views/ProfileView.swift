@@ -79,6 +79,8 @@ struct ProfileView: View {
                 }
             }
             .navigationTitle("Profile")
+            .scrollContentBackground(.hidden)
+            .background(AppTheme.background)
             .onChange(of: selectedPhoto) { _, item in
                 Task {
                     if let data = try? await item?.loadTransferable(type: Data.self) {
@@ -102,7 +104,7 @@ struct ProfileView: View {
                 .font(.title2.weight(.bold))
                 .foregroundStyle(.white)
                 .frame(width: 64, height: 64)
-                .background(.blue, in: Circle())
+                .background(AppTheme.primary, in: Circle())
         }
     }
 

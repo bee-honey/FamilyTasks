@@ -27,6 +27,7 @@
 		2C0A003F2C0A000000000001 /* OrganizerStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A003E2C0A000000000001 /* OrganizerStore.swift */; };
 		2C0A00412C0A000000000001 /* ShoppingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A00402C0A000000000001 /* ShoppingView.swift */; };
 		2C0A00432C0A000000000001 /* RecurringTasksView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A00422C0A000000000001 /* RecurringTasksView.swift */; };
+		2C0A00452C0A000000000001 /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A00442C0A000000000001 /* AppTheme.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -54,6 +55,7 @@
 		2C0A003E2C0A000000000001 /* OrganizerStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrganizerStore.swift; sourceTree = "<group>"; };
 		2C0A00402C0A000000000001 /* ShoppingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShoppingView.swift; sourceTree = "<group>"; };
 		2C0A00422C0A000000000001 /* RecurringTasksView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecurringTasksView.swift; sourceTree = "<group>"; };
+		2C0A00442C0A000000000001 /* AppTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTheme.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -129,6 +131,7 @@
 		2C0A00222C0A000000000001 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				2C0A00442C0A000000000001 /* AppTheme.swift */,
 				2C0A002E2C0A000000000001 /* RootTabView.swift */,
 				2C0A00302C0A000000000001 /* TodayTasksView.swift */,
 				2C0A00382C0A000000000001 /* ProfileView.swift */,
@@ -233,6 +236,7 @@
 				2C0A003F2C0A000000000001 /* OrganizerStore.swift in Sources */,
 				2C0A00412C0A000000000001 /* ShoppingView.swift in Sources */,
 				2C0A00432C0A000000000001 /* RecurringTasksView.swift in Sources */,
+				2C0A00452C0A000000000001 /* AppTheme.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

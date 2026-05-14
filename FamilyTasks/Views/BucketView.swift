@@ -53,7 +53,7 @@ struct BucketView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
-        .background(Color(.secondarySystemGroupedBackground))
+        .background(AppTheme.surface)
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 }
@@ -113,7 +113,7 @@ private struct MatrixTaskRowView: View {
             Button(action: onDone) {
                 Image(systemName: task.isDone ? "checkmark.circle.fill" : "circle")
                     .font(.title3)
-                    .foregroundStyle(task.isDone ? .green : .secondary)
+                    .foregroundStyle(task.isDone ? AppTheme.success : .secondary)
             }
             .buttonStyle(.plain)
             .frame(width: 28)
@@ -200,17 +200,17 @@ private struct EmptyBucketView: View {
         }
         .foregroundStyle(.secondary)
         .frame(maxWidth: .infinity, minHeight: 52)
-        .background(Color(.tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .background(AppTheme.surfaceMuted, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 }
 
 private extension TaskBucket {
     var accentColor: Color {
         switch self {
-        case .doNow: .red
-        case .schedule: .blue
-        case .delegate: .orange
-        case .delete: .green
+        case .doNow: AppTheme.taskDo
+        case .schedule: AppTheme.taskSchedule
+        case .delegate: AppTheme.taskDelegate
+        case .delete: AppTheme.taskDrop
         }
     }
 }

@@ -27,6 +27,8 @@ struct TodayTasksView: View {
                 }
             }
             .listStyle(.insetGrouped)
+            .scrollContentBackground(.hidden)
+            .background(AppTheme.background)
             .navigationTitle("Today")
             .navigationBarTitleDisplayMode(.inline)
             .sheet(item: $editingTask) { task in
@@ -54,7 +56,7 @@ private struct TodayTaskRow: View {
 
                     if task.isUrgent {
                         Image(systemName: "exclamationmark.circle.fill")
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(AppTheme.warning)
                     }
                 }
 
@@ -74,7 +76,7 @@ private struct TodayTaskRow: View {
             Button(action: onDone) {
                 Image(systemName: task.isDone ? "checkmark.circle.fill" : "circle")
                     .font(.title3)
-                    .foregroundStyle(task.isDone ? .green : .secondary)
+                    .foregroundStyle(task.isDone ? AppTheme.success : .secondary)
             }
             .buttonStyle(.plain)
         }

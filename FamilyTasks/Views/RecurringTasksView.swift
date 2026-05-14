@@ -21,6 +21,8 @@ struct RecurringTasksView: View {
                 }
             }
             .listStyle(.insetGrouped)
+            .scrollContentBackground(.hidden)
+            .background(AppTheme.background)
             .navigationTitle("Recurring")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -127,6 +129,8 @@ private struct AddRecurringTaskView: View {
             }
             .navigationTitle("New Recurring")
             .navigationBarTitleDisplayMode(.inline)
+            .scrollContentBackground(.hidden)
+            .background(AppTheme.background)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
