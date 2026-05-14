@@ -58,7 +58,7 @@ private struct RecurringTaskRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     Text(task.title)
-                        .font(.subheadline.weight(.semibold))
+                        .font(.footnote)
                     if !task.amount.isEmpty {
                         Text(task.amount)
                             .font(.caption.weight(.semibold))

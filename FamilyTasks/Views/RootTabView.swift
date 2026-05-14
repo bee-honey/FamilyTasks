@@ -11,6 +11,7 @@ struct RootTabView: View {
                         NavigationLink(value: section) {
                             Label(section.title, systemImage: section.systemImage)
                         }
+                        .listRowBackground(AppTheme.surface)
                     }
                 }
 
@@ -18,8 +19,11 @@ struct RootTabView: View {
                     NavigationLink(value: AppSection.profile) {
                         Label(AppSection.profile.title, systemImage: AppSection.profile.systemImage)
                     }
+                    .listRowBackground(AppTheme.surface)
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(AppTheme.background)
             .navigationTitle("Menu")
             .navigationBarTitleDisplayMode(.inline)
         } detail: {

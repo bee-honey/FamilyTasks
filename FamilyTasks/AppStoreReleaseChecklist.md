@@ -2,6 +2,7 @@
 
 ## Xcode Signing
 
+- Install and build with Xcode 26 or later before uploading to App Store Connect. Apple requires iOS/iPadOS app uploads after April 28, 2026 to use the iOS & iPadOS 26 SDK or later.
 - Set the app target's Team to your Apple Developer account.
 - Confirm the bundle identifier is registered: `com.naveenkeerthy.FamilyTasks`.
 - Confirm the iCloud container is registered and assigned to the app: `iCloud.com.naveenkeerthy.FamilyTasks`.
@@ -18,6 +19,7 @@
 
 ## Privacy
 
+- Confirm `PrivacyInfo.xcprivacy` is included in the app target and validate the archive privacy report before upload.
 - Declare calendar access because the app writes scheduled tasks to the user's calendar.
 - Declare photo library access because profile photos can be selected.
 - Declare iCloud/CloudKit use when family sharing sync is connected to production data.

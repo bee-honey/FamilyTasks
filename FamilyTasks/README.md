@@ -8,4 +8,4 @@ The app uses EventKit. If a Google account is added under iOS Settings > Calenda
 
 ## Family Sharing
 
-The app includes a CloudKit share sheet entry point for inviting family members to a shared task list. Before running on device, replace the placeholder bundle identifier and iCloud container with values from your Apple Developer account.
+The app includes a CloudKit share sheet entry point for inviting family members to a shared task list. Before App Store submission, confirm the bundle identifier and iCloud container are registered in the Apple Developer account and assigned to the app target.

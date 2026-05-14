@@ -120,7 +120,7 @@ private struct MatrixTaskRowView: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(task.title)
-                    .font(.subheadline.weight(.semibold))
+                    .font(.footnote)
                     .foregroundStyle(task.isDone ? .secondary : .primary)
                     .strikethrough(task.isDone)
                     .lineLimit(2)

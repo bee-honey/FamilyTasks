@@ -241,7 +241,7 @@ private struct ShoppingItemRow: View {
             .buttonStyle(.plain)
 
             Text(item.name)
-                .font(.subheadline.weight(.semibold))
+                .font(.footnote)
                 .strikethrough(item.isPurchased)
                 .foregroundStyle(item.isPurchased ? .secondary : .primary)
 

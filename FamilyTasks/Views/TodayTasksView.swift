@@ -50,7 +50,7 @@ private struct TodayTaskRow: View {
             VStack(alignment: .leading, spacing: 5) {
                 HStack(spacing: 8) {
                     Text(task.title)
-                        .font(.body.weight(.semibold))
+                        .font(.callout)
                         .strikethrough(task.isDone)
                         .foregroundStyle(task.isDone ? .secondary : .primary)
 
