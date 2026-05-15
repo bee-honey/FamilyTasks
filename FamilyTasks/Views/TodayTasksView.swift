@@ -2,17 +2,22 @@ import SwiftUI
 
 struct TodayTasksView: View {
     @EnvironmentObject private var taskStore: TaskStore
+    @EnvironmentObject private var calendarSync: CalendarSyncService
+    @AppStorage("calendar.integration.enabled") private var calendarIntegrationEnabled = false
     @State private var editingTask: FamilyTask?
 
     var body: some View {
         NavigationStack {
             List {
                 let todayTasks = taskStore.tasksScheduledToday()
+                let calendarEvents = calendarSync.todayEvents
 
-                if todayTasks.isEmpty {
+                if todayTasks.isEmpty && calendarEvents.isEmpty {
                     ContentUnavailableView("Nothing Scheduled Today", systemImage: "calendar.badge.checkmark")
                         .listRowBackground(Color.clear)
-                } else {
+                }
+
+                if !todayTasks.isEmpty {
                     Section {
                         ForEach(todayTasks) { task in
                             TodayTaskRow(task: task) {
@@ -20,21 +25,108 @@ struct TodayTasksView: View {
                             } onEdit: {
                                 editingTask = task
                             }
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                Button(role: .destructive) {
+                                    taskStore.delete(task)
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
                         }
                     } header: {
                         Text(Date().formatted(date: .complete, time: .omitted))
                     }
                 }
+
+                if !calendarEvents.isEmpty {
+                    Section("Calendar") {
+                        ForEach(calendarEvents) { event in
+                            CalendarEventRow(event: event)
+                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                    Button(role: .destructive) {
+                                        calendarSync.removeTodayEvent(event)
+                                    } label: {
+                                        Label("Remove", systemImage: "trash")
+                                    }
+                                }
+                        }
+                    }
+                }
+
+                if let message = calendarSync.lastErrorMessage, !message.isEmpty {
+                    Text(message)
+                        .font(.caption)
+                        .foregroundStyle(AppTheme.destructive)
+                        .listRowBackground(Color.clear)
+                }
             }
             .listStyle(.insetGrouped)
+            .refreshable {
+                guard calendarIntegrationEnabled else { return }
+                await calendarSync.loadTodayEvents()
+            }
             .scrollContentBackground(.hidden)
             .background(AppTheme.background)
             .navigationTitle("Today")
             .navigationBarTitleDisplayMode(.inline)
+            .task {
+                if calendarIntegrationEnabled {
+                    await calendarSync.loadTodayEvents()
+                } else {
+                    calendarSync.clearTodayEvents()
+                }
+            }
+            .onChange(of: calendarIntegrationEnabled) { _, enabled in
+                Task {
+                    if enabled {
+                        await calendarSync.loadTodayEvents()
+                    } else {
+                        calendarSync.clearTodayEvents()
+                    }
+                }
+            }
             .sheet(item: $editingTask) { task in
                 EditTaskView(task: task)
             }
         }
+    }
+}
+
+private struct CalendarEventRow: View {
+    let event: CalendarDayEvent
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: event.isAllDay ? "calendar" : "clock")
+                .font(.title3)
+                .foregroundStyle(AppTheme.primary)
+                .frame(width: 32)
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text(event.title)
+                    .font(.footnote)
+                    .foregroundStyle(.primary)
+                    .lineLimit(2)
+
+                HStack(spacing: 8) {
+                    Text(timeText)
+                    Text(event.calendarTitle)
+                }
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+        }
+        .padding(.vertical, 6)
+    }
+
+    private var timeText: String {
+        if event.isAllDay {
+            return "All day"
+        }
+
+        return "\(event.startDate.formatted(date: .omitted, time: .shortened)) - \(event.endDate.formatted(date: .omitted, time: .shortened))"
     }
 }
 
@@ -50,7 +142,7 @@ private struct TodayTaskRow: View {
             VStack(alignment: .leading, spacing: 5) {
                 HStack(spacing: 8) {
                     Text(task.title)
-                        .font(.callout)
+                        .font(.footnote)
                         .strikethrough(task.isDone)
                         .foregroundStyle(task.isDone ? .secondary : .primary)
 
@@ -67,7 +159,7 @@ private struct TodayTaskRow: View {
 
                     Text(task.bucket.title)
                 }
-                .font(.caption)
+                .font(.caption2)
                 .foregroundStyle(.secondary)
             }
 

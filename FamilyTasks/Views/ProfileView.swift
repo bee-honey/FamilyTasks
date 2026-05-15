@@ -3,9 +3,11 @@ import SwiftUI
 import UserNotifications
 
 struct ProfileView: View {
+    @EnvironmentObject private var calendarSync: CalendarSyncService
     @AppStorage("profile.email") private var email = ""
     @AppStorage("profile.initials") private var initials = ""
     @AppStorage("profile.imageData") private var imageData = Data()
+    @AppStorage("calendar.integration.enabled") private var calendarIntegrationEnabled = false
     @AppStorage("notifications.enabled") private var notificationsEnabled = false
     @AppStorage("notifications.todayDigest") private var todayDigestEnabled = true
     @AppStorage("notifications.dueSoon") private var dueSoonEnabled = true
@@ -60,6 +62,53 @@ struct ProfileView: View {
                         FamilyMembersView()
                     } label: {
                         Label("Family Members", systemImage: "person.2")
+                    }
+                }
+
+                Section("Calendar") {
+                    Toggle("Show Calendar Events Today", isOn: $calendarIntegrationEnabled)
+                        .onChange(of: calendarIntegrationEnabled) { _, enabled in
+                            Task {
+                                if enabled {
+                                    let connected = await calendarSync.requestFullAccessForReadingIfNeeded()
+                                    calendarIntegrationEnabled = connected
+                                    if connected {
+                                        await calendarSync.loadTodayEvents()
+                                    }
+                                } else {
+                                    calendarSync.clearTodayEvents()
+                                }
+                            }
+                        }
+
+                    HStack {
+                        Label("Status", systemImage: "calendar")
+                        Spacer()
+                        Text(calendarSync.authorizationStatus.displayTitle)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Button {
+                        Task {
+                            let connected = await calendarSync.requestFullAccessForReadingIfNeeded()
+                            calendarIntegrationEnabled = connected
+                            if connected {
+                                await calendarSync.loadTodayEvents()
+                            }
+                        }
+                    } label: {
+                        if calendarSync.isLoadingTodayEvents {
+                            ProgressView()
+                        } else {
+                            Label("Refresh Today's Events", systemImage: "arrow.clockwise")
+                        }
+                    }
+                    .disabled(!calendarIntegrationEnabled && calendarSync.authorizationStatus == .denied)
+
+                    if let message = calendarSync.lastErrorMessage, !message.isEmpty {
+                        Text(message)
+                            .font(.caption)
+                            .foregroundStyle(AppTheme.destructive)
                     }
                 }
 

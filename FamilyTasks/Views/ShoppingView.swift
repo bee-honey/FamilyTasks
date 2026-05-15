@@ -5,6 +5,7 @@ struct ShoppingView: View {
     @EnvironmentObject private var organizerStore: OrganizerStore
     @State private var newShopName = ""
     @State private var activeItemID: UUID?
+    @State private var activeShopID: UUID?
 
     var body: some View {
         NavigationStack {
@@ -13,7 +14,14 @@ struct ShoppingView: View {
                     addShopRow
 
                     ForEach(organizerStore.shops) { shop in
-                        ShopSectionView(shop: shop, draggedItemID: $activeItemID)
+                        ShopSectionView(
+                            shop: shop,
+                            draggedItemID: $activeItemID,
+                            draggedShopID: $activeShopID,
+                            onMoveShopBefore: { movingID, targetID in
+                                organizerStore.moveShop(id: movingID, before: targetID)
+                            }
+                        )
                     }
                 }
                 .padding(14)
@@ -51,7 +59,9 @@ private struct ShopSectionView: View {
     @EnvironmentObject private var organizerStore: OrganizerStore
     let shop: Shop
     @Binding var draggedItemID: UUID?
-    @State private var isExpanded = true
+    @Binding var draggedShopID: UUID?
+    let onMoveShopBefore: (UUID, UUID) -> Void
+    @State private var isExpanded = false
     @State private var newItemName = ""
     @State private var newUsualItemName = ""
 
@@ -82,6 +92,15 @@ private struct ShopSectionView: View {
                     }
 
                     Spacer()
+
+                    Image(systemName: "line.3.horizontal")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 4)
+                        .onDrag {
+                            draggedShopID = shop.id
+                            return NSItemProvider(object: "shop:\(shop.id.uuidString)" as NSString)
+                        }
 
                     ShareLink(item: shareText) {
                         Label("Share", systemImage: "square.and.arrow.up")
@@ -132,12 +151,17 @@ private struct ShopSectionView: View {
             provider.loadItem(forTypeIdentifier: UTType.text.identifier, options: nil) { item, _ in
                 let value = item as? Data
                 let string = value.flatMap { String(data: $0, encoding: .utf8) } ?? item as? String
-                guard let string, let id = UUID(uuidString: string) else { return }
+                guard let string else { return }
                 Task { @MainActor in
-                    if let movingItem = organizerStore.shoppingItems.first(where: { $0.id == id }) {
+                    if string.hasPrefix("shop:"),
+                       let movingID = UUID(uuidString: String(string.dropFirst(5))) {
+                        onMoveShopBefore(movingID, shop.id)
+                    } else if let id = UUID(uuidString: string),
+                              let movingItem = organizerStore.shoppingItems.first(where: { $0.id == id }) {
                         organizerStore.move(movingItem, to: shop)
                     }
                     draggedItemID = nil
+                    draggedShopID = nil
                 }
             }
             return true

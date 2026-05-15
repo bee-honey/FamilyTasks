@@ -47,6 +47,16 @@ final class OrganizerStore: ObservableObject {
         shops.append(Shop(name: trimmed))
     }
 
+    func moveShop(id movingID: UUID, before targetID: UUID) {
+        guard movingID != targetID,
+              let sourceIndex = shops.firstIndex(where: { $0.id == movingID }),
+              let targetIndex = shops.firstIndex(where: { $0.id == targetID }) else { return }
+
+        let movingShop = shops.remove(at: sourceIndex)
+        let adjustedTargetIndex = sourceIndex < targetIndex ? targetIndex - 1 : targetIndex
+        shops.insert(movingShop, at: adjustedTargetIndex)
+    }
+
     func addUsualItem(_ itemName: String, to shop: Shop) {
         let trimmed = itemName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, let index = shops.firstIndex(where: { $0.id == shop.id }) else { return }
