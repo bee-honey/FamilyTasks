@@ -34,6 +34,8 @@ struct RootTabView: View {
                 TaskBoardView()
             case .shopping:
                 ShoppingView()
+            case .mealPlan:
+                MealPlanView()
             case .recurring:
                 RecurringTasksView()
             case .profile:
@@ -48,13 +50,14 @@ private enum AppSection: String, CaseIterable, Identifiable {
     case today
     case matrix
     case shopping
+    case mealPlan
     case recurring
     case profile
 
     var id: String { rawValue }
 
     static var primarySections: [AppSection] {
-        [.today, .matrix, .shopping, .recurring]
+        [.today, .matrix, .shopping, .mealPlan, .recurring]
     }
 
     var title: String {
@@ -62,6 +65,7 @@ private enum AppSection: String, CaseIterable, Identifiable {
         case .today: "Today"
         case .matrix: "Task Matrix"
         case .shopping: "Shopping"
+        case .mealPlan: "Meal Plan"
         case .recurring: "Recurring"
         case .profile: "Profile"
         }
@@ -72,6 +76,7 @@ private enum AppSection: String, CaseIterable, Identifiable {
         case .today: "sun.max"
         case .matrix: "square.grid.2x2"
         case .shopping: "cart"
+        case .mealPlan: "fork.knife"
         case .recurring: "repeat"
         case .profile: "person.crop.circle"
         }

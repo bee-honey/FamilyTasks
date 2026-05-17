@@ -14,15 +14,26 @@ final class OrganizerStore: ObservableObject {
         didSet { saveRecurringTasks() }
     }
 
+    @Published private(set) var mealIdeas: [MealIdea] = [] {
+        didSet { saveMealPlan() }
+    }
+
+    @Published private(set) var plannedMeals: [PlannedMeal] = [] {
+        didSet { saveMealPlan() }
+    }
+
     private let shoppingURL: URL
     private let recurringTasksURL: URL
+    private let mealPlanURL: URL
 
     init(directory: URL? = nil) {
         let documents = directory ?? FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
         shoppingURL = documents.appendingPathComponent("family-shopping.json")
         recurringTasksURL = documents.appendingPathComponent("family-recurring-tasks.json")
+        mealPlanURL = documents.appendingPathComponent("family-meal-plan.json")
         loadShopping()
         loadRecurringTasks()
+        loadMealPlan()
         seedDefaultsIfNeeded()
     }
 
@@ -107,6 +118,60 @@ final class OrganizerStore: ObservableObject {
         shoppingItems.removeAll { $0.shopID == shop.id && $0.isPurchased }
     }
 
+    func addMealIdea(name: String, ingredients: [MealIngredient], notes: String) {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else { return }
+        let cleanedIngredients = cleanedIngredients(ingredients)
+        let cleanedNotes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
+        mealIdeas.append(MealIdea(name: trimmedName, ingredients: cleanedIngredients, notes: cleanedNotes))
+        mealIdeas.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
+    func updateMealIdea(_ meal: MealIdea, name: String, ingredients: [MealIngredient], notes: String) {
+        guard let index = mealIdeas.firstIndex(where: { $0.id == meal.id }) else { return }
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else { return }
+        mealIdeas[index].name = trimmedName
+        mealIdeas[index].ingredients = cleanedIngredients(ingredients)
+        mealIdeas[index].notes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
+        mealIdeas[index].updatedAt = Date()
+        mealIdeas.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
+    func deleteMealIdea(_ meal: MealIdea) {
+        mealIdeas.removeAll { $0.id == meal.id }
+        plannedMeals.removeAll { $0.mealID == meal.id }
+    }
+
+    func planMeal(_ meal: MealIdea, on date: Date, slot: MealSlot, ingredientShopOverrides: [UUID: UUID], addIngredientsToShopping: Bool) {
+        plannedMeals.append(PlannedMeal(mealID: meal.id, date: date, slot: slot, ingredientShopOverrides: ingredientShopOverrides))
+        plannedMeals.sort { $0.date < $1.date }
+
+        if addIngredientsToShopping {
+            addMealIngredientsToShopping(meal, overrides: ingredientShopOverrides)
+        }
+    }
+
+    func deletePlannedMeal(_ plannedMeal: PlannedMeal) {
+        plannedMeals.removeAll { $0.id == plannedMeal.id }
+    }
+
+    func mealIdea(for plannedMeal: PlannedMeal) -> MealIdea? {
+        mealIdeas.first { $0.id == plannedMeal.mealID }
+    }
+
+    func addMealIngredientsToShopping(_ meal: MealIdea, shop: Shop) {
+        meal.ingredients.forEach { addNeededItem($0.name, to: shop) }
+    }
+
+    func addMealIngredientsToShopping(_ meal: MealIdea, overrides: [UUID: UUID]) {
+        for ingredient in meal.ingredients {
+            guard let shopID = overrides[ingredient.id] ?? ingredient.defaultShopID,
+                  let shop = shops.first(where: { $0.id == shopID }) else { continue }
+            addNeededItem(ingredient.name, to: shop)
+        }
+    }
+
     func addRecurringTask(_ draft: RecurringTaskDraft) {
         let title = draft.title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty else { return }
@@ -184,11 +249,37 @@ final class OrganizerStore: ObservableObject {
         guard let data = try? JSONEncoder().encode(recurringTasks) else { return }
         try? data.write(to: recurringTasksURL, options: [.atomic])
     }
+
+    private func loadMealPlan() {
+        guard let data = try? Data(contentsOf: mealPlanURL) else { return }
+        guard let payload = try? JSONDecoder().decode(MealPlanPayload.self, from: data) else { return }
+        mealIdeas = payload.mealIdeas
+        plannedMeals = payload.plannedMeals
+    }
+
+    private func saveMealPlan() {
+        let payload = MealPlanPayload(mealIdeas: mealIdeas, plannedMeals: plannedMeals)
+        guard let data = try? JSONEncoder().encode(payload) else { return }
+        try? data.write(to: mealPlanURL, options: [.atomic])
+    }
+
+    private func cleanedIngredients(_ values: [MealIngredient]) -> [MealIngredient] {
+        values.compactMap { ingredient in
+            let trimmed = ingredient.name.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { return nil }
+            return MealIngredient(id: ingredient.id, name: trimmed, defaultShopID: ingredient.defaultShopID)
+        }
+    }
 }
 
 private struct ShoppingPayload: Codable {
     var shops: [Shop]
     var items: [ShoppingItem]
+}
+
+private struct MealPlanPayload: Codable {
+    var mealIdeas: [MealIdea]
+    var plannedMeals: [PlannedMeal]
 }
 
 struct RecurringTaskDraft {
