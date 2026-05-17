@@ -6,89 +6,70 @@ struct TodayTasksView: View {
     @AppStorage("calendar.integration.enabled") private var calendarIntegrationEnabled = false
     @AppStorage("schedule.showTaskTime") private var showTaskTime = false
     @AppStorage("schedule.showTaskBucket") private var showTaskBucket = false
+    @AppStorage("schedule.defaultDisplayMode") private var defaultDisplayModeRaw = ScheduleDisplayMode.week.rawValue
     @State private var editingTask: FamilyTask?
     @State private var selectedDate = Date()
     @State private var isChoosingDate = false
-    @State private var displayMode: ScheduleDisplayMode = .list
+    @State private var displayMode: ScheduleDisplayMode = .week
 
     private let calendar = Calendar.current
 
     var body: some View {
         NavigationStack {
-            List {
-                let selectedTasks = taskStore.tasksScheduled(on: selectedDate)
-                let pendingTasks = pendingTasksForCurrentView
-                let calendarEvents = calendarSync.dayEvents
+            VStack(spacing: 0) {
+                scheduleControls
+                    .padding(.horizontal, 16)
+                    .padding(.top, 4)
+                    .padding(.bottom, 2)
 
-                Section {
-                    scheduleControls
-                }
-                .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 6, trailing: 16))
-                .listRowBackground(Color.clear)
+                List {
+                    let selectedTasks = taskStore.tasksScheduled(on: selectedDate)
+                    let pendingTasks = pendingTasksForCurrentView
+                    let calendarEvents = calendarSync.dayEvents
 
-                switch displayMode {
-                case .month:
-                    Section {
-                        MonthGridView(selectedDate: $selectedDate) { day in
-                            taskStore.tasksScheduled(on: day)
+                    switch displayMode {
+                    case .today:
+                        dayContent(selectedTasks: selectedTasks, calendarEvents: calendarEvents, pendingTasks: pendingTasks)
+
+                    case .week:
+                        Section {
+                            WeekStripView(selectedDate: $selectedDate) { day in
+                                taskStore.tasksScheduled(on: day)
+                            }
                         }
-                    }
-                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-                    .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 2, trailing: 16))
+                        .listRowBackground(Color.clear)
 
-                    dayContent(selectedTasks: selectedTasks, calendarEvents: calendarEvents, pendingTasks: pendingTasks)
+                        dayContent(selectedTasks: selectedTasks, calendarEvents: calendarEvents, pendingTasks: pendingTasks)
 
-                case .week:
-                    Section {
-                        WeekStripView(selectedDate: $selectedDate) { day in
-                            taskStore.tasksScheduled(on: day)
+                    case .month:
+                        Section {
+                            MonthGridView(selectedDate: $selectedDate) { day in
+                                taskStore.tasksScheduled(on: day)
+                            }
                         }
+                        .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 2, trailing: 16))
+                        .listRowBackground(Color.clear)
+
+                        dayContent(selectedTasks: selectedTasks, calendarEvents: calendarEvents, pendingTasks: pendingTasks)
                     }
-                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-                    .listRowBackground(Color.clear)
 
-                    dayContent(selectedTasks: selectedTasks, calendarEvents: calendarEvents, pendingTasks: pendingTasks)
-
-                case .list:
-                    let datedSections = monthTaskSections
-
-                    if datedSections.isEmpty && pendingTasks.isEmpty {
-                        ContentUnavailableView("Nothing Scheduled", systemImage: "calendar.badge.checkmark")
+                    if let message = calendarSync.lastErrorMessage, !message.isEmpty {
+                        Text(message)
+                            .font(.caption)
+                            .foregroundStyle(AppTheme.destructive)
                             .listRowBackground(Color.clear)
                     }
-
-                    ForEach(datedSections, id: \.date) { section in
-                        Section {
-                            ForEach(section.tasks) { task in
-                                taskRow(task)
-                            }
-                        } header: {
-                            ScheduleDateHeader(date: section.date)
-                        }
-                    }
-
-                    if !pendingTasks.isEmpty {
-                        Section("Pending") {
-                            ForEach(pendingTasks) { task in
-                                taskRow(task)
-                            }
-                        }
-                    }
                 }
-
-                if let message = calendarSync.lastErrorMessage, !message.isEmpty {
-                    Text(message)
-                        .font(.caption)
-                        .foregroundStyle(AppTheme.destructive)
-                        .listRowBackground(Color.clear)
+                .listStyle(.insetGrouped)
+                .listSectionSpacing(.compact)
+                .contentMargins(.top, 0, for: .scrollContent)
+                .refreshable {
+                    guard calendarIntegrationEnabled else { return }
+                    await calendarSync.loadEvents(on: selectedDate)
                 }
+                .scrollContentBackground(.hidden)
             }
-            .listStyle(.insetGrouped)
-            .refreshable {
-                guard calendarIntegrationEnabled else { return }
-                await calendarSync.loadEvents(on: selectedDate)
-            }
-            .scrollContentBackground(.hidden)
             .background(AppTheme.background)
             .navigationTitle("Schedule")
             .navigationBarTitleDisplayMode(.inline)
@@ -103,6 +84,8 @@ struct TodayTasksView: View {
                 }
             }
             .task {
+                displayMode = ScheduleDisplayMode(rawValue: defaultDisplayModeRaw) ?? .week
+
                 if calendarIntegrationEnabled {
                     await calendarSync.loadEvents(on: selectedDate)
                 } else {
@@ -136,6 +119,9 @@ struct TodayTasksView: View {
                 }
                 .presentationDetents([.height(430), .large])
             }
+            .onChange(of: defaultDisplayModeRaw) { _, rawValue in
+                displayMode = ScheduleDisplayMode(rawValue: rawValue) ?? .week
+            }
         }
     }
 
@@ -149,12 +135,44 @@ struct TodayTasksView: View {
             .pickerStyle(.segmented)
 
             switch displayMode {
-            case .month, .list:
+            case .month:
                 monthNavigator
+            case .today:
+                dayNavigator
             case .week:
                 weekNavigator
             }
         }
+    }
+
+    private var dayNavigator: some View {
+        HStack {
+            Button {
+                selectedDate = calendar.date(byAdding: .day, value: -1, to: selectedDate) ?? selectedDate
+            } label: {
+                Image(systemName: "chevron.left")
+                    .frame(width: 30, height: 30)
+            }
+            .buttonStyle(.plain)
+
+            Spacer()
+
+            Text(selectedDate.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day().year()))
+                .font(.headline)
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
+
+            Spacer()
+
+            Button {
+                selectedDate = calendar.date(byAdding: .day, value: 1, to: selectedDate) ?? selectedDate
+            } label: {
+                Image(systemName: "chevron.right")
+                    .frame(width: 30, height: 30)
+            }
+            .buttonStyle(.plain)
+        }
+        .foregroundStyle(AppTheme.primary)
     }
 
     private var monthNavigator: some View {
@@ -261,8 +279,6 @@ struct TodayTasksView: View {
 
     private var pendingTasksForCurrentView: [FamilyTask] {
         let pending = taskStore.pendingTasks(before: Date())
-        guard displayMode != .list else { return pending }
-
         let today = calendar.startOfDay(for: Date())
         let selectedDay = calendar.startOfDay(for: selectedDate)
         return selectedDay >= today ? pending : []
@@ -326,17 +342,17 @@ struct TodayTasksView: View {
 }
 
 private enum ScheduleDisplayMode: String, CaseIterable, Identifiable {
-    case month
+    case today
     case week
-    case list
+    case month
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
-        case .month: "Month"
+        case .today: "Today"
         case .week: "Week"
-        case .list: "List"
+        case .month: "Month"
         }
     }
 }

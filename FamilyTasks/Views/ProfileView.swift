@@ -10,6 +10,7 @@ struct ProfileView: View {
     @AppStorage("calendar.integration.enabled") private var calendarIntegrationEnabled = false
     @AppStorage("schedule.showTaskTime") private var showTaskTime = false
     @AppStorage("schedule.showTaskBucket") private var showTaskBucket = false
+    @AppStorage("schedule.defaultDisplayMode") private var defaultScheduleView = "week"
     @AppStorage("notifications.enabled") private var notificationsEnabled = false
     @AppStorage("notifications.todayDigest") private var todayDigestEnabled = true
     @AppStorage("notifications.dueSoon") private var dueSoonEnabled = true
@@ -115,6 +116,12 @@ struct ProfileView: View {
                 }
 
                 Section("Schedule") {
+                    Picker("Default View", selection: $defaultScheduleView) {
+                        Text("Today").tag("today")
+                        Text("Week").tag("week")
+                        Text("Month").tag("month")
+                    }
+
                     Toggle("Show Time On Tasks", isOn: $showTaskTime)
                     Toggle("Show Bucket On Tasks", isOn: $showTaskBucket)
                 }
