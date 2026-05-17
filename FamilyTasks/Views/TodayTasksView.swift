@@ -2,6 +2,7 @@ import SwiftUI
 
 struct TodayTasksView: View {
     @EnvironmentObject private var taskStore: TaskStore
+    @EnvironmentObject private var organizerStore: OrganizerStore
     @EnvironmentObject private var calendarSync: CalendarSyncService
     @AppStorage("calendar.integration.enabled") private var calendarIntegrationEnabled = false
     @AppStorage("schedule.showTaskTime") private var showTaskTime = false
@@ -9,7 +10,6 @@ struct TodayTasksView: View {
     @AppStorage("schedule.defaultDisplayMode") private var defaultDisplayModeRaw = ScheduleDisplayMode.week.rawValue
     @State private var editingTask: FamilyTask?
     @State private var selectedDate = Date()
-    @State private var isChoosingDate = false
     @State private var displayMode: ScheduleDisplayMode = .week
 
     private let calendar = Calendar.current
@@ -24,34 +24,39 @@ struct TodayTasksView: View {
 
                 List {
                     let selectedTasks = taskStore.tasksScheduled(on: selectedDate)
+                    let recurringTasks = organizerStore.recurringTasks(on: selectedDate)
                     let pendingTasks = pendingTasksForCurrentView
                     let calendarEvents = calendarSync.dayEvents
 
                     switch displayMode {
                     case .today:
-                        dayContent(selectedTasks: selectedTasks, calendarEvents: calendarEvents, pendingTasks: pendingTasks)
+                        dayContent(selectedTasks: selectedTasks, recurringTasks: recurringTasks, calendarEvents: calendarEvents, pendingTasks: pendingTasks)
 
                     case .week:
                         Section {
                             WeekStripView(selectedDate: $selectedDate) { day in
                                 taskStore.tasksScheduled(on: day)
+                            } recurringForDay: { day in
+                                organizerStore.recurringTasks(on: day)
                             }
                         }
                         .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 2, trailing: 16))
                         .listRowBackground(Color.clear)
 
-                        dayContent(selectedTasks: selectedTasks, calendarEvents: calendarEvents, pendingTasks: pendingTasks)
+                        dayContent(selectedTasks: selectedTasks, recurringTasks: recurringTasks, calendarEvents: calendarEvents, pendingTasks: pendingTasks)
 
                     case .month:
                         Section {
                             MonthGridView(selectedDate: $selectedDate) { day in
                                 taskStore.tasksScheduled(on: day)
+                            } recurringForDay: { day in
+                                organizerStore.recurringTasks(on: day)
                             }
                         }
                         .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 2, trailing: 16))
                         .listRowBackground(Color.clear)
 
-                        dayContent(selectedTasks: selectedTasks, calendarEvents: calendarEvents, pendingTasks: pendingTasks)
+                        dayContent(selectedTasks: selectedTasks, recurringTasks: recurringTasks, calendarEvents: calendarEvents, pendingTasks: pendingTasks)
                     }
 
                     if let message = calendarSync.lastErrorMessage, !message.isEmpty {
@@ -73,16 +78,6 @@ struct TodayTasksView: View {
             .background(AppTheme.background)
             .navigationTitle("Schedule")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        isChoosingDate = true
-                    } label: {
-                        Image(systemName: "calendar")
-                    }
-                    .accessibilityLabel("Choose date")
-                }
-            }
             .task {
                 displayMode = ScheduleDisplayMode(rawValue: defaultDisplayModeRaw) ?? .week
 
@@ -112,12 +107,6 @@ struct TodayTasksView: View {
             }
             .sheet(item: $editingTask) { task in
                 EditTaskView(task: task)
-            }
-            .sheet(isPresented: $isChoosingDate) {
-                ScheduleDatePickerView(selectedDate: $selectedDate) { day in
-                    !taskStore.tasksScheduled(on: day).isEmpty
-                }
-                .presentationDetents([.height(430), .large])
             }
             .onChange(of: defaultDisplayModeRaw) { _, rawValue in
                 displayMode = ScheduleDisplayMode(rawValue: rawValue) ?? .week
@@ -285,8 +274,8 @@ struct TodayTasksView: View {
     }
 
     @ViewBuilder
-    private func dayContent(selectedTasks: [FamilyTask], calendarEvents: [CalendarDayEvent], pendingTasks: [FamilyTask]) -> some View {
-        if selectedTasks.isEmpty && calendarEvents.isEmpty && pendingTasks.isEmpty {
+    private func dayContent(selectedTasks: [FamilyTask], recurringTasks: [RecurringTask], calendarEvents: [CalendarDayEvent], pendingTasks: [FamilyTask]) -> some View {
+        if selectedTasks.isEmpty && recurringTasks.isEmpty && calendarEvents.isEmpty && pendingTasks.isEmpty {
             ContentUnavailableView("Nothing Scheduled", systemImage: "calendar.badge.checkmark")
                 .listRowBackground(Color.clear)
         }
@@ -298,6 +287,23 @@ struct TodayTasksView: View {
                 }
             } header: {
                 ScheduleDateHeader(date: selectedDate)
+            }
+        }
+
+        if !recurringTasks.isEmpty {
+            Section("Recurring") {
+                ForEach(recurringTasks) { task in
+                    RecurringScheduleRow(task: task) {
+                        organizerStore.markRecurringDone(task)
+                    }
+                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        Button(role: .destructive) {
+                            organizerStore.deleteRecurringTask(task)
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    }
+                }
             }
         }
 
@@ -377,6 +383,7 @@ private struct ScheduleDateHeader: View {
 private struct WeekStripView: View {
     @Binding var selectedDate: Date
     let tasksForDay: (Date) -> [FamilyTask]
+    let recurringForDay: (Date) -> [RecurringTask]
 
     private let calendar = Calendar.current
 
@@ -408,6 +415,7 @@ private struct WeekStripView: View {
     private func dayButton(_ day: Date) -> some View {
         let isSelected = calendar.isDate(day, inSameDayAs: selectedDate)
         let tasks = tasksForDay(day)
+        let recurringTasks = recurringForDay(day)
 
         return Button {
             selectedDate = day
@@ -423,7 +431,7 @@ private struct WeekStripView: View {
                     .frame(width: 36, height: 36)
                     .background(isSelected ? AppTheme.primary : Color.clear, in: RoundedRectangle(cornerRadius: 9))
 
-                TaskDots(tasks: tasks)
+                ScheduleDots(tasks: tasks, recurringTasks: recurringTasks)
                     .frame(height: 6)
             }
             .frame(maxWidth: .infinity)
@@ -435,6 +443,7 @@ private struct WeekStripView: View {
 private struct MonthGridView: View {
     @Binding var selectedDate: Date
     let tasksForDay: (Date) -> [FamilyTask]
+    let recurringForDay: (Date) -> [RecurringTask]
 
     private let calendar = Calendar.current
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 0), count: 7)
@@ -488,6 +497,7 @@ private struct MonthGridView: View {
         let isSelected = calendar.isDate(day, inSameDayAs: selectedDate)
         let isToday = calendar.isDateInToday(day)
         let tasks = tasksForDay(day)
+        let recurringTasks = recurringForDay(day)
 
         return Button {
             selectedDate = day
@@ -505,7 +515,7 @@ private struct MonthGridView: View {
                         }
                     }
 
-                TaskDots(tasks: tasks)
+                ScheduleDots(tasks: tasks, recurringTasks: recurringTasks)
                     .frame(height: 6)
             }
             .frame(maxWidth: .infinity, minHeight: 58)
@@ -514,151 +524,26 @@ private struct MonthGridView: View {
     }
 }
 
-private struct TaskDots: View {
+private struct ScheduleDots: View {
     let tasks: [FamilyTask]
+    let recurringTasks: [RecurringTask]
 
     var body: some View {
         HStack(spacing: 3) {
-            ForEach(Array(tasks.prefix(3).enumerated()), id: \.element.id) { _, task in
+            let colors = dotColors
+            ForEach(Array(colors.enumerated()), id: \.offset) { _, color in
                 Circle()
-                    .fill(task.bucket.scheduleColor)
+                    .fill(color)
                     .frame(width: 5, height: 5)
             }
         }
     }
-}
 
-private struct ScheduleDatePickerView: View {
-    @Environment(\.dismiss) private var dismiss
-    @Binding var selectedDate: Date
-    @State private var visibleMonth: Date
-
-    let hasTasks: (Date) -> Bool
-    private let calendar = Calendar.current
-
-    init(selectedDate: Binding<Date>, hasTasks: @escaping (Date) -> Bool) {
-        _selectedDate = selectedDate
-        _visibleMonth = State(initialValue: Calendar.current.dateInterval(of: .month, for: selectedDate.wrappedValue)?.start ?? selectedDate.wrappedValue)
-        self.hasTasks = hasTasks
-    }
-
-    var body: some View {
-        NavigationStack {
-            VStack(spacing: 18) {
-                monthHeader
-
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 7), spacing: 10) {
-                    ForEach(weekdaySymbols, id: \.self) { symbol in
-                        Text(symbol)
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity)
-                    }
-
-                    ForEach(Array(monthDays.enumerated()), id: \.offset) { _, day in
-                        if let day {
-                            dayButton(day)
-                        } else {
-                            Color.clear
-                                .frame(height: 38)
-                        }
-                    }
-                }
-
-                Spacer(minLength: 0)
-            }
-            .padding(20)
-            .background(AppTheme.background)
-            .navigationTitle("Choose Date")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") {
-                        dismiss()
-                    }
-                }
-            }
-        }
-    }
-
-    private var monthHeader: some View {
-        HStack {
-            Button {
-                visibleMonth = calendar.date(byAdding: .month, value: -1, to: visibleMonth) ?? visibleMonth
-            } label: {
-                Image(systemName: "chevron.left")
-                    .frame(width: 34, height: 34)
-            }
-            .buttonStyle(.plain)
-
-            Spacer()
-
-            Text(visibleMonth.formatted(.dateTime.month(.wide).year()))
-                .font(.headline)
-
-            Spacer()
-
-            Button {
-                visibleMonth = calendar.date(byAdding: .month, value: 1, to: visibleMonth) ?? visibleMonth
-            } label: {
-                Image(systemName: "chevron.right")
-                    .frame(width: 34, height: 34)
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.horizontal, 4)
-    }
-
-    private var weekdaySymbols: [String] {
-        let symbols = calendar.veryShortWeekdaySymbols
-        let firstIndex = calendar.firstWeekday - 1
-        return Array(symbols[firstIndex...]) + Array(symbols[..<firstIndex])
-    }
-
-    private var monthDays: [Date?] {
-        guard
-            let interval = calendar.dateInterval(of: .month, for: visibleMonth),
-            let dayRange = calendar.range(of: .day, in: .month, for: visibleMonth)
-        else {
-            return []
-        }
-
-        let firstWeekday = calendar.component(.weekday, from: interval.start)
-        let leadingBlanks = (firstWeekday - calendar.firstWeekday + 7) % 7
-        let days = dayRange.compactMap { day in
-            calendar.date(byAdding: .day, value: day - 1, to: interval.start)
-        }
-
-        return Array(repeating: nil, count: leadingBlanks) + days
-    }
-
-    private func dayButton(_ day: Date) -> some View {
-        let isSelected = calendar.isDate(day, inSameDayAs: selectedDate)
-        let isToday = calendar.isDateInToday(day)
-
-        return Button {
-            selectedDate = day
-            dismiss()
-        } label: {
-            VStack(spacing: 4) {
-                Text(day.formatted(.dateTime.day()))
-                    .font(.callout.weight(isSelected ? .semibold : .regular))
-                    .foregroundStyle(isSelected ? .white : .primary)
-
-                Circle()
-                    .fill(hasTasks(day) ? (isSelected ? Color.white : AppTheme.primary) : .clear)
-                    .frame(width: 5, height: 5)
-            }
-            .frame(maxWidth: .infinity, minHeight: 38)
-            .background(isSelected ? AppTheme.primary : Color.clear, in: RoundedRectangle(cornerRadius: 10))
-            .overlay {
-                if isToday && !isSelected {
-                    RoundedRectangle(cornerRadius: 10)
-                        .stroke(AppTheme.primary.opacity(0.35), lineWidth: 1)
-                }
-            }
-        }
-        .buttonStyle(.plain)
+    private var dotColors: [Color] {
+        var colors = tasks.prefix(3).map { $0.bucket.scheduleColor }
+        let remaining = max(0, 3 - colors.count)
+        colors.append(contentsOf: recurringTasks.prefix(remaining).map { _ in AppTheme.primary })
+        return colors
     }
 }
 
@@ -697,6 +582,57 @@ private struct CalendarEventRow: View {
         }
 
         return "\(event.startDate.formatted(date: .omitted, time: .shortened)) - \(event.endDate.formatted(date: .omitted, time: .shortened))"
+    }
+}
+
+private struct RecurringScheduleRow: View {
+    let task: RecurringTask
+    let onDone: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            AssigneeAvatarView(name: task.assignedTo)
+
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(spacing: 8) {
+                    Text(task.title)
+                        .font(.footnote)
+                        .lineLimit(2)
+
+                    Image(systemName: "repeat")
+                        .font(.caption)
+                        .foregroundStyle(AppTheme.primary)
+
+                    if !task.amount.isEmpty {
+                        Text(task.amount)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Text(task.frequency.title)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+
+                if !task.notes.isEmpty {
+                    Text(task.notes)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+            }
+
+            Spacer()
+
+            Button(action: onDone) {
+                Image(systemName: "circle")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Mark recurring task done")
+        }
+        .padding(.vertical, 6)
     }
 }
 

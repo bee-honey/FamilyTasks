@@ -187,6 +187,21 @@ final class OrganizerStore: ObservableObject {
         )
     }
 
+    func recurringTasks(on date: Date, calendar: Calendar = .current) -> [RecurringTask] {
+        recurringTasks
+            .filter { task in
+                guard task.isActive else { return false }
+                guard let occurrence = occurrence(for: task, on: date, calendar: calendar) else { return false }
+                return calendar.isDate(occurrence, inSameDayAs: date)
+            }
+            .sorted { lhs, rhs in
+                if lhs.nextDueDate != rhs.nextDueDate {
+                    return lhs.nextDueDate < rhs.nextDueDate
+                }
+                return lhs.title.localizedCaseInsensitiveCompare(rhs.title) == .orderedAscending
+            }
+    }
+
     func toggleRecurringActive(_ task: RecurringTask) {
         guard let index = recurringTasks.firstIndex(where: { $0.id == task.id }) else { return }
         recurringTasks[index].isActive.toggle()
@@ -269,6 +284,24 @@ final class OrganizerStore: ObservableObject {
             guard !trimmed.isEmpty else { return nil }
             return MealIngredient(id: ingredient.id, name: trimmed, defaultShopID: ingredient.defaultShopID)
         }
+    }
+
+    private func occurrence(for task: RecurringTask, on date: Date, calendar: Calendar) -> Date? {
+        let dayStart = calendar.startOfDay(for: date)
+        let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart) ?? dayStart.addingTimeInterval(86_400)
+        var occurrence = task.nextDueDate
+
+        guard occurrence < dayEnd else { return nil }
+
+        var safetyLimit = 1_000
+        while occurrence < dayStart && safetyLimit > 0 {
+            let next = task.frequency.nextDate(after: occurrence, calendar: calendar)
+            guard next > occurrence else { return nil }
+            occurrence = next
+            safetyLimit -= 1
+        }
+
+        return occurrence
     }
 }
 
