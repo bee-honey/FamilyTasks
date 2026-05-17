@@ -62,7 +62,7 @@ private enum AppSection: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .today: "Today"
+        case .today: "Schedule"
         case .matrix: "Task Matrix"
         case .shopping: "Shopping"
         case .mealPlan: "Meal Plan"
@@ -73,7 +73,7 @@ private enum AppSection: String, CaseIterable, Identifiable {
 
     var systemImage: String {
         switch self {
-        case .today: "sun.max"
+        case .today: "calendar"
         case .matrix: "square.grid.2x2"
         case .shopping: "cart"
         case .mealPlan: "fork.knife"

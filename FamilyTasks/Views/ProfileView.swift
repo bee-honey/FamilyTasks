@@ -8,6 +8,8 @@ struct ProfileView: View {
     @AppStorage("profile.initials") private var initials = ""
     @AppStorage("profile.imageData") private var imageData = Data()
     @AppStorage("calendar.integration.enabled") private var calendarIntegrationEnabled = false
+    @AppStorage("schedule.showTaskTime") private var showTaskTime = false
+    @AppStorage("schedule.showTaskBucket") private var showTaskBucket = false
     @AppStorage("notifications.enabled") private var notificationsEnabled = false
     @AppStorage("notifications.todayDigest") private var todayDigestEnabled = true
     @AppStorage("notifications.dueSoon") private var dueSoonEnabled = true
@@ -66,7 +68,7 @@ struct ProfileView: View {
                 }
 
                 Section("Calendar") {
-                    Toggle("Show Calendar Events Today", isOn: $calendarIntegrationEnabled)
+                    Toggle("Show Calendar Events in Schedule", isOn: $calendarIntegrationEnabled)
                         .onChange(of: calendarIntegrationEnabled) { _, enabled in
                             Task {
                                 if enabled {
@@ -100,7 +102,7 @@ struct ProfileView: View {
                         if calendarSync.isLoadingTodayEvents {
                             ProgressView()
                         } else {
-                            Label("Refresh Today's Events", systemImage: "arrow.clockwise")
+                            Label("Refresh Calendar Events", systemImage: "arrow.clockwise")
                         }
                     }
                     .disabled(!calendarIntegrationEnabled && calendarSync.authorizationStatus == .denied)
@@ -110,6 +112,11 @@ struct ProfileView: View {
                             .font(.caption)
                             .foregroundStyle(AppTheme.destructive)
                     }
+                }
+
+                Section("Schedule") {
+                    Toggle("Show Time On Tasks", isOn: $showTaskTime)
+                    Toggle("Show Bucket On Tasks", isOn: $showTaskBucket)
                 }
 
                 Section("Notifications") {
