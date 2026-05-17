@@ -406,6 +406,7 @@ private struct PlanMealView: View {
     @State private var addIngredientsToShopping = true
     @State private var useOneShop = true
     @State private var selectedShopID: UUID?
+    @State private var selectedIngredientIDs: Set<UUID> = []
     @State private var ingredientShopIDs: [UUID: UUID] = [:]
 
     init(meal: MealIdea, initialDate: Date) {
@@ -440,12 +441,23 @@ private struct PlanMealView: View {
                                     Text(shop.name).tag(Optional(shop.id))
                                 }
                             }
+
+                            ForEach(meal.ingredients) { ingredient in
+                                Toggle(ingredient.name, isOn: ingredientSelectionBinding(for: ingredient))
+                            }
                         } else {
                             ForEach(meal.ingredients) { ingredient in
-                                Picker(ingredient.name, selection: ingredientShopBinding(for: ingredient)) {
-                                    Text("Skip").tag(Optional<UUID>.none)
-                                    ForEach(organizerStore.shops) { shop in
-                                        Text(shop.name).tag(Optional(shop.id))
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Toggle(ingredient.name, isOn: ingredientSelectionBinding(for: ingredient))
+
+                                    if selectedIngredientIDs.contains(ingredient.id) {
+                                        Picker("Shop", selection: ingredientShopBinding(for: ingredient)) {
+                                            Text("Choose shop").tag(Optional<UUID>.none)
+                                            ForEach(organizerStore.shops) { shop in
+                                                Text(shop.name).tag(Optional(shop.id))
+                                            }
+                                        }
+                                        .font(.caption)
                                     }
                                 }
                             }
@@ -458,6 +470,7 @@ private struct PlanMealView: View {
             .onAppear {
                 selectedShopID = selectedShopID ?? firstDefaultShopID
                 for ingredient in meal.ingredients {
+                    selectedIngredientIDs.insert(ingredient.id)
                     ingredientShopIDs[ingredient.id] = ingredient.defaultShopID
                 }
             }
@@ -477,7 +490,7 @@ private struct PlanMealView: View {
                         )
                         dismiss()
                     }
-                    .disabled(addIngredientsToShopping && groceryAssignments.isEmpty && !meal.ingredients.isEmpty)
+                    .disabled(addIngredientsToShopping && !meal.ingredients.isEmpty && groceryAssignments.isEmpty)
                 }
             }
         }
@@ -494,12 +507,31 @@ private struct PlanMealView: View {
 
         if useOneShop {
             guard let selectedShopID else { return [:] }
-            return Dictionary(uniqueKeysWithValues: meal.ingredients.map { ($0.id, selectedShopID) })
+            return Dictionary(uniqueKeysWithValues: meal.ingredients
+                .filter { selectedIngredientIDs.contains($0.id) }
+                .map { ($0.id, selectedShopID) })
         }
 
         return ingredientShopIDs.filter { _, shopID in
             organizerStore.shops.contains { $0.id == shopID }
         }
+        .filter { ingredientID, _ in
+            selectedIngredientIDs.contains(ingredientID)
+        }
+    }
+
+    private func ingredientSelectionBinding(for ingredient: MealIngredient) -> Binding<Bool> {
+        Binding(
+            get: { selectedIngredientIDs.contains(ingredient.id) },
+            set: { isSelected in
+                if isSelected {
+                    selectedIngredientIDs.insert(ingredient.id)
+                    ingredientShopIDs[ingredient.id] = ingredientShopIDs[ingredient.id] ?? ingredient.defaultShopID ?? selectedShopID ?? organizerStore.shops.first?.id
+                } else {
+                    selectedIngredientIDs.remove(ingredient.id)
+                }
+            }
+        )
     }
 
     private func ingredientShopBinding(for ingredient: MealIngredient) -> Binding<UUID?> {
