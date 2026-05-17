@@ -9,52 +9,69 @@ struct TodayTasksView: View {
     @State private var editingTask: FamilyTask?
     @State private var selectedDate = Date()
     @State private var isChoosingDate = false
+    @State private var displayMode: ScheduleDisplayMode = .list
+
+    private let calendar = Calendar.current
 
     var body: some View {
         NavigationStack {
             List {
                 let selectedTasks = taskStore.tasksScheduled(on: selectedDate)
-                let pendingTasks = taskStore.pendingTasks(before: selectedDate)
+                let pendingTasks = pendingTasksForCurrentView
                 let calendarEvents = calendarSync.dayEvents
 
                 Section {
-                    dateNavigator
+                    scheduleControls
                 }
-                .listRowInsets(EdgeInsets(top: 8, leading: 14, bottom: 8, trailing: 14))
+                .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 6, trailing: 16))
                 .listRowBackground(Color.clear)
 
-                if selectedTasks.isEmpty && calendarEvents.isEmpty && pendingTasks.isEmpty {
-                    ContentUnavailableView("Nothing Scheduled", systemImage: "calendar.badge.checkmark")
-                        .listRowBackground(Color.clear)
-                }
-
-                if !selectedTasks.isEmpty {
-                    Section("Tasks") {
-                        ForEach(selectedTasks) { task in
-                            taskRow(task)
+                switch displayMode {
+                case .month:
+                    Section {
+                        MonthGridView(selectedDate: $selectedDate) { day in
+                            taskStore.tasksScheduled(on: day)
                         }
                     }
-                }
+                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                    .listRowBackground(Color.clear)
 
-                if !calendarEvents.isEmpty {
-                    Section("Calendar") {
-                        ForEach(calendarEvents) { event in
-                            CalendarEventRow(event: event)
-                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                    Button(role: .destructive) {
-                                        calendarSync.removeTodayEvent(event)
-                                    } label: {
-                                        Label("Remove", systemImage: "trash")
-                                    }
-                                }
+                    dayContent(selectedTasks: selectedTasks, calendarEvents: calendarEvents, pendingTasks: pendingTasks)
+
+                case .week:
+                    Section {
+                        WeekStripView(selectedDate: $selectedDate) { day in
+                            taskStore.tasksScheduled(on: day)
                         }
                     }
-                }
+                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                    .listRowBackground(Color.clear)
 
-                if !pendingTasks.isEmpty {
-                    Section("Pending") {
-                        ForEach(pendingTasks) { task in
-                            taskRow(task)
+                    dayContent(selectedTasks: selectedTasks, calendarEvents: calendarEvents, pendingTasks: pendingTasks)
+
+                case .list:
+                    let datedSections = monthTaskSections
+
+                    if datedSections.isEmpty && pendingTasks.isEmpty {
+                        ContentUnavailableView("Nothing Scheduled", systemImage: "calendar.badge.checkmark")
+                            .listRowBackground(Color.clear)
+                    }
+
+                    ForEach(datedSections, id: \.date) { section in
+                        Section {
+                            ForEach(section.tasks) { task in
+                                taskRow(task)
+                            }
+                        } header: {
+                            ScheduleDateHeader(date: section.date)
+                        }
+                    }
+
+                    if !pendingTasks.isEmpty {
+                        Section("Pending") {
+                            ForEach(pendingTasks) { task in
+                                taskRow(task)
+                            }
                         }
                     }
                 }
@@ -117,39 +134,179 @@ struct TodayTasksView: View {
                 ScheduleDatePickerView(selectedDate: $selectedDate) { day in
                     !taskStore.tasksScheduled(on: day).isEmpty
                 }
-                .presentationDetents([.medium])
+                .presentationDetents([.height(430), .large])
             }
         }
     }
 
-    private var dateNavigator: some View {
-        HStack(spacing: 10) {
+    private var scheduleControls: some View {
+        VStack(spacing: 10) {
+            Picker("Schedule View", selection: $displayMode) {
+                ForEach(ScheduleDisplayMode.allCases) { mode in
+                    Text(mode.title).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            switch displayMode {
+            case .month, .list:
+                monthNavigator
+            case .week:
+                weekNavigator
+            }
+        }
+    }
+
+    private var monthNavigator: some View {
+        HStack {
             Button {
-                selectedDate = Calendar.current.date(byAdding: .day, value: -1, to: selectedDate) ?? selectedDate
+                selectedDate = calendar.date(byAdding: .month, value: -1, to: selectedDate) ?? selectedDate
             } label: {
-                Image(systemName: "chevron.left")
-                    .frame(width: 36, height: 36)
+                Label(previousMonthText, systemImage: "chevron.left")
+                    .labelStyle(.titleAndIcon)
+                    .font(.caption.weight(.semibold))
             }
             .buttonStyle(.plain)
 
-            Text(selectedDate.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day().year()))
-                .font(.subheadline.weight(.semibold))
+            Spacer()
+
+            Text(selectedDate.formatted(.dateTime.month(.wide).year()))
+                .font(.headline)
                 .lineLimit(1)
-                .minimumScaleFactor(0.82)
-                .multilineTextAlignment(.center)
-            .frame(maxWidth: .infinity)
+
+            Spacer()
 
             Button {
-                selectedDate = Calendar.current.date(byAdding: .day, value: 1, to: selectedDate) ?? selectedDate
+                selectedDate = calendar.date(byAdding: .month, value: 1, to: selectedDate) ?? selectedDate
             } label: {
-                Image(systemName: "chevron.right")
-                    .frame(width: 36, height: 36)
+                HStack(spacing: 4) {
+                    Text(nextMonthText)
+                    Image(systemName: "chevron.right")
+                }
+                .font(.caption.weight(.semibold))
             }
             .buttonStyle(.plain)
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 7)
-        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 12))
+        .foregroundStyle(AppTheme.primary)
+        .padding(.horizontal, 2)
+    }
+
+    private var weekNavigator: some View {
+        HStack {
+            Button {
+                selectedDate = calendar.date(byAdding: .weekOfYear, value: -1, to: selectedDate) ?? selectedDate
+            } label: {
+                Image(systemName: "chevron.left")
+                    .frame(width: 30, height: 30)
+            }
+            .buttonStyle(.plain)
+
+            Spacer()
+
+            Text(weekTitle)
+                .font(.headline)
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
+
+            Spacer()
+
+            Button {
+                selectedDate = calendar.date(byAdding: .weekOfYear, value: 1, to: selectedDate) ?? selectedDate
+            } label: {
+                Image(systemName: "chevron.right")
+                    .frame(width: 30, height: 30)
+            }
+            .buttonStyle(.plain)
+        }
+        .foregroundStyle(AppTheme.primary)
+    }
+
+    private var previousMonthText: String {
+        let date = calendar.date(byAdding: .month, value: -1, to: selectedDate) ?? selectedDate
+        return date.formatted(.dateTime.month(.abbreviated)).uppercased()
+    }
+
+    private var nextMonthText: String {
+        let date = calendar.date(byAdding: .month, value: 1, to: selectedDate) ?? selectedDate
+        return date.formatted(.dateTime.month(.abbreviated)).uppercased()
+    }
+
+    private var weekTitle: String {
+        guard let interval = calendar.dateInterval(of: .weekOfYear, for: selectedDate) else {
+            return selectedDate.formatted(.dateTime.month(.abbreviated).day().year())
+        }
+
+        let end = calendar.date(byAdding: .day, value: 6, to: interval.start) ?? interval.end
+        return "\(interval.start.formatted(.dateTime.month(.abbreviated).day())) - \(end.formatted(.dateTime.month(.abbreviated).day()))"
+    }
+
+    private var monthTaskSections: [(date: Date, tasks: [FamilyTask])] {
+        guard let monthInterval = calendar.dateInterval(of: .month, for: selectedDate) else { return [] }
+        let pendingIDs = Set(taskStore.pendingTasks(before: Date()).map(\.id))
+
+        let grouped = Dictionary(grouping: taskStore.tasks) { task -> Date? in
+            guard !pendingIDs.contains(task.id) else { return nil }
+            guard let dueDate = task.dueDate, monthInterval.contains(dueDate) else { return nil }
+            return calendar.startOfDay(for: dueDate)
+        }
+
+        return grouped.compactMap { date, tasks -> (date: Date, tasks: [FamilyTask])? in
+            guard let date else { return nil }
+            return (date, tasks.sorted { lhs, rhs in
+                (lhs.dueDate ?? lhs.updatedAt) < (rhs.dueDate ?? rhs.updatedAt)
+            })
+        }
+        .sorted { $0.date < $1.date }
+    }
+
+    private var pendingTasksForCurrentView: [FamilyTask] {
+        let pending = taskStore.pendingTasks(before: Date())
+        guard displayMode != .list else { return pending }
+
+        let today = calendar.startOfDay(for: Date())
+        let selectedDay = calendar.startOfDay(for: selectedDate)
+        return selectedDay >= today ? pending : []
+    }
+
+    @ViewBuilder
+    private func dayContent(selectedTasks: [FamilyTask], calendarEvents: [CalendarDayEvent], pendingTasks: [FamilyTask]) -> some View {
+        if selectedTasks.isEmpty && calendarEvents.isEmpty && pendingTasks.isEmpty {
+            ContentUnavailableView("Nothing Scheduled", systemImage: "calendar.badge.checkmark")
+                .listRowBackground(Color.clear)
+        }
+
+        if !selectedTasks.isEmpty {
+            Section {
+                ForEach(selectedTasks) { task in
+                    taskRow(task)
+                }
+            } header: {
+                ScheduleDateHeader(date: selectedDate)
+            }
+        }
+
+        if !calendarEvents.isEmpty {
+            Section("Calendar") {
+                ForEach(calendarEvents) { event in
+                    CalendarEventRow(event: event)
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button(role: .destructive) {
+                                calendarSync.removeTodayEvent(event)
+                            } label: {
+                                Label("Remove", systemImage: "trash")
+                            }
+                        }
+                }
+            }
+        }
+
+        if !pendingTasks.isEmpty {
+            Section("Pending") {
+                ForEach(pendingTasks) { task in
+                    taskRow(task)
+                }
+            }
+        }
     }
 
     private func taskRow(_ task: FamilyTask) -> some View {
@@ -163,6 +320,193 @@ struct TodayTasksView: View {
                 taskStore.delete(task)
             } label: {
                 Label("Delete", systemImage: "trash")
+            }
+        }
+    }
+}
+
+private enum ScheduleDisplayMode: String, CaseIterable, Identifiable {
+    case month
+    case week
+    case list
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .month: "Month"
+        case .week: "Week"
+        case .list: "List"
+        }
+    }
+}
+
+private struct ScheduleDateHeader: View {
+    let date: Date
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Text(date.formatted(.dateTime.month(.abbreviated).day()))
+                .font(.title2.weight(.bold))
+                .foregroundStyle(AppTheme.primary)
+
+            Text(date.formatted(.dateTime.weekday(.wide)).uppercased())
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(AppTheme.ink.opacity(0.8))
+        }
+        .textCase(nil)
+    }
+}
+
+private struct WeekStripView: View {
+    @Binding var selectedDate: Date
+    let tasksForDay: (Date) -> [FamilyTask]
+
+    private let calendar = Calendar.current
+
+    var body: some View {
+        VStack(spacing: 10) {
+            HStack(spacing: 4) {
+                ForEach(weekDays, id: \.self) { day in
+                    dayButton(day)
+                }
+            }
+
+            Text(selectedDate.formatted(.dateTime.weekday(.wide).month(.abbreviated).day().year()))
+                .font(.headline)
+                .frame(maxWidth: .infinity)
+                .padding(.top, 2)
+        }
+    }
+
+    private var weekDays: [Date] {
+        guard let interval = calendar.dateInterval(of: .weekOfYear, for: selectedDate) else {
+            return [selectedDate]
+        }
+
+        return (0..<7).compactMap { offset in
+            calendar.date(byAdding: .day, value: offset, to: interval.start)
+        }
+    }
+
+    private func dayButton(_ day: Date) -> some View {
+        let isSelected = calendar.isDate(day, inSameDayAs: selectedDate)
+        let tasks = tasksForDay(day)
+
+        return Button {
+            selectedDate = day
+        } label: {
+            VStack(spacing: 6) {
+                Text(day.formatted(.dateTime.weekday(.abbreviated)).uppercased())
+                    .font(.caption2)
+                    .foregroundStyle(isSelected ? AppTheme.primary : .secondary)
+
+                Text(day.formatted(.dateTime.day()))
+                    .font(.headline.weight(isSelected ? .bold : .semibold))
+                    .foregroundStyle(isSelected ? .white : .primary)
+                    .frame(width: 36, height: 36)
+                    .background(isSelected ? AppTheme.primary : Color.clear, in: RoundedRectangle(cornerRadius: 9))
+
+                TaskDots(tasks: tasks)
+                    .frame(height: 6)
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+private struct MonthGridView: View {
+    @Binding var selectedDate: Date
+    let tasksForDay: (Date) -> [FamilyTask]
+
+    private let calendar = Calendar.current
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 0), count: 7)
+
+    var body: some View {
+        LazyVGrid(columns: columns, spacing: 0) {
+            ForEach(weekdaySymbols, id: \.self) { symbol in
+                Text(symbol)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, minHeight: 28)
+            }
+
+            ForEach(Array(monthDays.enumerated()), id: \.offset) { _, day in
+                if let day {
+                    dayButton(day)
+                } else {
+                    Color.clear
+                        .frame(height: 56)
+                }
+            }
+        }
+        .padding(.vertical, 2)
+        .background(AppTheme.surface)
+    }
+
+    private var weekdaySymbols: [String] {
+        let symbols = calendar.shortWeekdaySymbols.map { String($0.prefix(3)).uppercased() }
+        let firstIndex = calendar.firstWeekday - 1
+        return Array(symbols[firstIndex...]) + Array(symbols[..<firstIndex])
+    }
+
+    private var monthDays: [Date?] {
+        guard
+            let interval = calendar.dateInterval(of: .month, for: selectedDate),
+            let dayRange = calendar.range(of: .day, in: .month, for: selectedDate)
+        else {
+            return []
+        }
+
+        let firstWeekday = calendar.component(.weekday, from: interval.start)
+        let leadingBlanks = (firstWeekday - calendar.firstWeekday + 7) % 7
+        let days = dayRange.compactMap { day in
+            calendar.date(byAdding: .day, value: day - 1, to: interval.start)
+        }
+
+        return Array(repeating: nil, count: leadingBlanks) + days
+    }
+
+    private func dayButton(_ day: Date) -> some View {
+        let isSelected = calendar.isDate(day, inSameDayAs: selectedDate)
+        let isToday = calendar.isDateInToday(day)
+        let tasks = tasksForDay(day)
+
+        return Button {
+            selectedDate = day
+        } label: {
+            VStack(spacing: 6) {
+                Text(day.formatted(.dateTime.day()))
+                    .font(.callout.weight(isSelected ? .bold : .semibold))
+                    .foregroundStyle(isSelected ? .white : .primary)
+                    .frame(width: 34, height: 34)
+                    .background(isSelected ? AppTheme.primary : Color.clear, in: RoundedRectangle(cornerRadius: 8))
+                    .overlay {
+                        if isToday && !isSelected {
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(AppTheme.primary.opacity(0.35), lineWidth: 1)
+                        }
+                    }
+
+                TaskDots(tasks: tasks)
+                    .frame(height: 6)
+            }
+            .frame(maxWidth: .infinity, minHeight: 58)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+private struct TaskDots: View {
+    let tasks: [FamilyTask]
+
+    var body: some View {
+        HStack(spacing: 3) {
+            ForEach(Array(tasks.prefix(3).enumerated()), id: \.element.id) { _, task in
+                Circle()
+                    .fill(task.bucket.scheduleColor)
+                    .frame(width: 5, height: 5)
             }
         }
     }
@@ -392,5 +736,20 @@ private struct TodayTaskRow: View {
         .padding(.vertical, 6)
         .contentShape(Rectangle())
         .onTapGesture(count: 2, perform: onEdit)
+    }
+}
+
+private extension TaskBucket {
+    var scheduleColor: Color {
+        switch self {
+        case .doNow:
+            AppTheme.taskDo
+        case .schedule:
+            AppTheme.taskSchedule
+        case .delegate:
+            AppTheme.taskDelegate
+        case .delete:
+            AppTheme.taskDrop
+        }
     }
 }
