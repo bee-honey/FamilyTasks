@@ -42,7 +42,7 @@ struct EditTaskView: View {
                 Section("Schedule") {
                     Toggle("Has due date", isOn: $draft.includeDueDate)
                     if draft.includeDueDate {
-                        DatePicker("Due", selection: $draft.dueDate)
+                        DatePicker("Due", selection: $draft.dueDate, in: Date()...)
                     }
                 }
             }
@@ -61,6 +61,22 @@ struct EditTaskView: View {
                     .disabled(draft.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
+            .onChange(of: draft.includeDueDate) { _, includeDueDate in
+                if includeDueDate {
+                    clampDueDateToFuture()
+                }
+            }
+            .onChange(of: draft.dueDate) { _, _ in
+                clampDueDateToFuture()
+            }
+            .onAppear {
+                clampDueDateToFuture()
+            }
         }
+    }
+
+    private func clampDueDateToFuture() {
+        guard draft.includeDueDate, draft.dueDate < Date() else { return }
+        draft.dueDate = Date()
     }
 }

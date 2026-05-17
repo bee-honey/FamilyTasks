@@ -29,12 +29,18 @@ struct TaskBoardView: View {
                 .padding(.bottom, 76)
             }
             .background(AppTheme.background)
-            .safeAreaInset(edge: .bottom) {
-                addTaskButton
-                    .padding(.bottom, 6)
-            }
             .navigationTitle("Matrix")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        isAddingTask = true
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                    .accessibilityLabel("Add task")
+                }
+            }
             .sheet(isPresented: $isAddingTask) {
                 AddTaskView()
             }
@@ -49,20 +55,6 @@ struct TaskBoardView: View {
             } message: {
                 Text(calendarSync.lastErrorMessage ?? "")
             }
-        }
-    }
-
-    private var addTaskButton: some View {
-        Button {
-            isAddingTask = true
-        } label: {
-            Label("New Task", systemImage: "plus")
-                .font(.subheadline.weight(.semibold))
-                .padding(.horizontal, 14)
-                .padding(.vertical, 9)
-                .background(AppTheme.primary, in: Capsule())
-                .foregroundStyle(.white)
-                .shadow(color: .black.opacity(0.14), radius: 8, y: 3)
         }
     }
 

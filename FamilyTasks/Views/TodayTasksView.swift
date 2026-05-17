@@ -8,6 +8,7 @@ struct TodayTasksView: View {
     @AppStorage("schedule.showTaskTime") private var showTaskTime = false
     @AppStorage("schedule.showTaskBucket") private var showTaskBucket = false
     @AppStorage("schedule.defaultDisplayMode") private var defaultDisplayModeRaw = ScheduleDisplayMode.week.rawValue
+    @State private var isAddingTask = false
     @State private var editingTask: FamilyTask?
     @State private var selectedDate = Date()
     @State private var displayMode: ScheduleDisplayMode = .week
@@ -78,6 +79,16 @@ struct TodayTasksView: View {
             .background(AppTheme.background)
             .navigationTitle("Schedule")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        isAddingTask = true
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                    .accessibilityLabel("Add task")
+                }
+            }
             .task {
                 displayMode = ScheduleDisplayMode(rawValue: defaultDisplayModeRaw) ?? .week
 
@@ -107,6 +118,9 @@ struct TodayTasksView: View {
             }
             .sheet(item: $editingTask) { task in
                 EditTaskView(task: task)
+            }
+            .sheet(isPresented: $isAddingTask) {
+                AddTaskView()
             }
             .onChange(of: defaultDisplayModeRaw) { _, rawValue in
                 displayMode = ScheduleDisplayMode(rawValue: rawValue) ?? .week
@@ -270,7 +284,7 @@ struct TodayTasksView: View {
         let pending = taskStore.pendingTasks(before: Date())
         let today = calendar.startOfDay(for: Date())
         let selectedDay = calendar.startOfDay(for: selectedDate)
-        return selectedDay >= today ? pending : []
+        return selectedDay == today ? pending : []
     }
 
     @ViewBuilder
