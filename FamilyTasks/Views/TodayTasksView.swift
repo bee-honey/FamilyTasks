@@ -5,36 +5,33 @@ struct TodayTasksView: View {
     @EnvironmentObject private var calendarSync: CalendarSyncService
     @AppStorage("calendar.integration.enabled") private var calendarIntegrationEnabled = false
     @State private var editingTask: FamilyTask?
+    @State private var selectedDate = Date()
 
     var body: some View {
         NavigationStack {
             List {
-                let todayTasks = taskStore.tasksScheduledToday()
-                let calendarEvents = calendarSync.todayEvents
+                let selectedTasks = taskStore.tasksScheduled(on: selectedDate)
+                let pendingTasks = taskStore.pendingTasks(before: selectedDate)
+                let calendarEvents = calendarSync.dayEvents
 
-                if todayTasks.isEmpty && calendarEvents.isEmpty {
-                    ContentUnavailableView("Nothing Scheduled Today", systemImage: "calendar.badge.checkmark")
+                Section {
+                    dateNavigator
+                }
+                .listRowInsets(EdgeInsets(top: 8, leading: 14, bottom: 8, trailing: 14))
+                .listRowBackground(Color.clear)
+
+                if selectedTasks.isEmpty && calendarEvents.isEmpty && pendingTasks.isEmpty {
+                    ContentUnavailableView("Nothing Scheduled", systemImage: "calendar.badge.checkmark")
                         .listRowBackground(Color.clear)
                 }
 
-                if !todayTasks.isEmpty {
+                if !selectedTasks.isEmpty {
                     Section {
-                        ForEach(todayTasks) { task in
-                            TodayTaskRow(task: task) {
-                                taskStore.markDone(task)
-                            } onEdit: {
-                                editingTask = task
-                            }
-                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                Button(role: .destructive) {
-                                    taskStore.delete(task)
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
-                                }
-                            }
+                        ForEach(selectedTasks) { task in
+                            taskRow(task)
                         }
                     } header: {
-                        Text(Date().formatted(date: .complete, time: .omitted))
+                        Text(selectedDate.formatted(date: .complete, time: .omitted))
                     }
                 }
 
@@ -53,6 +50,14 @@ struct TodayTasksView: View {
                     }
                 }
 
+                if !pendingTasks.isEmpty {
+                    Section("Pending") {
+                        ForEach(pendingTasks) { task in
+                            taskRow(task)
+                        }
+                    }
+                }
+
                 if let message = calendarSync.lastErrorMessage, !message.isEmpty {
                     Text(message)
                         .font(.caption)
@@ -63,7 +68,7 @@ struct TodayTasksView: View {
             .listStyle(.insetGrouped)
             .refreshable {
                 guard calendarIntegrationEnabled else { return }
-                await calendarSync.loadTodayEvents()
+                await calendarSync.loadEvents(on: selectedDate)
             }
             .scrollContentBackground(.hidden)
             .background(AppTheme.background)
@@ -71,7 +76,7 @@ struct TodayTasksView: View {
             .navigationBarTitleDisplayMode(.inline)
             .task {
                 if calendarIntegrationEnabled {
-                    await calendarSync.loadTodayEvents()
+                    await calendarSync.loadEvents(on: selectedDate)
                 } else {
                     calendarSync.clearTodayEvents()
                 }
@@ -79,7 +84,16 @@ struct TodayTasksView: View {
             .onChange(of: calendarIntegrationEnabled) { _, enabled in
                 Task {
                     if enabled {
-                        await calendarSync.loadTodayEvents()
+                        await calendarSync.loadEvents(on: selectedDate)
+                    } else {
+                        calendarSync.clearTodayEvents()
+                    }
+                }
+            }
+            .onChange(of: selectedDate) { _, newDate in
+                Task {
+                    if calendarIntegrationEnabled {
+                        await calendarSync.loadEvents(on: newDate)
                     } else {
                         calendarSync.clearTodayEvents()
                     }
@@ -87,6 +101,53 @@ struct TodayTasksView: View {
             }
             .sheet(item: $editingTask) { task in
                 EditTaskView(task: task)
+            }
+        }
+    }
+
+    private var dateNavigator: some View {
+        HStack(spacing: 10) {
+            Button {
+                selectedDate = Calendar.current.date(byAdding: .day, value: -1, to: selectedDate) ?? selectedDate
+            } label: {
+                Image(systemName: "chevron.left")
+                    .frame(width: 36, height: 36)
+            }
+            .buttonStyle(.plain)
+
+            VStack(spacing: 2) {
+                Text(selectedDate.formatted(date: .complete, time: .omitted))
+                    .font(.footnote.weight(.semibold))
+                    .multilineTextAlignment(.center)
+                Text("Day")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity)
+
+            Button {
+                selectedDate = Calendar.current.date(byAdding: .day, value: 1, to: selectedDate) ?? selectedDate
+            } label: {
+                Image(systemName: "chevron.right")
+                    .frame(width: 36, height: 36)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(12)
+        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))
+    }
+
+    private func taskRow(_ task: FamilyTask) -> some View {
+        TodayTaskRow(task: task) {
+            taskStore.markDone(task)
+        } onEdit: {
+            editingTask = task
+        }
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            Button(role: .destructive) {
+                taskStore.delete(task)
+            } label: {
+                Label("Delete", systemImage: "trash")
             }
         }
     }

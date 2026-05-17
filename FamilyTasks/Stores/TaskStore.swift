@@ -13,9 +13,9 @@ final class TaskStore: ObservableObject {
     private let familyMembersURL: URL
 
     init(storageURL: URL? = nil) {
-        let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
-        self.storageURL = storageURL ?? documents!.appendingPathComponent("family-tasks.json")
-        self.familyMembersURL = documents!.appendingPathComponent("family-members.json")
+        let documents = URL.documentsDirectory
+        self.storageURL = storageURL ?? documents.appendingPathComponent("family-tasks.json")
+        self.familyMembersURL = documents.appendingPathComponent("family-members.json")
         load()
         loadFamilyMembers()
         removeLegacyAssigneeNames()
@@ -54,27 +54,26 @@ final class TaskStore: ObservableObject {
     }
 
     func tasksScheduledToday(calendar: Calendar = .current) -> [FamilyTask] {
+        tasksScheduled(on: Date(), calendar: calendar)
+    }
+
+    func tasksScheduled(on date: Date, calendar: Calendar = .current) -> [FamilyTask] {
         tasks
             .filter { task in
                 guard let dueDate = task.dueDate else { return false }
-                return calendar.isDateInToday(dueDate)
+                return calendar.isDate(dueDate, inSameDayAs: date)
             }
-            .sorted { lhs, rhs in
-                if lhs.isDone != rhs.isDone {
-                    return !lhs.isDone
-                }
+            .sorted(by: taskScheduleSort)
+    }
 
-                switch (lhs.dueDate, rhs.dueDate) {
-                case let (left?, right?):
-                    return left < right
-                case (.some, .none):
-                    return true
-                case (.none, .some):
-                    return false
-                case (.none, .none):
-                    return lhs.updatedAt > rhs.updatedAt
-                }
+    func pendingTasks(before date: Date, calendar: Calendar = .current) -> [FamilyTask] {
+        let startOfDay = calendar.startOfDay(for: date)
+        return tasks
+            .filter { task in
+                guard let dueDate = task.dueDate else { return false }
+                return dueDate < startOfDay && !task.isDone
             }
+            .sorted(by: taskScheduleSort)
     }
 
     func add(_ draft: TaskDraft) {
@@ -195,6 +194,23 @@ final class TaskStore: ObservableObject {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         let pattern = #"^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$"#
         return trimmed.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil
+    }
+
+    private func taskScheduleSort(_ lhs: FamilyTask, _ rhs: FamilyTask) -> Bool {
+        if lhs.isDone != rhs.isDone {
+            return !lhs.isDone
+        }
+
+        switch (lhs.dueDate, rhs.dueDate) {
+        case let (left?, right?):
+            return left < right
+        case (.some, .none):
+            return true
+        case (.none, .some):
+            return false
+        case (.none, .none):
+            return lhs.updatedAt > rhs.updatedAt
+        }
     }
 }
 

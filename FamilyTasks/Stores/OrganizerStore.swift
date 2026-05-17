@@ -27,7 +27,7 @@ final class OrganizerStore: ObservableObject {
     private let mealPlanURL: URL
 
     init(directory: URL? = nil) {
-        let documents = directory ?? FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let documents = directory ?? URL.documentsDirectory
         shoppingURL = documents.appendingPathComponent("family-shopping.json")
         recurringTasksURL = documents.appendingPathComponent("family-recurring-tasks.json")
         mealPlanURL = documents.appendingPathComponent("family-meal-plan.json")

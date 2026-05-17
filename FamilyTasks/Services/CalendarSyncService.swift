@@ -4,7 +4,7 @@ import Foundation
 @MainActor
 final class CalendarSyncService: ObservableObject {
     @Published private(set) var authorizationStatus: EKAuthorizationStatus
-    @Published private(set) var todayEvents: [CalendarDayEvent] = []
+    @Published private(set) var dayEvents: [CalendarDayEvent] = []
     @Published private(set) var isLoadingTodayEvents = false
     @Published var lastErrorMessage: String?
 
@@ -76,16 +76,20 @@ final class CalendarSyncService: ObservableObject {
     }
 
     func loadTodayEvents(calendar: Calendar = .current) async {
+        await loadEvents(on: Date(), calendar: calendar)
+    }
+
+    func loadEvents(on date: Date, calendar: Calendar = .current) async {
         guard await requestFullAccessForReadingIfNeeded() else { return }
 
         isLoadingTodayEvents = true
         defer { isLoadingTodayEvents = false }
 
-        let start = calendar.startOfDay(for: Date())
+        let start = calendar.startOfDay(for: date)
         let end = calendar.date(byAdding: .day, value: 1, to: start) ?? start.addingTimeInterval(86_400)
         let predicate = eventStore.predicateForEvents(withStart: start, end: end, calendars: nil)
 
-        todayEvents = eventStore.events(matching: predicate)
+        dayEvents = eventStore.events(matching: predicate)
             .filter { !$0.isDetached }
             .map(CalendarDayEvent.init(event:))
             .sorted { lhs, rhs in
@@ -97,12 +101,12 @@ final class CalendarSyncService: ObservableObject {
     }
 
     func clearTodayEvents() {
-        todayEvents = []
+        dayEvents = []
         lastErrorMessage = nil
     }
 
     func removeTodayEvent(_ event: CalendarDayEvent) {
-        todayEvents.removeAll { $0.id == event.id }
+        dayEvents.removeAll { $0.id == event.id }
     }
 
     func sync(_ task: FamilyTask) async throws -> String {
