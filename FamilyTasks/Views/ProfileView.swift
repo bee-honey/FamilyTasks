@@ -193,3 +193,100 @@ struct ProfileView: View {
         }
     }
 }
+
+
+struct ProfileSetupView: View {
+    @EnvironmentObject private var taskStore: TaskStore
+    @AppStorage("profile.email") private var email = ""
+    @AppStorage("profile.initials") private var initials = ""
+    @AppStorage("profile.isSetup") private var isProfileSetup = false
+    @FocusState private var focusedField: Field?
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Set Up Your Profile")
+                            .font(.title2.weight(.semibold))
+                        Text("This profile is used as the default assignee when you create tasks.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 6)
+                }
+
+                Section {
+                    TextField("Email", text: $email)
+                        .keyboardType(.emailAddress)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .focused($focusedField, equals: .email)
+
+                    TextField("Initials", text: $initials)
+                        .textInputAutocapitalization(.characters)
+                        .focused($focusedField, equals: .initials)
+                        .onChange(of: initials) { _, newValue in
+                            initials = String(newValue.prefix(3)).uppercased()
+                        }
+                } header: {
+                    Text("Identity")
+                } footer: {
+                    Text("Family members can still be added later from Settings.")
+                }
+
+                Section {
+                    Button {
+                        completeSetup()
+                    } label: {
+                        HStack {
+                            Spacer()
+                            Text("Continue")
+                                .font(.headline)
+                            Spacer()
+                        }
+                    }
+                    .disabled(!isValidProfile)
+                }
+            }
+            .navigationTitle("Welcome")
+            .navigationBarTitleDisplayMode(.inline)
+            .scrollContentBackground(.hidden)
+            .background(AppTheme.background)
+            .onAppear {
+                focusedField = .email
+            }
+        }
+        .tint(AppTheme.primary)
+    }
+
+    private var isValidProfile: Bool {
+        TaskStore.isValidEmail(email)
+    }
+
+    private func completeSetup() {
+        let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard TaskStore.isValidEmail(trimmedEmail) else { return }
+
+        email = trimmedEmail
+        if initials.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            initials = ProfileSetupView.initials(from: trimmedEmail)
+        }
+
+        taskStore.addFamilyMember(named: trimmedEmail)
+        taskStore.assignUnassignedTasks(to: trimmedEmail)
+        isProfileSetup = true
+    }
+
+    private static func initials(from email: String) -> String {
+        let localPart = email.split(separator: "@").first.map(String.init) ?? ""
+        let parts = localPart.split(whereSeparator: { $0 == "." || $0 == "_" || $0 == "-" || $0 == " " })
+        let letters = parts.prefix(2).compactMap(\.first)
+        return letters.isEmpty ? "ME" : String(letters).uppercased()
+    }
+
+    private enum Field {
+        case email
+        case initials
+    }
+}

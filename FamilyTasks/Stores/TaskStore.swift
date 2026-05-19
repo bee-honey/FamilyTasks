@@ -139,6 +139,28 @@ final class TaskStore: ObservableObject {
         familyMembers.sort()
     }
 
+    func assignUnassignedTasks(to assignee: String) {
+        let trimmed = assignee.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard Self.isValidEmail(trimmed) else { return }
+
+        var changed = false
+        tasks = tasks.map { task in
+            guard task.assignedTo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                return task
+            }
+
+            var assigned = task
+            assigned.assignedTo = trimmed
+            assigned.updatedAt = Date()
+            changed = true
+            return assigned
+        }
+
+        if changed {
+            save()
+        }
+    }
+
     func deleteFamilyMember(at offsets: IndexSet) {
         familyMembers.remove(atOffsets: offsets)
     }

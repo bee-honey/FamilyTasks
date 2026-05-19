@@ -3,6 +3,7 @@ import SwiftUI
 struct AddTaskView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var taskStore: TaskStore
+    @AppStorage("profile.email") private var profileEmail = ""
     @State private var draft = TaskDraft()
 
     var body: some View {
@@ -63,9 +64,17 @@ struct AddTaskView: View {
                 clampDueDateToFuture()
             }
             .onAppear {
+                applyDefaultAssigneeIfNeeded()
                 clampDueDateToFuture()
             }
         }
+    }
+
+    private func applyDefaultAssigneeIfNeeded() {
+        let email = profileEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard draft.assignedTo.isEmpty, TaskStore.isValidEmail(email) else { return }
+        taskStore.addFamilyMember(named: email)
+        draft.assignedTo = email
     }
 
     private func clampDueDateToFuture() {
