@@ -3,7 +3,7 @@ import UniformTypeIdentifiers
 
 struct ShoppingView: View {
     @EnvironmentObject private var organizerStore: OrganizerStore
-    @State private var newShopName = ""
+    @State private var isAddingShop = false
     @State private var activeItemID: UUID?
     @State private var activeShopID: UUID?
 
@@ -11,8 +11,6 @@ struct ShoppingView: View {
         NavigationStack {
             ScrollView {
                 LazyVStack(spacing: 12) {
-                    addShopRow
-
                     ForEach(organizerStore.shops) { shop in
                         ShopSectionView(
                             shop: shop,
@@ -29,29 +27,62 @@ struct ShoppingView: View {
             .background(AppTheme.background)
             .navigationTitle("Shopping")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        isAddingShop = true
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                }
+            }
+            .sheet(isPresented: $isAddingShop) {
+                AddShopView()
+            }
+        }
+    }
+}
+
+private struct AddShopView: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var organizerStore: OrganizerStore
+    @State private var shopName = ""
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Shop") {
+                    TextField("Shop name", text: $shopName)
+                        .textInputAutocapitalization(.words)
+                        .submitLabel(.done)
+                        .onSubmit(addShop)
+                }
+            }
+            .navigationTitle("New Shop")
+            .navigationBarTitleDisplayMode(.inline)
+            .scrollContentBackground(.hidden)
+            .background(AppTheme.background)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Add") { addShop() }
+                        .disabled(trimmedShopName.isEmpty)
+                }
+            }
         }
     }
 
-    private var addShopRow: some View {
-        HStack(spacing: 10) {
-            TextField("Add shop", text: $newShopName)
-                .textInputAutocapitalization(.words)
-                .submitLabel(.done)
-                .onSubmit(addShop)
-
-            Button(action: addShop) {
-                Image(systemName: "plus.circle.fill")
-                    .font(.title3)
-            }
-            .disabled(newShopName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-        }
-        .padding(12)
-        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 12))
+    private var trimmedShopName: String {
+        shopName.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private func addShop() {
-        organizerStore.addShop(named: newShopName)
-        newShopName = ""
+        guard !trimmedShopName.isEmpty else { return }
+        organizerStore.addShop(named: trimmedShopName)
+        dismiss()
     }
 }
 
