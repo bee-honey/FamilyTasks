@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		2C0A004B2C0A000000000001 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 2C0A004A2C0A000000000001 /* LaunchScreen.storyboard */; };
 		2C0A000B2C0A000000000001 /* FamilyTasksApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A000A2C0A000000000001 /* FamilyTasksApp.swift */; };
 		2C0A000D2C0A000000000001 /* FamilyTask.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A000C2C0A000000000001 /* FamilyTask.swift */; };
 		2C0A000F2C0A000000000001 /* TaskStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A000E2C0A000000000001 /* TaskStore.swift */; };
@@ -60,6 +61,7 @@
 		2C0A00442C0A000000000001 /* AppTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTheme.swift; sourceTree = "<group>"; };
 		2C0A00462C0A000000000001 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		2C0A00482C0A000000000001 /* MealPlanView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MealPlanView.swift; sourceTree = "<group>"; };
+		2C0A004A2C0A000000000001 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -98,6 +100,7 @@
 				2C0A00212C0A000000000001 /* Services */,
 				2C0A00222C0A000000000001 /* Views */,
 				2C0A003A2C0A000000000001 /* Assets.xcassets */,
+				2C0A004A2C0A000000000001 /* LaunchScreen.storyboard */,
 				2C0A001C2C0A000000000001 /* Info.plist */,
 				2C0A001D2C0A000000000001 /* FamilyTasks.entitlements */,
 				2C0A00462C0A000000000001 /* PrivacyInfo.xcprivacy */,
@@ -213,6 +216,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				2C0A003B2C0A000000000001 /* Assets.xcassets in Resources */,
+				2C0A004B2C0A000000000001 /* LaunchScreen.storyboard in Resources */,
 				2C0A00472C0A000000000001 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -369,13 +373,14 @@
 		2C0A00262C0A000000000001 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				APS_ENVIRONMENT = development;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				APS_ENVIRONMENT = development;
 				CODE_SIGN_ENTITLEMENTS = FamilyTasks/FamilyTasks.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "";
+				DEVELOPMENT_TEAM = 2X5AKN2Y8P;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = FamilyTasks/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Family Tasks";
@@ -399,13 +404,14 @@
 		2C0A00272C0A000000000001 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				APS_ENVIRONMENT = production;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				APS_ENVIRONMENT = production;
 				CODE_SIGN_ENTITLEMENTS = FamilyTasks/FamilyTasks.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "";
+				DEVELOPMENT_TEAM = 2X5AKN2Y8P;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = FamilyTasks/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Family Tasks";
