@@ -37,6 +37,10 @@ final class OrganizerStore: ObservableObject {
         seedDefaultsIfNeeded()
     }
 
+    func refreshShopping() {
+        loadShopping()
+    }
+
     func items(for shop: Shop) -> [ShoppingItem] {
         shoppingItems
             .filter { $0.shopID == shop.id }
@@ -305,7 +309,7 @@ final class OrganizerStore: ObservableObject {
     }
 }
 
-private struct ShoppingPayload: Codable {
+struct ShoppingPayload: Codable {
     var shops: [Shop]
     var items: [ShoppingItem]
 }

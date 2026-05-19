@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		2C0A004C2C0A000000000001 /* ShoppingListIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A004D2C0A000000000001 /* ShoppingListIntent.swift */; };
 		2C0A004B2C0A000000000001 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 2C0A004A2C0A000000000001 /* LaunchScreen.storyboard */; };
 		2C0A000B2C0A000000000001 /* FamilyTasksApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A000A2C0A000000000001 /* FamilyTasksApp.swift */; };
 		2C0A000D2C0A000000000001 /* FamilyTask.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A000C2C0A000000000001 /* FamilyTask.swift */; };
@@ -62,6 +63,7 @@
 		2C0A00462C0A000000000001 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		2C0A00482C0A000000000001 /* MealPlanView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MealPlanView.swift; sourceTree = "<group>"; };
 		2C0A004A2C0A000000000001 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
+		2C0A004D2C0A000000000001 /* ShoppingListIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShoppingListIntent.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -132,6 +134,7 @@
 			children = (
 				2C0A00102C0A000000000001 /* CalendarSyncService.swift */,
 				2C0A00122C0A000000000001 /* FamilySharingService.swift */,
+				2C0A004D2C0A000000000001 /* ShoppingListIntent.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -247,6 +250,7 @@
 				2C0A003F2C0A000000000001 /* OrganizerStore.swift in Sources */,
 				2C0A00412C0A000000000001 /* ShoppingView.swift in Sources */,
 				2C0A00492C0A000000000001 /* MealPlanView.swift in Sources */,
+				2C0A004C2C0A000000000001 /* ShoppingListIntent.swift in Sources */,
 				2C0A00432C0A000000000001 /* RecurringTasksView.swift in Sources */,
 				2C0A00452C0A000000000001 /* AppTheme.swift in Sources */,
 			);
