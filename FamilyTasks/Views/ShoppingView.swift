@@ -93,6 +93,7 @@ private struct ShopSectionView: View {
     @Binding var draggedShopID: UUID?
     let onMoveShopBefore: (UUID, UUID) -> Void
     @State private var isExpanded = false
+    @State private var isConfirmingDelete = false
     @State private var newItemName = ""
     @State private var newUsualItemName = ""
 
@@ -148,6 +149,33 @@ private struct ShopSectionView: View {
                     }
                     .buttonStyle(.borderless)
                     .disabled(!items.contains(where: \.isPurchased))
+
+                    Menu {
+                        Button {
+                            organizerStore.moveShopUp(shop)
+                        } label: {
+                            Label("Move Up", systemImage: "arrow.up")
+                        }
+                        .disabled(isFirstShop)
+
+                        Button {
+                            organizerStore.moveShopDown(shop)
+                        } label: {
+                            Label("Move Down", systemImage: "arrow.down")
+                        }
+                        .disabled(isLastShop)
+
+                        Button(role: .destructive) {
+                            isConfirmingDelete = true
+                        } label: {
+                            Label("Delete Shop", systemImage: "trash")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.borderless)
                 }
                 .padding(14)
             }
@@ -177,6 +205,14 @@ private struct ShopSectionView: View {
             }
         }
         .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))
+        .alert("Delete \(shop.name)?", isPresented: $isConfirmingDelete) {
+            Button("Cancel", role: .cancel) {}
+            Button("Delete", role: .destructive) {
+                organizerStore.deleteShop(shop)
+            }
+        } message: {
+            Text("This removes the shop and all shopping items in it.")
+        }
         .onDrop(of: [UTType.text], isTargeted: nil) { providers in
             guard let provider = providers.first else { return false }
             provider.loadItem(forTypeIdentifier: UTType.text.identifier, options: nil) { item, _ in
@@ -197,6 +233,14 @@ private struct ShopSectionView: View {
             }
             return true
         }
+    }
+
+    private var isFirstShop: Bool {
+        organizerStore.shops.first?.id == shop.id
+    }
+
+    private var isLastShop: Bool {
+        organizerStore.shops.last?.id == shop.id
     }
 
     private var neededItems: [ShoppingItem] {

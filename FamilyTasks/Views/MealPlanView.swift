@@ -8,6 +8,8 @@ struct MealPlanView: View {
     @State private var isAddingMeal = false
     @State private var planningMeal: MealIdea?
     @State private var editingMeal: MealIdea?
+    @State private var planningDate = Date()
+    @State private var planningSlot: MealSlot = .dinner
 
     var body: some View {
         NavigationStack {
@@ -60,7 +62,7 @@ struct MealPlanView: View {
                 MealEditorView(meal: meal)
             }
             .sheet(item: $planningMeal) { meal in
-                PlanMealView(meal: meal, initialDate: selectedDay)
+                PlanMealView(meal: meal, initialDate: planningDate, initialSlot: planningSlot)
             }
         }
     }
@@ -74,7 +76,12 @@ struct MealPlanView: View {
                 dayPicker
 
                 ForEach(daysToShow, id: \.self) { day in
-                    DayMealSection(day: day, meals: plannedMeals(on: day)) { plannedMeal in
+                    DayMealSection(day: day, meals: plannedMeals(on: day)) { slot in
+                        planningDate = day
+                        planningSlot = slot
+                        selectedDay = day
+                        selectedTab = .meals
+                    } onDelete: { plannedMeal in
                         organizerStore.deletePlannedMeal(plannedMeal)
                     }
                 }
@@ -91,7 +98,7 @@ struct MealPlanView: View {
             } else {
                 ForEach(organizerStore.mealIdeas) { meal in
                     MealIdeaCard(meal: meal) {
-                        selectedDay = Date()
+                        planningDate = selectedTab == .meals ? planningDate : selectedDay
                         planningMeal = meal
                     } onEdit: {
                         editingMeal = meal
@@ -197,6 +204,7 @@ private struct DayMealSection: View {
     @EnvironmentObject private var organizerStore: OrganizerStore
     let day: Date
     let meals: [PlannedMeal]
+    let onPlanSlot: (MealSlot) -> Void
     let onDelete: (PlannedMeal) -> Void
 
     var body: some View {
@@ -208,7 +216,7 @@ private struct DayMealSection: View {
 
             VStack(spacing: 8) {
                 ForEach(MealSlot.allCases) { slot in
-                    MealSlotRow(slot: slot, plannedMeals: meals.filter { $0.slot == slot }, onDelete: onDelete)
+                    MealSlotRow(slot: slot, plannedMeals: meals.filter { $0.slot == slot }, onPlan: { onPlanSlot(slot) }, onDelete: onDelete)
                 }
             }
         }
@@ -221,6 +229,7 @@ private struct MealSlotRow: View {
     @EnvironmentObject private var organizerStore: OrganizerStore
     let slot: MealSlot
     let plannedMeals: [PlannedMeal]
+    let onPlan: () -> Void
     let onDelete: (PlannedMeal) -> Void
 
     var body: some View {
@@ -230,12 +239,15 @@ private struct MealSlotRow: View {
                 .foregroundStyle(AppTheme.primary)
 
             if plannedMeals.isEmpty {
-                Text("Not planned")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(10)
-                    .background(AppTheme.surfaceMuted, in: RoundedRectangle(cornerRadius: 10))
+                Button(action: onPlan) {
+                    Text("Not planned")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(10)
+                        .background(AppTheme.surfaceMuted, in: RoundedRectangle(cornerRadius: 10))
+                }
+                .buttonStyle(.plain)
             } else {
                 ForEach(plannedMeals) { plannedMeal in
                     if let meal = organizerStore.mealIdea(for: plannedMeal) {
@@ -310,6 +322,7 @@ private struct MealIdeaCard: View {
         .padding(12)
         .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))
         .contentShape(Rectangle())
+        .onTapGesture(perform: onPlan)
         .onTapGesture(count: 2, perform: onEdit)
     }
 }
@@ -401,18 +414,21 @@ private struct PlanMealView: View {
     @EnvironmentObject private var organizerStore: OrganizerStore
     let meal: MealIdea
     let initialDate: Date
+    let initialSlot: MealSlot
     @State private var date: Date
-    @State private var slot: MealSlot = .dinner
+    @State private var slot: MealSlot
     @State private var addIngredientsToShopping = true
     @State private var useOneShop = true
     @State private var selectedShopID: UUID?
     @State private var selectedIngredientIDs: Set<UUID> = []
     @State private var ingredientShopIDs: [UUID: UUID] = [:]
 
-    init(meal: MealIdea, initialDate: Date) {
+    init(meal: MealIdea, initialDate: Date, initialSlot: MealSlot = .dinner) {
         self.meal = meal
         self.initialDate = initialDate
+        self.initialSlot = initialSlot
         _date = State(initialValue: initialDate)
+        _slot = State(initialValue: initialSlot)
     }
 
     var body: some View {

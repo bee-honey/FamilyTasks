@@ -72,6 +72,21 @@ final class OrganizerStore: ObservableObject {
         shops.insert(movingShop, at: adjustedTargetIndex)
     }
 
+    func moveShopUp(_ shop: Shop) {
+        guard let index = shops.firstIndex(where: { $0.id == shop.id }), index > 0 else { return }
+        shops.swapAt(index, index - 1)
+    }
+
+    func moveShopDown(_ shop: Shop) {
+        guard let index = shops.firstIndex(where: { $0.id == shop.id }), index < shops.index(before: shops.endIndex) else { return }
+        shops.swapAt(index, index + 1)
+    }
+
+    func deleteShop(_ shop: Shop) {
+        shops.removeAll { $0.id == shop.id }
+        shoppingItems.removeAll { $0.shopID == shop.id }
+    }
+
     func addUsualItem(_ itemName: String, to shop: Shop) {
         let trimmed = itemName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, let index = shops.firstIndex(where: { $0.id == shop.id }) else { return }

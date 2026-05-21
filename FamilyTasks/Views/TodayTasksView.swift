@@ -75,6 +75,7 @@ struct TodayTasksView: View {
                     await calendarSync.loadEvents(on: selectedDate)
                 }
                 .scrollContentBackground(.hidden)
+                .simultaneousGesture(scheduleSwipeGesture)
             }
             .background(AppTheme.background)
             .navigationTitle("Schedule")
@@ -126,6 +127,19 @@ struct TodayTasksView: View {
                 displayMode = ScheduleDisplayMode(rawValue: rawValue) ?? .week
             }
         }
+    }
+
+    private var scheduleSwipeGesture: some Gesture {
+        DragGesture(minimumDistance: 28)
+            .onEnded { value in
+                guard displayMode == .week else { return }
+                guard abs(value.translation.width) > abs(value.translation.height), abs(value.translation.width) > 48 else { return }
+                selectedDate = calendar.date(
+                    byAdding: .weekOfYear,
+                    value: value.translation.width > 0 ? 1 : -1,
+                    to: selectedDate
+                ) ?? selectedDate
+            }
     }
 
     private var scheduleControls: some View {
@@ -702,6 +716,11 @@ private struct TodayTaskRow: View {
         .padding(.vertical, 6)
         .contentShape(Rectangle())
         .onTapGesture(count: 2, perform: onEdit)
+        .contextMenu {
+            Button(action: onEdit) {
+                Label("Edit", systemImage: "pencil")
+            }
+        }
     }
 }
 

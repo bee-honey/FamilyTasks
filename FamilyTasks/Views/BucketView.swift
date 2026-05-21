@@ -177,6 +177,21 @@ private struct MatrixTaskRowView: View {
         .padding(.vertical, 10)
         .contentShape(Rectangle())
         .onTapGesture(count: 2, perform: onEdit)
+        .contextMenu {
+            Button(action: onEdit) {
+                Label("Edit", systemImage: "pencil")
+            }
+
+            Button {
+                onSync()
+            } label: {
+                Label(task.calendarEventIdentifier == nil ? "Sync to Calendar" : "Update Calendar", systemImage: "calendar.badge.plus")
+            }
+
+            Button(role: .destructive, action: onDelete) {
+                Label("Delete", systemImage: "trash")
+            }
+        }
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             Button(role: .destructive, action: onDelete) {
                 Label("Delete", systemImage: "trash")
