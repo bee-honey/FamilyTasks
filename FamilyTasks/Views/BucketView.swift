@@ -178,7 +178,11 @@ private struct MatrixTaskRowView: View {
         .contentShape(Rectangle())
         .onTapGesture(count: 2, perform: onEdit)
         .contextMenu {
-            Button(action: onEdit) {
+            Button {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                    onEdit()
+                }
+            } label: {
                 Label("Edit", systemImage: "pencil")
             }
 
