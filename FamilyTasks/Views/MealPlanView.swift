@@ -96,15 +96,18 @@ struct MealPlanView: View {
                 ContentUnavailableView("No Saved Meals", systemImage: "fork.knife.circle", description: Text("Add meals once and reuse them while planning the week."))
                     .padding(.top, 80)
             } else {
-                ForEach(organizerStore.mealIdeas) { meal in
-                    MealIdeaCard(meal: meal) {
-                        planningDate = selectedTab == .meals ? planningDate : selectedDay
-                        planningMeal = meal
-                        selectedTab = .plan
-                    } onEdit: {
-                        editingMeal = meal
-                    } onDelete: {
-                        organizerStore.deleteMealIdea(meal)
+                ForEach(MealCategory.allCases) { category in
+                    let meals = organizerStore.mealIdeas.filter { $0.category == category }
+                    if !meals.isEmpty {
+                        MealCategorySection(category: category, meals: meals) { meal in
+                            planningDate = selectedTab == .meals ? planningDate : selectedDay
+                            planningMeal = meal
+                            selectedTab = .plan
+                        } onEdit: { meal in
+                            editingMeal = meal
+                        } onDelete: { meal in
+                            organizerStore.deleteMealIdea(meal)
+                        }
                     }
                 }
             }
@@ -197,6 +200,33 @@ private enum MealPlanRange: String, CaseIterable, Identifiable {
         switch self {
         case .day: "Day"
         case .week: "Week"
+        }
+    }
+}
+
+private struct MealCategorySection: View {
+    let category: MealCategory
+    let meals: [MealIdea]
+    let onPlan: (MealIdea) -> Void
+    let onEdit: (MealIdea) -> Void
+    let onDelete: (MealIdea) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label(category.title, systemImage: category.systemImage)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+
+            ForEach(meals) { meal in
+                MealIdeaCard(meal: meal) {
+                    onPlan(meal)
+                } onEdit: {
+                    onEdit(meal)
+                } onDelete: {
+                    onDelete(meal)
+                }
+            }
         }
     }
 }
@@ -343,8 +373,6 @@ private struct MealIdeaCard: View {
         .padding(12)
         .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))
         .contentShape(Rectangle())
-        .onTapGesture(perform: onPlan)
-        .onTapGesture(count: 2, perform: onEdit)
     }
 }
 
@@ -353,12 +381,14 @@ private struct MealEditorView: View {
     @EnvironmentObject private var organizerStore: OrganizerStore
     let meal: MealIdea?
     @State private var name: String
+    @State private var category: MealCategory
     @State private var notes: String
     @State private var ingredients: [MealIngredient]
 
     init(meal: MealIdea? = nil) {
         self.meal = meal
         _name = State(initialValue: meal?.name ?? "")
+        _category = State(initialValue: meal?.category ?? .mainCourse)
         _notes = State(initialValue: meal?.notes ?? "")
         let existing = meal?.ingredients ?? []
         _ingredients = State(initialValue: existing.isEmpty ? [MealIngredient(name: "")] : existing)
@@ -369,6 +399,11 @@ private struct MealEditorView: View {
             Form {
                 Section("Meal") {
                     TextField("Name", text: $name)
+                    Picker("Type", selection: $category) {
+                        ForEach(MealCategory.allCases) { category in
+                            Text(category.title).tag(category)
+                        }
+                    }
                     TextField("Notes", text: $notes, axis: .vertical)
                         .lineLimit(2...4)
                 }
@@ -398,9 +433,9 @@ private struct MealEditorView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
                         if let meal {
-                            organizerStore.updateMealIdea(meal, name: name, ingredients: ingredients, notes: notes)
+                            organizerStore.updateMealIdea(meal, name: name, category: category, ingredients: ingredients, notes: notes)
                         } else {
-                            organizerStore.addMealIdea(name: name, ingredients: ingredients, notes: notes)
+                            organizerStore.addMealIdea(name: name, category: category, ingredients: ingredients, notes: notes)
                         }
                         dismiss()
                     }
@@ -438,7 +473,7 @@ private struct PlanMealView: View {
     let initialSlot: MealSlot
     @State private var date: Date
     @State private var slot: MealSlot
-    @State private var addIngredientsToShopping = true
+    @State private var addIngredientsToShopping = false
     @State private var useOneShop = true
     @State private var selectedShopID: UUID?
     @State private var selectedIngredientIDs: Set<UUID> = []

@@ -86,9 +86,31 @@ enum MealSlot: String, CaseIterable, Codable, Identifiable {
     }
 }
 
+enum MealCategory: String, CaseIterable, Codable, Identifiable {
+    case breakfast
+    case mainCourse
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .breakfast: "Breakfast"
+        case .mainCourse: "Main Course"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .breakfast: "sunrise"
+        case .mainCourse: "fork.knife"
+        }
+    }
+}
+
 struct MealIdea: Identifiable, Codable, Equatable {
     var id: UUID
     var name: String
+    var category: MealCategory
     var ingredients: [MealIngredient]
     var notes: String
     var createdAt: Date
@@ -97,6 +119,7 @@ struct MealIdea: Identifiable, Codable, Equatable {
     init(
         id: UUID = UUID(),
         name: String,
+        category: MealCategory = .mainCourse,
         ingredients: [MealIngredient] = [],
         notes: String = "",
         createdAt: Date = Date(),
@@ -104,6 +127,7 @@ struct MealIdea: Identifiable, Codable, Equatable {
     ) {
         self.id = id
         self.name = name
+        self.category = category
         self.ingredients = ingredients
         self.notes = notes
         self.createdAt = createdAt
@@ -113,6 +137,7 @@ struct MealIdea: Identifiable, Codable, Equatable {
     private enum CodingKeys: String, CodingKey {
         case id
         case name
+        case category
         case ingredients
         case notes
         case createdAt
@@ -123,6 +148,7 @@ struct MealIdea: Identifiable, Codable, Equatable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(UUID.self, forKey: .id)
         name = try container.decode(String.self, forKey: .name)
+        category = (try? container.decode(MealCategory.self, forKey: .category)) ?? .mainCourse
         if let decodedIngredients = try? container.decode([MealIngredient].self, forKey: .ingredients) {
             ingredients = decodedIngredients
         } else {

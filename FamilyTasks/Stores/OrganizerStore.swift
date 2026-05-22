@@ -138,20 +138,21 @@ final class OrganizerStore: ObservableObject {
         shoppingItems.removeAll { $0.shopID == shop.id && $0.isPurchased }
     }
 
-    func addMealIdea(name: String, ingredients: [MealIngredient], notes: String) {
+    func addMealIdea(name: String, category: MealCategory, ingredients: [MealIngredient], notes: String) {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedName.isEmpty else { return }
         let cleanedIngredients = cleanedIngredients(ingredients)
         let cleanedNotes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
-        mealIdeas.append(MealIdea(name: trimmedName, ingredients: cleanedIngredients, notes: cleanedNotes))
+        mealIdeas.append(MealIdea(name: trimmedName, category: category, ingredients: cleanedIngredients, notes: cleanedNotes))
         mealIdeas.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 
-    func updateMealIdea(_ meal: MealIdea, name: String, ingredients: [MealIngredient], notes: String) {
+    func updateMealIdea(_ meal: MealIdea, name: String, category: MealCategory, ingredients: [MealIngredient], notes: String) {
         guard let index = mealIdeas.firstIndex(where: { $0.id == meal.id }) else { return }
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedName.isEmpty else { return }
         mealIdeas[index].name = trimmedName
+        mealIdeas[index].category = category
         mealIdeas[index].ingredients = cleanedIngredients(ingredients)
         mealIdeas[index].notes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
         mealIdeas[index].updatedAt = Date()

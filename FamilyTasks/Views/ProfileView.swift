@@ -88,6 +88,7 @@ struct ProfileView: View {
                                 ProgressView()
                                 Text("Preparing Share")
                             }
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         } else {
                             VStack(alignment: .leading, spacing: 3) {
                                 Label("Invite Family to Shared Data", systemImage: "person.2.badge.plus")
@@ -95,9 +96,10 @@ struct ProfileView: View {
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         }
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.plain)
                     .disabled(sharedHouseholdStore.isSyncing)
 
                     Button {
@@ -111,7 +113,8 @@ struct ProfileView: View {
                             Label("Refresh Shared Data", systemImage: "arrow.triangle.2.circlepath")
                         }
                     }
-                    .buttonStyle(.bordered)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .buttonStyle(.plain)
                     .disabled(!sharedHouseholdStore.isSharingConfigured)
 
                     HStack {
