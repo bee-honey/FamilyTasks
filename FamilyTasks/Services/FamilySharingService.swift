@@ -2,42 +2,396 @@ import CloudKit
 import SwiftUI
 import UIKit
 
-enum FamilySharingService {
-    static let container = CKContainer.default()
+struct SharedHouseholdPayload: Codable {
+    var schemaVersion: Int
+    var updatedAt: Date
+    var updatedBy: String
+    var tasks: [FamilyTask]
+    var familyMembers: [String]
+    var shopping: ShoppingPayload
+    var recurringTasks: [RecurringTask]
+    var mealPlan: MealPlanPayload
 
-    static func sharingController() -> UICloudSharingController {
-        UICloudSharingController { _, completion in
-            let database = container.privateCloudDatabase
-            let rootRecord = CKRecord(recordType: "FamilyTaskList")
-            rootRecord["name"] = "Family Tasks" as CKRecordValue
+    init(
+        schemaVersion: Int = 1,
+        updatedAt: Date = Date(),
+        updatedBy: String = "",
+        tasks: [FamilyTask] = [],
+        familyMembers: [String] = [],
+        shopping: ShoppingPayload = ShoppingPayload(shops: [], items: []),
+        recurringTasks: [RecurringTask] = [],
+        mealPlan: MealPlanPayload = MealPlanPayload(mealIdeas: [], plannedMeals: [])
+    ) {
+        self.schemaVersion = schemaVersion
+        self.updatedAt = updatedAt
+        self.updatedBy = updatedBy
+        self.tasks = tasks
+        self.familyMembers = familyMembers
+        self.shopping = shopping
+        self.recurringTasks = recurringTasks
+        self.mealPlan = mealPlan
+    }
+}
 
-            let share = CKShare(rootRecord: rootRecord)
-            share[CKShare.SystemFieldKey.title] = "Family Tasks" as CKRecordValue
-            share.publicPermission = .none
+extension Notification.Name {
+    static let familyDataDidChange = Notification.Name("FamilyDataDidChange")
+}
 
-            let records: [CKRecord] = [rootRecord, share]
+enum FamilySharingDefaults {
+    static let localIntentChangeFlagKey = "familySharing.hasLocalIntentChanges"
+}
+
+@MainActor
+final class SharedHouseholdStore: ObservableObject {
+    static let shared = SharedHouseholdStore()
+
+    @Published private(set) var isSyncing = false
+    @Published private(set) var statusMessage = "Not sharing yet"
+    @Published private(set) var lastErrorMessage: String?
+
+    private let container = CKContainer.default()
+    private weak var taskStore: TaskStore?
+    private weak var organizerStore: OrganizerStore?
+    private var changeObserver: NSObjectProtocol?
+    private var pendingUploadTask: Task<Void, Never>?
+    private let defaults = UserDefaults.standard
+
+    private enum DefaultsKey {
+        static let recordName = "familySharing.recordName"
+        static let zoneName = "familySharing.zoneName"
+        static let ownerName = "familySharing.ownerName"
+        static let databaseScope = "familySharing.databaseScope"
+    }
+
+    private enum RecordKey {
+        static let name = "name"
+        static let payload = "payload"
+        static let updatedAt = "updatedAt"
+        static let updatedBy = "updatedBy"
+    }
+
+    private enum CloudKitKey {
+        static let rootRecordType = "FamilyTaskList"
+        static let sharedZoneName = "FamilyTasksSharedZone"
+    }
+
+    private init() {}
+
+    deinit {
+        if let changeObserver {
+            NotificationCenter.default.removeObserver(changeObserver)
+        }
+    }
+
+    var isSharingConfigured: Bool {
+        storedRootRecordID != nil
+    }
+
+    func configure(taskStore: TaskStore, organizerStore: OrganizerStore) {
+        self.taskStore = taskStore
+        self.organizerStore = organizerStore
+
+        if changeObserver == nil {
+            changeObserver = NotificationCenter.default.addObserver(
+                forName: .familyDataDidChange,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                Task { @MainActor in
+                    self?.scheduleUpload()
+                }
+            }
+        }
+
+        if isSharingConfigured {
+            statusMessage = "Family sharing enabled"
+            Task { await refreshFromCloud() }
+        }
+    }
+
+    func refreshFromCloud() async {
+        guard let recordID = storedRootRecordID else {
+            statusMessage = "Not sharing yet"
+            return
+        }
+
+        isSyncing = true
+        lastErrorMessage = nil
+
+        do {
+            let record = try await database.record(for: recordID)
+            guard let payload = decodePayload(from: record) else {
+                statusMessage = "Shared list is empty"
+                isSyncing = false
+                return
+            }
+
+            apply(payload)
+            statusMessage = "Updated \(payload.updatedAt.formatted(date: .abbreviated, time: .shortened))"
+        } catch {
+            lastErrorMessage = error.localizedDescription
+            statusMessage = "Could not refresh sharing"
+        }
+
+        isSyncing = false
+    }
+
+    func uploadNow() async {
+        guard let recordID = storedRootRecordID else { return }
+        guard let payload = currentPayload() else { return }
+
+        isSyncing = true
+        lastErrorMessage = nil
+
+        do {
+            let record: CKRecord
+            do {
+                record = try await database.record(for: recordID)
+            } catch {
+                record = CKRecord(recordType: CloudKitKey.rootRecordType, recordID: recordID)
+            }
+
+            encode(payload, into: record)
+            _ = try await database.save(record)
+            statusMessage = "Shared \(payload.updatedAt.formatted(date: .abbreviated, time: .shortened))"
+        } catch {
+            lastErrorMessage = error.localizedDescription
+            statusMessage = "Could not update shared list"
+        }
+
+        isSyncing = false
+    }
+
+    func syncOnAppActivation() async {
+        guard isSharingConfigured else { return }
+
+        if defaults.bool(forKey: FamilySharingDefaults.localIntentChangeFlagKey) {
+            await uploadNow()
+            if lastErrorMessage == nil {
+                defaults.set(false, forKey: FamilySharingDefaults.localIntentChangeFlagKey)
+            }
+        } else {
+            await refreshFromCloud()
+        }
+    }
+
+    func makeSharingController() -> UICloudSharingController {
+        let controller = UICloudSharingController { [weak self] _, completion in
+            Task { @MainActor in
+                guard let self else { return }
+
+                do {
+                    let rootRecord = try await self.rootRecordForSharing()
+                    let share = CKShare(rootRecord: rootRecord)
+                    share[CKShare.SystemFieldKey.title] = "Family Tasks" as CKRecordValue
+                    share.publicPermission = .none
+
+                    try await self.save(records: [rootRecord, share], in: self.container.privateCloudDatabase)
+                    self.store(recordID: rootRecord.recordID, databaseScope: .private)
+                    self.statusMessage = "Family sharing enabled"
+                    completion(share, self.container, nil)
+                } catch {
+                    self.lastErrorMessage = error.localizedDescription
+                    self.statusMessage = "Could not start sharing"
+                    completion(nil, nil, error)
+                }
+            }
+        }
+
+        controller.availablePermissions = [.allowPrivate, .allowReadWrite]
+        return controller
+    }
+
+    func acceptShare(metadata: CKShare.Metadata) {
+        Task {
+            isSyncing = true
+            lastErrorMessage = nil
+
+            do {
+                try await accept(metadata)
+                store(recordID: metadata.rootRecordID, databaseScope: .shared)
+                statusMessage = "Joined shared family list"
+                await refreshFromCloud()
+            } catch {
+                lastErrorMessage = error.localizedDescription
+                statusMessage = "Could not join shared list"
+            }
+
+            isSyncing = false
+        }
+    }
+
+    private var databaseScope: CKDatabase.Scope {
+        let rawValue = defaults.integer(forKey: DefaultsKey.databaseScope)
+        return CKDatabase.Scope(rawValue: rawValue) ?? .private
+    }
+
+    private var database: CKDatabase {
+        switch databaseScope {
+        case .shared:
+            container.sharedCloudDatabase
+        default:
+            container.privateCloudDatabase
+        }
+    }
+
+    private var storedRootRecordID: CKRecord.ID? {
+        guard let recordName = defaults.string(forKey: DefaultsKey.recordName),
+              let zoneName = defaults.string(forKey: DefaultsKey.zoneName),
+              let ownerName = defaults.string(forKey: DefaultsKey.ownerName) else {
+            return nil
+        }
+
+        return CKRecord.ID(recordName: recordName, zoneID: CKRecordZone.ID(zoneName: zoneName, ownerName: ownerName))
+    }
+
+    private func store(recordID: CKRecord.ID, databaseScope: CKDatabase.Scope) {
+        defaults.set(recordID.recordName, forKey: DefaultsKey.recordName)
+        defaults.set(recordID.zoneID.zoneName, forKey: DefaultsKey.zoneName)
+        defaults.set(recordID.zoneID.ownerName, forKey: DefaultsKey.ownerName)
+        defaults.set(databaseScope.rawValue, forKey: DefaultsKey.databaseScope)
+    }
+
+    private func scheduleUpload() {
+        guard isSharingConfigured else { return }
+
+        pendingUploadTask?.cancel()
+        pendingUploadTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(1))
+            guard !Task.isCancelled else { return }
+            await self?.uploadNow()
+        }
+    }
+
+    private func rootRecordForSharing() async throws -> CKRecord {
+        if let recordID = storedRootRecordID {
+            let record = try await container.privateCloudDatabase.record(for: recordID)
+            if let payload = currentPayload() {
+                encode(payload, into: record)
+            }
+            return record
+        }
+
+        try await ensurePrivateSharingZone()
+
+        let zoneID = CKRecordZone.ID(zoneName: CloudKitKey.sharedZoneName, ownerName: CKCurrentUserDefaultName)
+        let recordID = CKRecord.ID(recordName: UUID().uuidString, zoneID: zoneID)
+        let record = CKRecord(recordType: CloudKitKey.rootRecordType, recordID: recordID)
+        record[RecordKey.name] = "Family Tasks" as CKRecordValue
+        if let payload = currentPayload() {
+            encode(payload, into: record)
+        }
+        let saved = try await container.privateCloudDatabase.save(record)
+        store(recordID: saved.recordID, databaseScope: .private)
+        return saved
+    }
+
+    private func currentPayload() -> SharedHouseholdPayload? {
+        guard let taskStore, let organizerStore else { return nil }
+
+        return SharedHouseholdPayload(
+            updatedAt: Date(),
+            updatedBy: UserDefaults.standard.string(forKey: "profile.email") ?? "",
+            tasks: taskStore.exportTasks(),
+            familyMembers: taskStore.exportFamilyMembers(),
+            shopping: organizerStore.exportShoppingPayload(),
+            recurringTasks: organizerStore.recurringTasks,
+            mealPlan: organizerStore.exportMealPlanPayload()
+        )
+    }
+
+    private func apply(_ payload: SharedHouseholdPayload) {
+        taskStore?.applySharedData(tasks: payload.tasks, familyMembers: payload.familyMembers)
+        organizerStore?.applySharedData(
+            shopping: payload.shopping,
+            recurringTasks: payload.recurringTasks,
+            mealPlan: payload.mealPlan
+        )
+    }
+
+    private func encode(_ payload: SharedHouseholdPayload, into record: CKRecord) {
+        guard let data = try? JSONEncoder().encode(payload) else { return }
+        record[RecordKey.name] = "Family Tasks" as CKRecordValue
+        record[RecordKey.payload] = data as NSData
+        record[RecordKey.updatedAt] = payload.updatedAt as NSDate
+        record[RecordKey.updatedBy] = payload.updatedBy as NSString
+    }
+
+    private func decodePayload(from record: CKRecord) -> SharedHouseholdPayload? {
+        let data: Data?
+        if let value = record[RecordKey.payload] as? Data {
+            data = value
+        } else if let value = record[RecordKey.payload] as? NSData {
+            data = value as Data
+        } else {
+            data = nil
+        }
+
+        guard let data else { return nil }
+        return try? JSONDecoder().decode(SharedHouseholdPayload.self, from: data)
+    }
+
+    private func save(records: [CKRecord], in database: CKDatabase) async throws {
+        try await withCheckedThrowingContinuation { continuation in
             let operation = CKModifyRecordsOperation(recordsToSave: records, recordIDsToDelete: nil)
-            operation.savePolicy = .ifServerRecordUnchanged
+            operation.savePolicy = .changedKeys
             operation.modifyRecordsResultBlock = { result in
-                DispatchQueue.main.async {
-                    switch result {
-                    case .success:
-                        completion(share, container, nil)
-                    case .failure(let error):
-                        completion(nil, nil, error)
-                    }
+                switch result {
+                case .success:
+                    continuation.resume()
+                case .failure(let error):
+                    continuation.resume(throwing: error)
                 }
             }
             database.add(operation)
         }
     }
+
+    private func ensurePrivateSharingZone() async throws {
+        try await withCheckedThrowingContinuation { continuation in
+            let zone = CKRecordZone(zoneName: CloudKitKey.sharedZoneName)
+            let operation = CKModifyRecordZonesOperation(recordZonesToSave: [zone], recordZoneIDsToDelete: nil)
+            operation.modifyRecordZonesResultBlock = { result in
+                switch result {
+                case .success:
+                    continuation.resume()
+                case .failure(let error):
+                    continuation.resume(throwing: error)
+                }
+            }
+            container.privateCloudDatabase.add(operation)
+        }
+    }
+
+    private func accept(_ metadata: CKShare.Metadata) async throws {
+        try await withCheckedThrowingContinuation { continuation in
+            let operation = CKAcceptSharesOperation(shareMetadatas: [metadata])
+            operation.acceptSharesResultBlock = { result in
+                switch result {
+                case .success:
+                    continuation.resume()
+                case .failure(let error):
+                    continuation.resume(throwing: error)
+                }
+            }
+            CKContainer(identifier: metadata.containerIdentifier).add(operation)
+        }
+    }
+}
+
+final class AppDelegate: NSObject, UIApplicationDelegate {
+    func application(_ application: UIApplication, userDidAcceptCloudKitShareWith cloudKitShareMetadata: CKShare.Metadata) {
+        Task { @MainActor in
+            SharedHouseholdStore.shared.acceptShare(metadata: cloudKitShareMetadata)
+        }
+    }
 }
 
 struct CloudSharingView: UIViewControllerRepresentable {
+    @EnvironmentObject private var sharedHouseholdStore: SharedHouseholdStore
+
     func makeUIViewController(context: Context) -> UICloudSharingController {
-        let controller = FamilySharingService.sharingController()
-        controller.availablePermissions = [.allowPrivate, .allowReadWrite]
-        return controller
+        sharedHouseholdStore.makeSharingController()
     }
 
     func updateUIViewController(_ uiViewController: UICloudSharingController, context: Context) {}

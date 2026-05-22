@@ -11,6 +11,7 @@ final class TaskStore: ObservableObject {
 
     private let storageURL: URL
     private let familyMembersURL: URL
+    private var isApplyingSharedData = false
 
     init(storageURL: URL? = nil) {
         let documents = URL.documentsDirectory
@@ -173,6 +174,7 @@ final class TaskStore: ObservableObject {
     private func save() {
         guard let data = try? JSONEncoder().encode(tasks) else { return }
         try? data.write(to: storageURL, options: [.atomic])
+        notifySharedDataChanged()
     }
 
     private func loadFamilyMembers() {
@@ -183,6 +185,29 @@ final class TaskStore: ObservableObject {
     private func saveFamilyMembers() {
         guard let data = try? JSONEncoder().encode(familyMembers) else { return }
         try? data.write(to: familyMembersURL, options: [.atomic])
+        notifySharedDataChanged()
+    }
+
+    func exportTasks() -> [FamilyTask] {
+        tasks
+    }
+
+    func exportFamilyMembers() -> [String] {
+        familyMembers
+    }
+
+    func applySharedData(tasks: [FamilyTask], familyMembers: [String]) {
+        isApplyingSharedData = true
+        self.tasks = tasks
+        self.familyMembers = familyMembers
+        save()
+        saveFamilyMembers()
+        isApplyingSharedData = false
+    }
+
+    private func notifySharedDataChanged() {
+        guard !isApplyingSharedData else { return }
+        NotificationCenter.default.post(name: .familyDataDidChange, object: self)
     }
 
     private func removeLegacyAssigneeNames() {

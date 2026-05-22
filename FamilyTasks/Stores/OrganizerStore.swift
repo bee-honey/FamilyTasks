@@ -25,6 +25,7 @@ final class OrganizerStore: ObservableObject {
     private let shoppingURL: URL
     private let recurringTasksURL: URL
     private let mealPlanURL: URL
+    private var isApplyingSharedData = false
 
     init(directory: URL? = nil) {
         let documents = directory ?? URL.documentsDirectory
@@ -272,6 +273,7 @@ final class OrganizerStore: ObservableObject {
         let payload = ShoppingPayload(shops: shops, items: shoppingItems)
         guard let data = try? JSONEncoder().encode(payload) else { return }
         try? data.write(to: shoppingURL, options: [.atomic])
+        notifySharedDataChanged()
     }
 
     private func loadRecurringTasks() {
@@ -282,6 +284,7 @@ final class OrganizerStore: ObservableObject {
     private func saveRecurringTasks() {
         guard let data = try? JSONEncoder().encode(recurringTasks) else { return }
         try? data.write(to: recurringTasksURL, options: [.atomic])
+        notifySharedDataChanged()
     }
 
     private func loadMealPlan() {
@@ -295,6 +298,33 @@ final class OrganizerStore: ObservableObject {
         let payload = MealPlanPayload(mealIdeas: mealIdeas, plannedMeals: plannedMeals)
         guard let data = try? JSONEncoder().encode(payload) else { return }
         try? data.write(to: mealPlanURL, options: [.atomic])
+        notifySharedDataChanged()
+    }
+
+    func exportShoppingPayload() -> ShoppingPayload {
+        ShoppingPayload(shops: shops, items: shoppingItems)
+    }
+
+    func exportMealPlanPayload() -> MealPlanPayload {
+        MealPlanPayload(mealIdeas: mealIdeas, plannedMeals: plannedMeals)
+    }
+
+    func applySharedData(shopping: ShoppingPayload, recurringTasks: [RecurringTask], mealPlan: MealPlanPayload) {
+        isApplyingSharedData = true
+        shops = shopping.shops
+        shoppingItems = shopping.items
+        self.recurringTasks = recurringTasks
+        mealIdeas = mealPlan.mealIdeas
+        plannedMeals = mealPlan.plannedMeals
+        saveShopping()
+        saveRecurringTasks()
+        saveMealPlan()
+        isApplyingSharedData = false
+    }
+
+    private func notifySharedDataChanged() {
+        guard !isApplyingSharedData else { return }
+        NotificationCenter.default.post(name: .familyDataDidChange, object: self)
     }
 
     private func cleanedIngredients(_ values: [MealIngredient]) -> [MealIngredient] {
@@ -329,7 +359,7 @@ struct ShoppingPayload: Codable {
     var items: [ShoppingItem]
 }
 
-private struct MealPlanPayload: Codable {
+struct MealPlanPayload: Codable {
     var mealIdeas: [MealIdea]
     var plannedMeals: [PlannedMeal]
 }

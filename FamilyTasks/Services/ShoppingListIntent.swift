@@ -61,6 +61,7 @@ private enum ShoppingListIntentStore {
 
         let data = try JSONEncoder().encode(payload)
         try data.write(to: storageURL, options: [.atomic])
+        UserDefaults.standard.set(true, forKey: FamilySharingDefaults.localIntentChangeFlagKey)
         return shop.name
     }
 

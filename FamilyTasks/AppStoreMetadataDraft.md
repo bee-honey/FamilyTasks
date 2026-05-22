@@ -30,7 +30,7 @@ Features:
 - Recurring tasks with daily, weekly, monthly, and yearly schedules
 - Profile and family member settings
 - Calendar sync for task due dates, including Google calendars configured on the device
-- iCloud/CloudKit foundation for family data sharing
+- iCloud/CloudKit sharing for household tasks, shopping, recurring tasks, and meal plans
 
 ## Keywords
 
@@ -57,4 +57,4 @@ Expected disclosures:
 - Photo library access: used when the user chooses a local profile photo.
 - iCloud/CloudKit: used for family task sharing data.
 
-Confirm final App Privacy answers after testing CloudKit sharing on real devices.
+Confirm final App Privacy answers after testing CloudKit sharing on real devices with two Apple IDs.

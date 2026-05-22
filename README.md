@@ -36,7 +36,9 @@ The app uses EventKit. If a Google account is added under iOS Settings > Calenda
 
 ## Family Sharing
 
-The project includes CloudKit capability and an initial CloudKit share-sheet foundation. Full shared data persistence still needs to be completed before a production family-sharing release.
+The app uses CloudKit sharing for a shared household workspace. Tasks, family member emails, shopping lists, recurring tasks, meal ideas, and planned meals are stored as one shared household payload after the owner shares it from Profile > Share Household Data.
+
+CloudKit family sharing should be tested on physical devices with two separate iCloud accounts before App Store submission.
 
 ## App Store Notes
 

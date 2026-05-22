@@ -4,6 +4,7 @@ import UserNotifications
 
 struct ProfileView: View {
     @EnvironmentObject private var calendarSync: CalendarSyncService
+    @EnvironmentObject private var sharedHouseholdStore: SharedHouseholdStore
     @AppStorage("profile.email") private var email = ""
     @AppStorage("profile.initials") private var initials = ""
     @AppStorage("profile.imageData") private var imageData = Data()
@@ -15,6 +16,7 @@ struct ProfileView: View {
     @AppStorage("notifications.todayDigest") private var todayDigestEnabled = true
     @AppStorage("notifications.dueSoon") private var dueSoonEnabled = true
     @State private var selectedPhoto: PhotosPickerItem?
+    @State private var isShowingCloudShare = false
 
     var body: some View {
         NavigationStack {
@@ -65,6 +67,39 @@ struct ProfileView: View {
                         FamilyMembersView()
                     } label: {
                         Label("Family Members", systemImage: "person.2")
+                    }
+
+                    Button {
+                        isShowingCloudShare = true
+                    } label: {
+                        Label("Share Household Data", systemImage: "person.2.badge.plus")
+                    }
+
+                    Button {
+                        Task {
+                            await sharedHouseholdStore.refreshFromCloud()
+                        }
+                    } label: {
+                        if sharedHouseholdStore.isSyncing {
+                            ProgressView()
+                        } else {
+                            Label("Refresh Shared Data", systemImage: "arrow.triangle.2.circlepath")
+                        }
+                    }
+                    .disabled(!sharedHouseholdStore.isSharingConfigured)
+
+                    HStack {
+                        Label("Sharing Status", systemImage: "icloud")
+                        Spacer()
+                        Text(sharedHouseholdStore.statusMessage)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.trailing)
+                    }
+
+                    if let message = sharedHouseholdStore.lastErrorMessage, !message.isEmpty {
+                        Text(message)
+                            .font(.caption)
+                            .foregroundStyle(AppTheme.destructive)
                     }
                 }
 
@@ -144,6 +179,10 @@ struct ProfileView: View {
             .navigationTitle("Profile")
             .scrollContentBackground(.hidden)
             .background(AppTheme.background)
+            .sheet(isPresented: $isShowingCloudShare) {
+                CloudSharingView()
+                    .environmentObject(sharedHouseholdStore)
+            }
             .onChange(of: selectedPhoto) { _, item in
                 Task {
                     if let data = try? await item?.loadTransferable(type: Data.self) {
