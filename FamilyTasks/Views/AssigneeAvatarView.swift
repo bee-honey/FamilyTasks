@@ -2,10 +2,18 @@ import SwiftUI
 
 struct AssigneeAvatarView: View {
     let name: String
+    @AppStorage("profile.email") private var profileEmail = ""
+    @AppStorage("profile.initials") private var profileInitials = ""
 
     private var initials: String {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return "?" }
+        let trimmedProfileEmail = profileEmail.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedProfileInitials = profileInitials.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if !trimmedProfileInitials.isEmpty && trimmed.caseInsensitiveCompare(trimmedProfileEmail) == .orderedSame {
+            return String(trimmedProfileInitials.prefix(3)).uppercased()
+        }
 
         let displayName = trimmed.split(separator: "@").first.map(String.init) ?? trimmed
         let parts = displayName.split(whereSeparator: { $0 == " " || $0 == "." || $0 == "_" || $0 == "-" })

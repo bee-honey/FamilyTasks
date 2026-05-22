@@ -100,6 +100,7 @@ struct MealPlanView: View {
                     MealIdeaCard(meal: meal) {
                         planningDate = selectedTab == .meals ? planningDate : selectedDay
                         planningMeal = meal
+                        selectedTab = .plan
                     } onEdit: {
                         editingMeal = meal
                     } onDelete: {
@@ -240,9 +241,9 @@ private struct MealSlotRow: View {
 
             if plannedMeals.isEmpty {
                 Button(action: onPlan) {
-                    Text("Not planned")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    Label("Add meal", systemImage: "plus.circle")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(AppTheme.primary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(10)
                         .background(AppTheme.surfaceMuted, in: RoundedRectangle(cornerRadius: 10))
@@ -267,6 +268,16 @@ private struct MealSlotRow: View {
                         .background(AppTheme.surfaceMuted, in: RoundedRectangle(cornerRadius: 10))
                     }
                 }
+
+                Button(action: onPlan) {
+                    Label("Add another meal", systemImage: "plus.circle")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(AppTheme.primary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(10)
+                        .background(AppTheme.surfaceMuted, in: RoundedRectangle(cornerRadius: 10))
+                }
+                .buttonStyle(.plain)
             }
         }
     }
@@ -294,6 +305,16 @@ private struct MealIdeaCard: View {
                 }
 
                 Spacer()
+
+                Button(action: onPlan) {
+                    Image(systemName: "calendar.badge.plus")
+                        .font(.headline)
+                        .foregroundStyle(AppTheme.primary)
+                        .frame(width: 36, height: 36)
+                        .background(AppTheme.surfaceMuted, in: Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Add \(meal.name) to meal plan")
 
                 Menu {
                     Button(action: onPlan) {

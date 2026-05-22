@@ -66,7 +66,12 @@ struct ProfileView: View {
                     NavigationLink {
                         FamilyMembersView()
                     } label: {
-                        Label("Family Members", systemImage: "person.2")
+                        VStack(alignment: .leading, spacing: 3) {
+                            Label("Family Member Emails", systemImage: "person.2")
+                            Text("Used for task assignment and initials.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
 
                     Button {
@@ -84,7 +89,12 @@ struct ProfileView: View {
                                 Text("Preparing Share")
                             }
                         } else {
-                            Label("Share Household Data", systemImage: "person.2.badge.plus")
+                            VStack(alignment: .leading, spacing: 3) {
+                                Label("Invite Family to Shared Data", systemImage: "person.2.badge.plus")
+                                Text("Sends the iCloud invite that lets another Apple Account sync this household.")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                     }
                     .buttonStyle(.bordered)

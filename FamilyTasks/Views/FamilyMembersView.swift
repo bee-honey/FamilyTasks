@@ -55,12 +55,20 @@ struct FamilyMembersView: View {
                         Text("No members yet")
                             .foregroundStyle(.secondary)
                     } else {
-                        ForEach(taskStore.familyMembers, id: \.self) { member in
+                        ForEach(Array(taskStore.familyMembers.enumerated()), id: \.element) { index, member in
                             HStack(spacing: 10) {
                                 AssigneeAvatarView(name: member)
                                     .scaleEffect(0.78)
                                     .frame(width: 32, height: 32)
                                 Text(member)
+                                    .lineLimit(1)
+                                Spacer()
+                                Button(role: .destructive) {
+                                    taskStore.deleteFamilyMember(at: IndexSet(integer: index))
+                                } label: {
+                                    Image(systemName: "trash")
+                                }
+                                .buttonStyle(.borderless)
                             }
                         }
                         .onDelete(perform: taskStore.deleteFamilyMember)
