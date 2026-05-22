@@ -16,7 +16,7 @@ struct ProfileView: View {
     @AppStorage("notifications.todayDigest") private var todayDigestEnabled = true
     @AppStorage("notifications.dueSoon") private var dueSoonEnabled = true
     @State private var selectedPhoto: PhotosPickerItem?
-    @State private var isShowingCloudShare = false
+    @State private var preparedCloudShare: PreparedCloudShare?
 
     var body: some View {
         NavigationStack {
@@ -70,10 +70,25 @@ struct ProfileView: View {
                     }
 
                     Button {
-                        isShowingCloudShare = true
+                        Task {
+                            do {
+                                preparedCloudShare = try await sharedHouseholdStore.prepareCloudShare()
+                            } catch {
+                                // The store exposes the user-facing error in the sharing status rows.
+                            }
+                        }
                     } label: {
-                        Label("Share Household Data", systemImage: "person.2.badge.plus")
+                        if sharedHouseholdStore.isSyncing {
+                            HStack {
+                                ProgressView()
+                                Text("Preparing Share")
+                            }
+                        } else {
+                            Label("Share Household Data", systemImage: "person.2.badge.plus")
+                        }
                     }
+                    .buttonStyle(.bordered)
+                    .disabled(sharedHouseholdStore.isSyncing)
 
                     Button {
                         Task {
@@ -86,6 +101,7 @@ struct ProfileView: View {
                             Label("Refresh Shared Data", systemImage: "arrow.triangle.2.circlepath")
                         }
                     }
+                    .buttonStyle(.bordered)
                     .disabled(!sharedHouseholdStore.isSharingConfigured)
 
                     HStack {
@@ -141,6 +157,7 @@ struct ProfileView: View {
                             Label("Refresh Calendar Events", systemImage: "arrow.clockwise")
                         }
                     }
+                    .buttonStyle(.bordered)
                     .disabled(!calendarIntegrationEnabled && calendarSync.authorizationStatus == .denied)
 
                     if let message = calendarSync.lastErrorMessage, !message.isEmpty {
@@ -179,9 +196,8 @@ struct ProfileView: View {
             .navigationTitle("Profile")
             .scrollContentBackground(.hidden)
             .background(AppTheme.background)
-            .sheet(isPresented: $isShowingCloudShare) {
-                CloudSharingView()
-                    .environmentObject(sharedHouseholdStore)
+            .sheet(item: $preparedCloudShare) { preparedShare in
+                CloudSharingView(preparedShare: preparedShare)
             }
             .onChange(of: selectedPhoto) { _, item in
                 Task {

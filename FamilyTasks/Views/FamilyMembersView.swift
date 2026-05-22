@@ -17,25 +17,37 @@ struct FamilyMembersView: View {
         NavigationStack {
             Form {
                 Section {
-                    HStack {
-                        TextField("Email", text: $name)
-                            .keyboardType(.emailAddress)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
-                            .submitLabel(.done)
-                            .focused($isNameFocused)
-                            .onSubmit(addMember)
+                    TextField("Email address", text: $name)
+                        .keyboardType(.emailAddress)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .submitLabel(.done)
+                        .focused($isNameFocused)
+                        .textFieldStyle(.roundedBorder)
+                        .onSubmit(addMember)
 
-                        Button(action: addMember) {
-                            Image(systemName: "plus.circle.fill")
-                        }
-                        .buttonStyle(.borderless)
-                        .disabled(!canAddMember)
+                    Button(action: addMember) {
+                        Label("Add Family Member", systemImage: "plus.circle.fill")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .disabled(!canAddMember)
+
+                    if !name.isEmpty && !canAddMember {
+                        Label("Enter a valid email address.", systemImage: "exclamationmark.circle")
+                            .font(.caption)
+                            .foregroundStyle(AppTheme.destructive)
                     }
                 } header: {
                     Text("Add Member")
                 } footer: {
                     Text("Use the Apple Account email they will accept the shared task list with.")
+                }
+                .onAppear {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                        isNameFocused = true
+                    }
                 }
 
                 Section("Family") {

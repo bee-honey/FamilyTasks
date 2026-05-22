@@ -41,6 +41,12 @@ enum FamilySharingDefaults {
     static let localIntentChangeFlagKey = "familySharing.hasLocalIntentChanges"
 }
 
+struct PreparedCloudShare: Identifiable {
+    let id = UUID()
+    let share: CKShare
+    let container: CKContainer
+}
+
 @MainActor
 final class SharedHouseholdStore: ObservableObject {
     static let shared = SharedHouseholdStore()
@@ -175,31 +181,31 @@ final class SharedHouseholdStore: ObservableObject {
         }
     }
 
-    func makeSharingController() -> UICloudSharingController {
-        let controller = UICloudSharingController { [weak self] _, completion in
-            Task { @MainActor in
-                guard let self else { return }
+    func prepareCloudShare() async throws -> PreparedCloudShare {
+        isSyncing = true
+        lastErrorMessage = nil
+        defer { isSyncing = false }
 
-                do {
-                    let rootRecord = try await self.rootRecordForSharing()
-                    let share = CKShare(rootRecord: rootRecord)
-                    share[CKShare.SystemFieldKey.title] = "Family Tasks" as CKRecordValue
-                    share.publicPermission = .none
-
-                    try await self.save(records: [rootRecord, share], in: self.container.privateCloudDatabase)
-                    self.store(recordID: rootRecord.recordID, databaseScope: .private)
-                    self.statusMessage = "Family sharing enabled"
-                    completion(share, self.container, nil)
-                } catch {
-                    self.lastErrorMessage = error.localizedDescription
-                    self.statusMessage = "Could not start sharing"
-                    completion(nil, nil, error)
-                }
+        do {
+            let rootRecord = try await rootRecordForSharing()
+            let share: CKShare
+            if let existingShare = try await existingShare(for: rootRecord) {
+                share = existingShare
+            } else {
+                share = CKShare(rootRecord: rootRecord)
+                share[CKShare.SystemFieldKey.title] = "Family Tasks" as CKRecordValue
+                share.publicPermission = .none
+                try await save(records: [rootRecord, share], in: container.privateCloudDatabase)
             }
-        }
 
-        controller.availablePermissions = [.allowPrivate, .allowReadWrite]
-        return controller
+            store(recordID: rootRecord.recordID, databaseScope: .private)
+            statusMessage = "Family sharing enabled"
+            return PreparedCloudShare(share: share, container: container)
+        } catch {
+            lastErrorMessage = error.localizedDescription
+            statusMessage = "Could not start sharing"
+            throw error
+        }
     }
 
     func acceptShare(metadata: CKShare.Metadata) {
@@ -347,6 +353,11 @@ final class SharedHouseholdStore: ObservableObject {
         }
     }
 
+    private func existingShare(for rootRecord: CKRecord) async throws -> CKShare? {
+        guard let shareReference = rootRecord.share else { return nil }
+        return try await container.privateCloudDatabase.record(for: shareReference.recordID) as? CKShare
+    }
+
     private func ensurePrivateSharingZone() async throws {
         try await withCheckedThrowingContinuation { continuation in
             let zone = CKRecordZone(zoneName: CloudKitKey.sharedZoneName)
@@ -388,10 +399,12 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
 }
 
 struct CloudSharingView: UIViewControllerRepresentable {
-    @EnvironmentObject private var sharedHouseholdStore: SharedHouseholdStore
+    let preparedShare: PreparedCloudShare
 
     func makeUIViewController(context: Context) -> UICloudSharingController {
-        sharedHouseholdStore.makeSharingController()
+        let controller = UICloudSharingController(share: preparedShare.share, container: preparedShare.container)
+        controller.availablePermissions = [.allowPrivate, .allowReadWrite]
+        return controller
     }
 
     func updateUIViewController(_ uiViewController: UICloudSharingController, context: Context) {}
