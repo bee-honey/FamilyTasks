@@ -326,30 +326,34 @@ private struct MealIdeaCard: View {
 
                 Spacer()
 
-                Button(action: onPlan) {
-                    Image(systemName: "calendar.badge.plus")
-                        .font(.headline)
-                        .foregroundStyle(AppTheme.primary)
-                        .frame(width: 36, height: 36)
-                        .background(AppTheme.surfaceMuted, in: Circle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Add \(meal.name) to meal plan")
-
-                Menu {
+                HStack(spacing: 14) {
                     Button(action: onPlan) {
-                        Label("Add to Plan", systemImage: "calendar.badge.plus")
+                        Image(systemName: "calendar.badge.plus")
+                            .font(.headline)
+                            .foregroundStyle(AppTheme.primary)
+                            .frame(width: 36, height: 36)
+                            .background(AppTheme.surfaceMuted, in: Circle())
                     }
-                    Button(action: onEdit) {
-                        Label("Edit", systemImage: "pencil")
+                    .frame(width: 44, height: 44)
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Add \(meal.name) to meal plan")
+
+                    Menu {
+                        Button(action: onPlan) {
+                            Label("Add to Plan", systemImage: "calendar.badge.plus")
+                        }
+                        Button(action: onEdit) {
+                            Label("Edit", systemImage: "pencil")
+                        }
+                        Button(role: .destructive, action: onDelete) {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .font(.headline)
+                            .foregroundStyle(.secondary)
+                            .frame(width: 44, height: 44)
                     }
-                    Button(role: .destructive, action: onDelete) {
-                        Label("Delete", systemImage: "trash")
-                    }
-                } label: {
-                    Image(systemName: "ellipsis")
-                        .font(.headline)
-                        .foregroundStyle(.secondary)
                 }
             }
 
