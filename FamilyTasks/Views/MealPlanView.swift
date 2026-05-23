@@ -3,7 +3,8 @@ import SwiftUI
 struct MealPlanView: View {
     @EnvironmentObject private var organizerStore: OrganizerStore
     @State private var selectedTab: MealPlanTab = .plan
-    @State private var selectedRange: MealPlanRange = .week
+    @State private var selectedMealCategory: MealCategory = .breakfast
+    @State private var mealSearchText = ""
     @State private var selectedDay = Date()
     @State private var isAddingMeal = false
     @State private var planningMeal: MealIdea?
@@ -23,13 +24,26 @@ struct MealPlanView: View {
                 .padding(.horizontal, 16)
                 .padding(.top, 12)
 
-                if selectedTab == .plan {
-                    Picker("Range", selection: $selectedRange) {
-                        ForEach(MealPlanRange.allCases) { range in
-                            Text(range.title).tag(range)
+                if selectedTab == .meals {
+                    Picker("Meal type", selection: $selectedMealCategory) {
+                        ForEach(MealCategory.allCases) { category in
+                            Text(category.title).tag(category)
                         }
                     }
                     .pickerStyle(.segmented)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 10)
+
+                    HStack(spacing: 8) {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundStyle(.secondary)
+                        TextField("Search meals", text: $mealSearchText)
+                            .textInputAutocapitalization(.words)
+                    }
+                    .font(.footnote)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 12))
                     .padding(.horizontal, 16)
                     .padding(.top, 10)
                 }
@@ -75,8 +89,8 @@ struct MealPlanView: View {
             } else {
                 dayPicker
 
-                ForEach(daysToShow, id: \.self) { day in
-                    DayMealSection(day: day, meals: plannedMeals(on: day)) { slot in
+                ForEach(Array(daysToShow.enumerated()), id: \.element) { index, day in
+                    DayMealSection(day: day, meals: plannedMeals(on: day), accentColor: dayAccentColors[index % dayAccentColors.count]) { slot in
                         planningDate = day
                         planningSlot = slot
                         selectedDay = day
@@ -95,19 +109,19 @@ struct MealPlanView: View {
             if organizerStore.mealIdeas.isEmpty {
                 ContentUnavailableView("No Saved Meals", systemImage: "fork.knife.circle", description: Text("Add meals once and reuse them while planning the week."))
                     .padding(.top, 80)
+            } else if filteredMealIdeas.isEmpty {
+                ContentUnavailableView("No Matches", systemImage: "magnifyingglass", description: Text("Try another search or add a \(selectedMealCategory.title.lowercased()) meal."))
+                    .padding(.top, 80)
             } else {
-                ForEach(MealCategory.allCases) { category in
-                    let meals = organizerStore.mealIdeas.filter { $0.category == category }
-                    if !meals.isEmpty {
-                        MealCategorySection(category: category, meals: meals) { meal in
-                            planningDate = selectedTab == .meals ? planningDate : selectedDay
-                            planningMeal = meal
-                            selectedTab = .plan
-                        } onEdit: { meal in
-                            editingMeal = meal
-                        } onDelete: { meal in
-                            organizerStore.deleteMealIdea(meal)
-                        }
+                ForEach(filteredMealIdeas) { meal in
+                    MealIdeaCard(meal: meal) {
+                        planningDate = selectedTab == .meals ? planningDate : selectedDay
+                        planningMeal = meal
+                        selectedTab = .plan
+                    } onEdit: {
+                        editingMeal = meal
+                    } onDelete: {
+                        organizerStore.deleteMealIdea(meal)
                     }
                 }
             }
@@ -118,7 +132,7 @@ struct MealPlanView: View {
     private var dayPicker: some View {
         HStack(spacing: 10) {
             Button {
-                selectedDay = Calendar.current.date(byAdding: .day, value: -dayStep, to: selectedDay) ?? selectedDay
+                selectedDay = Calendar.current.date(byAdding: .day, value: -7, to: selectedDay) ?? selectedDay
             } label: {
                 Image(systemName: "chevron.left")
                     .frame(width: 36, height: 36)
@@ -126,17 +140,17 @@ struct MealPlanView: View {
             .buttonStyle(.plain)
 
             VStack(spacing: 2) {
-                Text(selectedRange == .day ? selectedDay.formatted(date: .complete, time: .omitted) : weekTitle)
+                Text(weekTitle)
                     .font(.footnote.weight(.semibold))
                     .multilineTextAlignment(.center)
-                Text(selectedRange.title)
+                Text("Week")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity)
 
             Button {
-                selectedDay = Calendar.current.date(byAdding: .day, value: dayStep, to: selectedDay) ?? selectedDay
+                selectedDay = Calendar.current.date(byAdding: .day, value: 7, to: selectedDay) ?? selectedDay
             } label: {
                 Image(systemName: "chevron.right")
                     .frame(width: 36, height: 36)
@@ -147,15 +161,7 @@ struct MealPlanView: View {
         .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))
     }
 
-    private var dayStep: Int {
-        selectedRange == .day ? 1 : 7
-    }
-
     private var daysToShow: [Date] {
-        if selectedRange == .day {
-            return [Calendar.current.startOfDay(for: selectedDay)]
-        }
-
         let interval = Calendar.current.dateInterval(of: .weekOfYear, for: selectedDay)
         let start = interval?.start ?? Calendar.current.startOfDay(for: selectedDay)
         return (0..<7).compactMap { Calendar.current.date(byAdding: .day, value: $0, to: start) }
@@ -174,6 +180,22 @@ struct MealPlanView: View {
                 return MealSlot.allCases.firstIndex(of: lhs.slot) ?? 0 < MealSlot.allCases.firstIndex(of: rhs.slot) ?? 0
             }
     }
+
+    private var filteredMealIdeas: [MealIdea] {
+        let query = mealSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        return organizerStore.mealIdeas
+            .filter { $0.category == selectedMealCategory }
+            .filter { meal in
+                query.isEmpty
+                || meal.name.localizedCaseInsensitiveContains(query)
+                || meal.ingredients.contains { $0.name.localizedCaseInsensitiveContains(query) }
+            }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
+    private var dayAccentColors: [Color] {
+        [.red, .orange, .yellow, .green, .teal, .blue, .purple]
+    }
 }
 
 private enum MealPlanTab: String, CaseIterable, Identifiable {
@@ -190,51 +212,11 @@ private enum MealPlanTab: String, CaseIterable, Identifiable {
     }
 }
 
-private enum MealPlanRange: String, CaseIterable, Identifiable {
-    case day
-    case week
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .day: "Day"
-        case .week: "Week"
-        }
-    }
-}
-
-private struct MealCategorySection: View {
-    let category: MealCategory
-    let meals: [MealIdea]
-    let onPlan: (MealIdea) -> Void
-    let onEdit: (MealIdea) -> Void
-    let onDelete: (MealIdea) -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Label(category.title, systemImage: category.systemImage)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
-
-            ForEach(meals) { meal in
-                MealIdeaCard(meal: meal) {
-                    onPlan(meal)
-                } onEdit: {
-                    onEdit(meal)
-                } onDelete: {
-                    onDelete(meal)
-                }
-            }
-        }
-    }
-}
-
 private struct DayMealSection: View {
     @EnvironmentObject private var organizerStore: OrganizerStore
     let day: Date
     let meals: [PlannedMeal]
+    let accentColor: Color
     let onPlanSlot: (MealSlot) -> Void
     let onDelete: (PlannedMeal) -> Void
 
@@ -252,7 +234,15 @@ private struct DayMealSection: View {
             }
         }
         .padding(12)
-        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))
+        .background {
+            RoundedRectangle(cornerRadius: 14)
+                .fill(AppTheme.surface)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 14)
+                        .fill(accentColor.opacity(0.045))
+                }
+                .shadow(color: accentColor.opacity(0.13), radius: 16, x: 0, y: 8)
+        }
     }
 }
 
