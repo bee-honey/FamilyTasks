@@ -16,6 +16,11 @@ struct RootTabView: View {
                 }
 
                 Section("Settings") {
+                    NavigationLink(value: AppSection.syncSettings) {
+                        Label(AppSection.syncSettings.title, systemImage: AppSection.syncSettings.systemImage)
+                    }
+                    .listRowBackground(AppTheme.surface)
+
                     NavigationLink(value: AppSection.profile) {
                         Label(AppSection.profile.title, systemImage: AppSection.profile.systemImage)
                     }
@@ -38,6 +43,8 @@ struct RootTabView: View {
                 MealPlanView()
             case .recurring:
                 RecurringTasksView()
+            case .syncSettings:
+                SyncSettingsView()
             case .profile:
                 ProfileView()
             }
@@ -52,6 +59,7 @@ private enum AppSection: String, CaseIterable, Identifiable {
     case shopping
     case mealPlan
     case recurring
+    case syncSettings
     case profile
 
     var id: String { rawValue }
@@ -67,6 +75,7 @@ private enum AppSection: String, CaseIterable, Identifiable {
         case .shopping: "Shopping"
         case .mealPlan: "Meal Plan"
         case .recurring: "Recurring"
+        case .syncSettings: "Sync Settings"
         case .profile: "Profile"
         }
     }
@@ -78,6 +87,7 @@ private enum AppSection: String, CaseIterable, Identifiable {
         case .shopping: "cart"
         case .mealPlan: "fork.knife"
         case .recurring: "repeat"
+        case .syncSettings: "arrow.triangle.2.circlepath"
         case .profile: "person.crop.circle"
         }
     }

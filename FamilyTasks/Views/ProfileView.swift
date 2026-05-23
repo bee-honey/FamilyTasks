@@ -3,13 +3,9 @@ import SwiftUI
 import UserNotifications
 
 struct ProfileView: View {
-    @EnvironmentObject private var taskStore: TaskStore
-    @EnvironmentObject private var calendarSync: CalendarSyncService
-    @EnvironmentObject private var sharedHouseholdStore: SharedHouseholdStore
     @AppStorage("profile.email") private var email = ""
     @AppStorage("profile.initials") private var initials = ""
     @AppStorage("profile.imageData") private var imageData = Data()
-    @AppStorage("calendar.integration.enabled") private var calendarIntegrationEnabled = false
     @AppStorage("schedule.showTaskTime") private var showTaskTime = false
     @AppStorage("schedule.showTaskBucket") private var showTaskBucket = false
     @AppStorage("schedule.defaultDisplayMode") private var defaultScheduleView = "week"
@@ -17,7 +13,6 @@ struct ProfileView: View {
     @AppStorage("notifications.todayDigest") private var todayDigestEnabled = true
     @AppStorage("notifications.dueSoon") private var dueSoonEnabled = true
     @State private var selectedPhoto: PhotosPickerItem?
-    @State private var preparedCloudShare: PreparedCloudShare?
 
     var body: some View {
         NavigationStack {
@@ -63,6 +58,111 @@ struct ProfileView: View {
                         }
                 }
 
+                Section("Schedule") {
+                    Picker("Default View", selection: $defaultScheduleView) {
+                        Text("Today").tag("today")
+                        Text("Week").tag("week")
+                        Text("Month").tag("month")
+                    }
+
+                    Toggle("Show Time On Tasks", isOn: $showTaskTime)
+                    Toggle("Show Bucket On Tasks", isOn: $showTaskBucket)
+                }
+
+                Section("Notifications") {
+                    Toggle("Enable Notifications", isOn: $notificationsEnabled)
+                        .onChange(of: notificationsEnabled) { _, enabled in
+                            if enabled {
+                                requestNotificationPermission()
+                            }
+                        }
+
+                    Toggle("Today Digest", isOn: $todayDigestEnabled)
+                        .disabled(!notificationsEnabled)
+
+                    Toggle("Due Soon Alerts", isOn: $dueSoonEnabled)
+                        .disabled(!notificationsEnabled)
+                }
+
+                Section("About") {
+                    HStack {
+                        Label("Version", systemImage: "info.circle")
+                        Spacer()
+                        Text(appVersionDisplay)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .navigationTitle("Profile")
+            .scrollContentBackground(.hidden)
+            .background(AppTheme.background)
+            .onChange(of: selectedPhoto) { _, item in
+                Task {
+                    if let data = try? await item?.loadTransferable(type: Data.self) {
+                        imageData = data
+                    }
+                }
+            }
+        }
+    }
+
+    private var appVersionDisplay: String {
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String
+        return "\(version?.isEmpty == false ? version! : "1.0") (\(build?.isEmpty == false ? build! : "1"))"
+    }
+
+    @ViewBuilder
+    private var profileImage: some View {
+        if let image = UIImage(data: imageData) {
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFill()
+                .frame(width: 64, height: 64)
+                .clipShape(Circle())
+        } else {
+            Text(displayInitials)
+                .font(.title2.weight(.bold))
+                .foregroundStyle(.white)
+                .frame(width: 64, height: 64)
+                .background(AppTheme.primary, in: Circle())
+        }
+    }
+
+    private var displayInitials: String {
+        let trimmedInitials = initials.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedInitials.isEmpty {
+            return trimmedInitials.uppercased()
+        }
+
+        let localPart = email.split(separator: "@").first.map(String.init) ?? ""
+        let parts = localPart.split(whereSeparator: { $0 == "." || $0 == "_" || $0 == "-" || $0 == " " })
+        let letters = parts.prefix(2).compactMap(\.first)
+        return letters.isEmpty ? "ME" : String(letters).uppercased()
+    }
+
+    private func requestNotificationPermission() {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, _ in
+            if !granted {
+                DispatchQueue.main.async {
+                    notificationsEnabled = false
+                }
+            }
+        }
+    }
+}
+
+struct SyncSettingsView: View {
+    @EnvironmentObject private var taskStore: TaskStore
+    @EnvironmentObject private var calendarSync: CalendarSyncService
+    @EnvironmentObject private var sharedHouseholdStore: SharedHouseholdStore
+    @AppStorage("calendar.integration.enabled") private var calendarIntegrationEnabled = false
+    @State private var preparedCloudShare: PreparedCloudShare?
+    @State private var isRefreshingCalendar = false
+
+    var body: some View {
+        NavigationStack {
+            Form {
                 Section("Household Sharing") {
                     Button {
                         Task {
@@ -187,22 +287,16 @@ struct ProfileView: View {
                     }
 
                     Button {
-                        Task {
-                            let connected = await calendarSync.requestFullAccessForReadingIfNeeded()
-                            calendarIntegrationEnabled = connected
-                            if connected {
-                                await calendarSync.loadTodayEvents()
-                            }
-                        }
+                        refreshCalendar()
                     } label: {
-                        if calendarSync.isLoadingTodayEvents {
+                        if isRefreshingCalendar || calendarSync.isLoadingTodayEvents {
                             HStack {
                                 ProgressView()
                                 Text("Refreshing Calendar Events")
                             }
                         } else {
                             VStack(alignment: .leading, spacing: 3) {
-                                Label("Refresh Calendar Events", systemImage: "arrow.clockwise")
+                                Label("Refresh Calendar Events", systemImage: "arrow.triangle.2.circlepath")
                                 Text(calendarRefreshDetail)
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
@@ -219,62 +313,14 @@ struct ProfileView: View {
                             .foregroundStyle(AppTheme.destructive)
                     }
                 }
-
-                Section("Schedule") {
-                    Picker("Default View", selection: $defaultScheduleView) {
-                        Text("Today").tag("today")
-                        Text("Week").tag("week")
-                        Text("Month").tag("month")
-                    }
-
-                    Toggle("Show Time On Tasks", isOn: $showTaskTime)
-                    Toggle("Show Bucket On Tasks", isOn: $showTaskBucket)
-                }
-
-                Section("Notifications") {
-                    Toggle("Enable Notifications", isOn: $notificationsEnabled)
-                        .onChange(of: notificationsEnabled) { _, enabled in
-                            if enabled {
-                                requestNotificationPermission()
-                            }
-                        }
-
-                    Toggle("Today Digest", isOn: $todayDigestEnabled)
-                        .disabled(!notificationsEnabled)
-
-                    Toggle("Due Soon Alerts", isOn: $dueSoonEnabled)
-                        .disabled(!notificationsEnabled)
-                }
-
-                Section("About") {
-                    HStack {
-                        Label("Version", systemImage: "info.circle")
-                        Spacer()
-                        Text(appVersionDisplay)
-                            .foregroundStyle(.secondary)
-                    }
-                }
             }
-            .navigationTitle("Profile")
+            .navigationTitle("Sync Settings")
             .scrollContentBackground(.hidden)
             .background(AppTheme.background)
             .sheet(item: $preparedCloudShare) { preparedShare in
                 CloudSharingView(preparedShare: preparedShare)
             }
-            .onChange(of: selectedPhoto) { _, item in
-                Task {
-                    if let data = try? await item?.loadTransferable(type: Data.self) {
-                        imageData = data
-                    }
-                }
-            }
         }
-    }
-
-    private var appVersionDisplay: String {
-        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
-        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String
-        return "\(version?.isEmpty == false ? version! : "1.0") (\(build?.isEmpty == false ? build! : "1"))"
     }
 
     private var calendarStatusDetail: String {
@@ -308,42 +354,16 @@ struct ProfileView: View {
         return "Pulls the latest events from Calendar for Schedule."
     }
 
-    @ViewBuilder
-    private var profileImage: some View {
-        if let image = UIImage(data: imageData) {
-            Image(uiImage: image)
-                .resizable()
-                .scaledToFill()
-                .frame(width: 64, height: 64)
-                .clipShape(Circle())
-        } else {
-            Text(displayInitials)
-                .font(.title2.weight(.bold))
-                .foregroundStyle(.white)
-                .frame(width: 64, height: 64)
-                .background(AppTheme.primary, in: Circle())
-        }
-    }
-
-    private var displayInitials: String {
-        let trimmedInitials = initials.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !trimmedInitials.isEmpty {
-            return trimmedInitials.uppercased()
-        }
-
-        let localPart = email.split(separator: "@").first.map(String.init) ?? ""
-        let parts = localPart.split(whereSeparator: { $0 == "." || $0 == "_" || $0 == "-" || $0 == " " })
-        let letters = parts.prefix(2).compactMap(\.first)
-        return letters.isEmpty ? "ME" : String(letters).uppercased()
-    }
-
-    private func requestNotificationPermission() {
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, _ in
-            if !granted {
-                DispatchQueue.main.async {
-                    notificationsEnabled = false
-                }
+    private func refreshCalendar() {
+        Task {
+            isRefreshingCalendar = true
+            let connected = await calendarSync.requestFullAccessForReadingIfNeeded()
+            calendarIntegrationEnabled = connected
+            if connected {
+                await calendarSync.loadTodayEvents()
             }
+            try? await Task.sleep(for: .milliseconds(350))
+            isRefreshingCalendar = false
         }
     }
 }

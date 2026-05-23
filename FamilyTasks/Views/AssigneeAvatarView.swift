@@ -1,9 +1,17 @@
 import SwiftUI
+import UIKit
 
 struct AssigneeAvatarView: View {
     let name: String
     @AppStorage("profile.email") private var profileEmail = ""
     @AppStorage("profile.initials") private var profileInitials = ""
+    @AppStorage("profile.imageData") private var profileImageData = Data()
+
+    private var isCurrentUser: Bool {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedProfileEmail = profileEmail.trimmingCharacters(in: .whitespacesAndNewlines)
+        return !trimmed.isEmpty && trimmed.caseInsensitiveCompare(trimmedProfileEmail) == .orderedSame
+    }
 
     private var initials: String {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -22,13 +30,22 @@ struct AssigneeAvatarView: View {
     }
 
     var body: some View {
-        Text(initials)
-            .font(.caption.weight(.bold))
-            .foregroundStyle(.white)
-            .frame(width: 38, height: 38)
-            .background(avatarColor)
-            .clipShape(Circle())
-            .accessibilityLabel(name.isEmpty ? "Unassigned" : "Assigned to \(name)")
+        Group {
+            if isCurrentUser, let image = UIImage(data: profileImageData) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                Text(initials)
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(avatarColor)
+            }
+        }
+        .frame(width: 38, height: 38)
+        .clipShape(Circle())
+        .accessibilityLabel(name.isEmpty ? "Unassigned" : "Assigned to \(name)")
     }
 
     private var avatarColor: Color {
