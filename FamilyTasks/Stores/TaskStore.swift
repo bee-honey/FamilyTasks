@@ -140,6 +140,11 @@ final class TaskStore: ObservableObject {
         familyMembers.sort()
     }
 
+    func ensureProfileMember() {
+        guard let profileEmail = Self.currentProfileEmail() else { return }
+        addFamilyMember(named: profileEmail)
+    }
+
     func assignUnassignedTasks(to assignee: String) {
         let trimmed = assignee.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard Self.isValidEmail(trimmed) else { return }
@@ -193,13 +198,13 @@ final class TaskStore: ObservableObject {
     }
 
     func exportFamilyMembers() -> [String] {
-        familyMembers
+        normalizedFamilyMembers(from: familyMembers)
     }
 
     func applySharedData(tasks: [FamilyTask], familyMembers: [String]) {
         isApplyingSharedData = true
         self.tasks = tasks
-        self.familyMembers = familyMembers
+        self.familyMembers = normalizedFamilyMembers(from: familyMembers)
         save()
         saveFamilyMembers()
         isApplyingSharedData = false
@@ -241,6 +246,25 @@ final class TaskStore: ObservableObject {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         let pattern = #"^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$"#
         return trimmed.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil
+    }
+
+    private func normalizedFamilyMembers(from members: [String]) -> [String] {
+        var normalized = Set(members
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+            .filter(Self.isValidEmail))
+
+        if let profileEmail = Self.currentProfileEmail() {
+            normalized.insert(profileEmail)
+        }
+
+        return Array(normalized).sorted()
+    }
+
+    private static func currentProfileEmail() -> String? {
+        let email = UserDefaults.standard.string(forKey: "profile.email")?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased() ?? ""
+        return Self.isValidEmail(email) ? email : nil
     }
 
     private func taskScheduleSort(_ lhs: FamilyTask, _ rhs: FamilyTask) -> Bool {

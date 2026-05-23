@@ -111,6 +111,7 @@ final class SharedHouseholdStore: ObservableObject {
 
         if isSharingConfigured {
             statusMessage = "Family sharing enabled"
+            taskStore.ensureProfileMember()
             Task { await refreshFromCloud() }
         }
     }
@@ -133,6 +134,7 @@ final class SharedHouseholdStore: ObservableObject {
             }
 
             apply(payload)
+            taskStore?.ensureProfileMember()
             statusMessage = "Updated \(payload.updatedAt.formatted(date: .abbreviated, time: .shortened))"
         } catch {
             lastErrorMessage = error.localizedDescription
@@ -294,6 +296,7 @@ final class SharedHouseholdStore: ObservableObject {
 
     private func currentPayload() -> SharedHouseholdPayload? {
         guard let taskStore, let organizerStore else { return nil }
+        taskStore.ensureProfileMember()
 
         return SharedHouseholdPayload(
             updatedAt: Date(),

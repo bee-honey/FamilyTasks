@@ -3,6 +3,7 @@ import SwiftUI
 import UserNotifications
 
 struct ProfileView: View {
+    @EnvironmentObject private var taskStore: TaskStore
     @EnvironmentObject private var calendarSync: CalendarSyncService
     @EnvironmentObject private var sharedHouseholdStore: SharedHouseholdStore
     @AppStorage("profile.email") private var email = ""
@@ -62,18 +63,7 @@ struct ProfileView: View {
                         }
                 }
 
-                Section("Family") {
-                    NavigationLink {
-                        FamilyMembersView()
-                    } label: {
-                        VStack(alignment: .leading, spacing: 3) {
-                            Label("Family Member Emails", systemImage: "person.2")
-                            Text("Used for task assignment and initials.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-
+                Section("Household Sharing") {
                     Button {
                         Task {
                             do {
@@ -91,8 +81,8 @@ struct ProfileView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                         } else {
                             VStack(alignment: .leading, spacing: 3) {
-                                Label("Invite Family to Shared Data", systemImage: "person.2.badge.plus")
-                                Text("Sends the iCloud invite that lets another Apple Account sync this household.")
+                                Label("Invite Household Member", systemImage: "person.2.badge.plus")
+                                Text("Send an iCloud invite. After they join and set up their profile, their email is added here automatically.")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
@@ -101,6 +91,33 @@ struct ProfileView: View {
                     }
                     .buttonStyle(.plain)
                     .disabled(sharedHouseholdStore.isSyncing)
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label("Members", systemImage: "person.2")
+
+                        if taskStore.familyMembers.isEmpty {
+                            Text("No members yet. Invite someone or complete your own profile to start the household list.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            ForEach(taskStore.familyMembers, id: \.self) { member in
+                                HStack(spacing: 10) {
+                                    AssigneeAvatarView(name: member)
+                                        .scaleEffect(0.72)
+                                        .frame(width: 28, height: 28)
+                                    Text(member)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                }
+                            }
+                        }
+
+                        Text("Members come from accepted iCloud share users who have completed their profile in this app. Apple does not expose the Apple Account email directly, so each person confirms their own email once.")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 4)
 
                     Button {
                         Task {
