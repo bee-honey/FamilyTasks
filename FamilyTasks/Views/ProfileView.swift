@@ -245,6 +245,15 @@ struct ProfileView: View {
                     Toggle("Due Soon Alerts", isOn: $dueSoonEnabled)
                         .disabled(!notificationsEnabled)
                 }
+
+                Section("About") {
+                    HStack {
+                        Label("Version", systemImage: "info.circle")
+                        Spacer()
+                        Text(appVersionDisplay)
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
             .navigationTitle("Profile")
             .scrollContentBackground(.hidden)
@@ -260,6 +269,12 @@ struct ProfileView: View {
                 }
             }
         }
+    }
+
+    private var appVersionDisplay: String {
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String
+        return "\(version?.isEmpty == false ? version! : "1.0") (\(build?.isEmpty == false ? build! : "1"))"
     }
 
     private var calendarStatusDetail: String {
