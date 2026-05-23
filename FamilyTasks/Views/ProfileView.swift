@@ -108,9 +108,17 @@ struct ProfileView: View {
                         }
                     } label: {
                         if sharedHouseholdStore.isSyncing {
-                            ProgressView()
+                            HStack {
+                                ProgressView()
+                                Text("Refreshing Shared Data")
+                            }
                         } else {
-                            Label("Refresh Shared Data", systemImage: "arrow.triangle.2.circlepath")
+                            VStack(alignment: .leading, spacing: 3) {
+                                Label("Refresh Shared Data", systemImage: "arrow.triangle.2.circlepath")
+                                Text(sharedHouseholdStore.statusMessage)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -148,10 +156,16 @@ struct ProfileView: View {
                             }
                         }
 
-                    HStack {
-                        Label("Status", systemImage: "calendar")
-                        Spacer()
-                        Text(calendarSync.authorizationStatus.displayTitle)
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Label("Calendar Status", systemImage: "calendar")
+                            Spacer()
+                            Text(calendarSync.authorizationStatus.displayTitle)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        Text(calendarStatusDetail)
+                            .font(.caption)
                             .foregroundStyle(.secondary)
                     }
 
@@ -165,12 +179,21 @@ struct ProfileView: View {
                         }
                     } label: {
                         if calendarSync.isLoadingTodayEvents {
-                            ProgressView()
+                            HStack {
+                                ProgressView()
+                                Text("Refreshing Calendar Events")
+                            }
                         } else {
-                            Label("Refresh Calendar Events", systemImage: "arrow.clockwise")
+                            VStack(alignment: .leading, spacing: 3) {
+                                Label("Refresh Calendar Events", systemImage: "arrow.clockwise")
+                                Text(calendarRefreshDetail)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                     }
-                    .buttonStyle(.bordered)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .buttonStyle(.plain)
                     .disabled(!calendarIntegrationEnabled && calendarSync.authorizationStatus == .denied)
 
                     if let message = calendarSync.lastErrorMessage, !message.isEmpty {
@@ -220,6 +243,37 @@ struct ProfileView: View {
                 }
             }
         }
+    }
+
+    private var calendarStatusDetail: String {
+        if calendarIntegrationEnabled {
+            switch calendarSync.authorizationStatus {
+            case .authorized, .fullAccess:
+                return "Calendar events are shown in Schedule and can be refreshed from this page."
+            case .notDetermined:
+                return "Calendar is enabled, but access has not been requested yet."
+            case .writeOnly:
+                return "Write-only access can sync tasks out, but full access is needed to show events."
+            case .denied:
+                return "Calendar access was denied. Enable access in iOS Settings to show events."
+            case .restricted:
+                return "Calendar access is restricted on this device."
+            @unknown default:
+                return "Calendar access status could not be determined."
+            }
+        }
+
+        return "Turn this on to show calendar events inside Schedule."
+    }
+
+    private var calendarRefreshDetail: String {
+        if let lastRefreshDate = calendarSync.lastRefreshDate {
+            let eventCount = calendarSync.dayEvents.count
+            let eventText = eventCount == 1 ? "1 event" : "\(eventCount) events"
+            return "Last refreshed \(lastRefreshDate.formatted(date: .omitted, time: .shortened)); \(eventText) loaded for today."
+        }
+
+        return "Pulls the latest events from Calendar for Schedule."
     }
 
     @ViewBuilder

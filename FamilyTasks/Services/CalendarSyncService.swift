@@ -6,6 +6,7 @@ final class CalendarSyncService: ObservableObject {
     @Published private(set) var authorizationStatus: EKAuthorizationStatus
     @Published private(set) var dayEvents: [CalendarDayEvent] = []
     @Published private(set) var isLoadingTodayEvents = false
+    @Published private(set) var lastRefreshDate: Date?
     @Published var lastErrorMessage: String?
 
     private let eventStore = EKEventStore()
@@ -98,6 +99,7 @@ final class CalendarSyncService: ObservableObject {
                 }
                 return lhs.startDate < rhs.startDate
             }
+        lastRefreshDate = Date()
     }
 
     func clearTodayEvents() {
