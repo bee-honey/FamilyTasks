@@ -20,6 +20,8 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSCalendarsFullAccessUsageDescription</key>
 	<string>Family Tasks adds and updates task due dates on your calendar, including Google calendars configured on this device.</string>
 	<key>NSCalendarsUsageDescription</key>
@@ -28,6 +30,8 @@
 	<string>Family Tasks lets you choose a profile photo for your local app profile.</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.productivity</string>
+	<key>SKSharingSupported</key>
+	<true/>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIApplicationSceneManifest</key>
