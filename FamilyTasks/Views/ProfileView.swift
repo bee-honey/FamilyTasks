@@ -3,6 +3,8 @@ import SwiftUI
 import UserNotifications
 
 struct ProfileView: View {
+    @EnvironmentObject private var taskStore: TaskStore
+    @EnvironmentObject private var sharedHouseholdStore: SharedHouseholdStore
     @AppStorage("profile.email") private var email = ""
     @AppStorage("profile.initials") private var initials = ""
     @AppStorage("profile.imageData") private var imageData = Data()
@@ -45,17 +47,22 @@ struct ProfileView: View {
                     }
                 }
 
-                Section("Identity") {
+                Section {
                     TextField("Email", text: $email)
                         .keyboardType(.emailAddress)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
+                        .onSubmit(syncProfileMember)
 
                     TextField("Initials", text: $initials)
                         .textInputAutocapitalization(.characters)
                         .onChange(of: initials) { _, newValue in
                             initials = String(newValue.prefix(3)).uppercased()
                         }
+                } header: {
+                    Text("Identity")
+                } footer: {
+                    Text("Family sharing uses this email for in-app assignees. Apple does not share invite recipients' iMessage address or phone number with the app.")
                 }
 
                 Section("Schedule") {
@@ -103,6 +110,7 @@ struct ProfileView: View {
                     }
                 }
             }
+            .onDisappear(perform: syncProfileMember)
         }
     }
 
@@ -150,6 +158,22 @@ struct ProfileView: View {
             }
         }
     }
+
+    private func syncProfileMember() {
+        let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard TaskStore.isValidEmail(trimmedEmail) else { return }
+
+        if trimmedEmail != email {
+            email = trimmedEmail
+        }
+
+        taskStore.addFamilyMember(named: trimmedEmail)
+
+        guard sharedHouseholdStore.isSharingConfigured else { return }
+        Task {
+            await sharedHouseholdStore.uploadNow()
+        }
+    }
 }
 
 struct SyncSettingsView: View {
@@ -164,6 +188,14 @@ struct SyncSettingsView: View {
         NavigationStack {
             Form {
                 Section("Household Sharing") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label("How Invites Work", systemImage: "person.crop.circle.badge.questionmark")
+                        Text("The iCloud invite can be sent by iMessage, email, or phone number, but Apple keeps that contact identity private. Each person appears in this app after they accept the share and complete their profile email.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 4)
+
                     Button {
                         Task {
                             do {
@@ -213,7 +245,7 @@ struct SyncSettingsView: View {
                             }
                         }
 
-                        Text("Members come from accepted iCloud share users who have completed their profile in this app. Apple does not expose the Apple Account email directly, so each person confirms their own email once.")
+                        Text(memberStatusDetail)
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
@@ -255,6 +287,21 @@ struct SyncSettingsView: View {
                             .font(.caption)
                             .foregroundStyle(AppTheme.destructive)
                     }
+                }
+
+                Section("Shared Household Data") {
+                    Label("Tasks and assignees", systemImage: "checklist")
+                    Label("Recurring tasks", systemImage: "repeat")
+                    Label("Shopping lists", systemImage: "cart")
+                    Label("Meal ideas and planned meals", systemImage: "fork.knife")
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        Label("Kept Local", systemImage: "lock")
+                        Text("Calendar access, calendar events, notification preferences, profile photo, and display settings stay on each person's device.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 4)
                 }
 
                 Section("Calendar") {
@@ -344,6 +391,14 @@ struct SyncSettingsView: View {
         return "Turn this on to show calendar events inside Schedule."
     }
 
+    private var memberStatusDetail: String {
+        if sharedHouseholdStore.isSharingConfigured {
+            return "After someone accepts the iCloud invite, they appear here when their profile email syncs back to the household."
+        }
+
+        return "Members are shared after the first iCloud invite is created. Each person confirms their own profile email in this app."
+    }
+
     private var calendarRefreshDetail: String {
         if let lastRefreshDate = calendarSync.lastRefreshDate {
             let eventCount = calendarSync.dayEvents.count
@@ -371,6 +426,7 @@ struct SyncSettingsView: View {
 
 struct ProfileSetupView: View {
     @EnvironmentObject private var taskStore: TaskStore
+    @EnvironmentObject private var sharedHouseholdStore: SharedHouseholdStore
     @AppStorage("profile.email") private var email = ""
     @AppStorage("profile.initials") private var initials = ""
     @AppStorage("profile.isSetup") private var isProfileSetup = false
@@ -450,6 +506,11 @@ struct ProfileSetupView: View {
         taskStore.addFamilyMember(named: trimmedEmail)
         taskStore.assignUnassignedTasks(to: trimmedEmail)
         isProfileSetup = true
+
+        guard sharedHouseholdStore.isSharingConfigured else { return }
+        Task {
+            await sharedHouseholdStore.uploadNow()
+        }
     }
 
     private static func initials(from email: String) -> String {

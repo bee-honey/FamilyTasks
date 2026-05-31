@@ -40,6 +40,8 @@ The app uses CloudKit sharing for a shared household workspace. Tasks, family me
 
 CloudKit family sharing should be tested on physical devices with two separate iCloud accounts before App Store submission.
 
+See [`docs/cloudkit-sharing-test-plan.md`](docs/cloudkit-sharing-test-plan.md) for the Debug and TestFlight sharing checklist.
+
 ## App Store Notes
 
 See [`FamilyTasks/AppStoreReleaseChecklist.md`](FamilyTasks/AppStoreReleaseChecklist.md) and [`FamilyTasks/AppStoreMetadataDraft.md`](FamilyTasks/AppStoreMetadataDraft.md).

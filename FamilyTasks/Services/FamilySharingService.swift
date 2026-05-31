@@ -137,7 +137,7 @@ final class SharedHouseholdStore: ObservableObject {
             taskStore?.ensureProfileMember()
             statusMessage = "Updated \(payload.updatedAt.formatted(date: .abbreviated, time: .shortened))"
         } catch {
-            lastErrorMessage = error.localizedDescription
+            lastErrorMessage = userFacingMessage(for: error)
             statusMessage = "Could not refresh sharing"
         }
 
@@ -163,7 +163,7 @@ final class SharedHouseholdStore: ObservableObject {
             _ = try await database.save(record)
             statusMessage = "Shared \(payload.updatedAt.formatted(date: .abbreviated, time: .shortened))"
         } catch {
-            lastErrorMessage = error.localizedDescription
+            lastErrorMessage = userFacingMessage(for: error)
             statusMessage = "Could not update shared list"
         }
 
@@ -204,7 +204,7 @@ final class SharedHouseholdStore: ObservableObject {
             statusMessage = "Family sharing enabled"
             return PreparedCloudShare(share: share, container: container)
         } catch {
-            lastErrorMessage = error.localizedDescription
+            lastErrorMessage = userFacingMessage(for: error)
             statusMessage = "Could not start sharing"
             throw error
         }
@@ -220,8 +220,9 @@ final class SharedHouseholdStore: ObservableObject {
                 store(recordID: metadata.rootRecordID, databaseScope: .shared)
                 statusMessage = "Joined shared family list"
                 await refreshFromCloud()
+                await uploadNow()
             } catch {
-                lastErrorMessage = error.localizedDescription
+                lastErrorMessage = userFacingMessage(for: error)
                 statusMessage = "Could not join shared list"
             }
 
@@ -338,6 +339,25 @@ final class SharedHouseholdStore: ObservableObject {
 
         guard let data else { return nil }
         return try? JSONDecoder().decode(SharedHouseholdPayload.self, from: data)
+    }
+
+    private func userFacingMessage(for error: Error) -> String {
+        guard let cloudError = error as? CKError else {
+            return error.localizedDescription
+        }
+
+        switch cloudError.code {
+        case .quotaExceeded:
+            return "iCloud storage is full. Free up iCloud storage or upgrade the storage plan, then try sharing again."
+        case .notAuthenticated:
+            return "Sign in to iCloud on this device, then try sharing again."
+        case .permissionFailure:
+            return "This iCloud share does not allow changes from this device."
+        case .networkUnavailable, .networkFailure, .serviceUnavailable, .requestRateLimited:
+            return "iCloud is temporarily unavailable. Check your connection and try again."
+        default:
+            return cloudError.localizedDescription
+        }
     }
 
     private func save(records: [CKRecord], in database: CKDatabase) async throws {

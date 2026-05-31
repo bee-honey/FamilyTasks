@@ -7,8 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		2C0A004C2C0A000000000001 /* ShoppingListIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A004D2C0A000000000001 /* ShoppingListIntent.swift */; };
-		2C0A004B2C0A000000000001 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 2C0A004A2C0A000000000001 /* LaunchScreen.storyboard */; };
 		2C0A000B2C0A000000000001 /* FamilyTasksApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A000A2C0A000000000001 /* FamilyTasksApp.swift */; };
 		2C0A000D2C0A000000000001 /* FamilyTask.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A000C2C0A000000000001 /* FamilyTask.swift */; };
 		2C0A000F2C0A000000000001 /* TaskStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A000E2C0A000000000001 /* TaskStore.swift */; };
@@ -32,6 +30,8 @@
 		2C0A00452C0A000000000001 /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A00442C0A000000000001 /* AppTheme.swift */; };
 		2C0A00472C0A000000000001 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 2C0A00462C0A000000000001 /* PrivacyInfo.xcprivacy */; };
 		2C0A00492C0A000000000001 /* MealPlanView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A00482C0A000000000001 /* MealPlanView.swift */; };
+		2C0A004B2C0A000000000001 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 2C0A004A2C0A000000000001 /* LaunchScreen.storyboard */; };
+		2C0A004C2C0A000000000001 /* ShoppingListIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A004D2C0A000000000001 /* ShoppingListIntent.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -382,7 +382,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = FamilyTasks/FamilyTasks.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = 2X5AKN2Y8P;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -413,7 +413,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = FamilyTasks/FamilyTasks.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = 2X5AKN2Y8P;
 				GENERATE_INFOPLIST_FILE = NO;
