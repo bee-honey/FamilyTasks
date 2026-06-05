@@ -5,6 +5,7 @@ import UserNotifications
 struct ProfileView: View {
     @EnvironmentObject private var taskStore: TaskStore
     @EnvironmentObject private var sharedHouseholdStore: SharedHouseholdStore
+    @EnvironmentObject private var notificationScheduler: NotificationScheduler
     @AppStorage("profile.email") private var email = ""
     @AppStorage("profile.initials") private var initials = ""
     @AppStorage("profile.imageData") private var imageData = Data()
@@ -14,6 +15,9 @@ struct ProfileView: View {
     @AppStorage("notifications.enabled") private var notificationsEnabled = false
     @AppStorage("notifications.todayDigest") private var todayDigestEnabled = true
     @AppStorage("notifications.dueSoon") private var dueSoonEnabled = true
+    @AppStorage("notifications.todayDigestHour") private var todayDigestHour = 8
+    @AppStorage("notifications.todayDigestMinute") private var todayDigestMinute = 0
+    @AppStorage("notifications.dueSoonLeadMinutes") private var dueSoonLeadMinutes = 60
     @State private var selectedPhoto: PhotosPickerItem?
 
     var body: some View {
@@ -81,14 +85,76 @@ struct ProfileView: View {
                         .onChange(of: notificationsEnabled) { _, enabled in
                             if enabled {
                                 requestNotificationPermission()
+                            } else {
+                                rescheduleNotifications()
                             }
                         }
 
                     Toggle("Today Digest", isOn: $todayDigestEnabled)
                         .disabled(!notificationsEnabled)
+                        .onChange(of: todayDigestEnabled) { _, _ in
+                            rescheduleNotifications()
+                        }
+
+                    if todayDigestEnabled {
+                        Picker("Digest Time", selection: Binding(
+                            get: { todayDigestTime },
+                            set: { todayDigestTime = $0 }
+                        )) {
+                            ForEach(NotificationDigestTimeOption.options) { option in
+                                Text(option.title).tag(option.id)
+                            }
+                        }
+                        .disabled(!notificationsEnabled)
+                        .onChange(of: todayDigestTime) { _, _ in
+                            rescheduleNotifications()
+                        }
+                    }
 
                     Toggle("Due Soon Alerts", isOn: $dueSoonEnabled)
                         .disabled(!notificationsEnabled)
+                        .onChange(of: dueSoonEnabled) { _, _ in
+                            rescheduleNotifications()
+                        }
+
+                    if dueSoonEnabled {
+                        Picker("Due Soon Means", selection: $dueSoonLeadMinutes) {
+                            ForEach(NotificationDueSoonOption.options) { option in
+                                Text(option.title).tag(option.minutes)
+                            }
+                        }
+                        .disabled(!notificationsEnabled)
+                        .onChange(of: dueSoonLeadMinutes) { _, _ in
+                            rescheduleNotifications()
+                        }
+                    }
+
+                    Text(notificationDetail)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Label("Notification Status", systemImage: "bell.badge")
+                            Spacer()
+                            Text(notificationScheduler.pendingAlertCount == 1 ? "1 pending" : "\(notificationScheduler.pendingAlertCount) pending")
+                                .foregroundStyle(.secondary)
+                        }
+
+                        Text(notificationScheduler.statusMessage)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        Button {
+                            Task {
+                                await notificationScheduler.sendTestNotification()
+                            }
+                        } label: {
+                            Label("Send Test Notification", systemImage: "paperplane")
+                        }
+                        .disabled(!notificationsEnabled)
+                    }
+                    .padding(.vertical, 4)
                 }
 
                 Section("About") {
@@ -109,6 +175,9 @@ struct ProfileView: View {
                         imageData = data
                     }
                 }
+            }
+            .task {
+                await notificationScheduler.refreshStatus()
             }
             .onDisappear(perform: syncProfileMember)
         }
@@ -155,7 +224,17 @@ struct ProfileView: View {
                 DispatchQueue.main.async {
                     notificationsEnabled = false
                 }
+            } else {
+                Task { @MainActor in
+                    await notificationScheduler.reschedule()
+                }
             }
+        }
+    }
+
+    private func rescheduleNotifications() {
+        Task {
+            await notificationScheduler.reschedule()
         }
     }
 
@@ -174,6 +253,80 @@ struct ProfileView: View {
             await sharedHouseholdStore.uploadNow()
         }
     }
+
+    private var todayDigestTime: String {
+        get {
+            NotificationDigestTimeOption.id(hour: todayDigestHour, minute: todayDigestMinute)
+        }
+        nonmutating set {
+            guard let option = NotificationDigestTimeOption.options.first(where: { $0.id == newValue }) else { return }
+            todayDigestHour = option.hour
+            todayDigestMinute = option.minute
+        }
+    }
+
+    private var notificationDetail: String {
+        var details: [String] = []
+
+        if todayDigestEnabled {
+            details.append("Digest at \(NotificationDigestTimeOption.title(hour: todayDigestHour, minute: todayDigestMinute)) for tasks scheduled that day.")
+        }
+
+        if dueSoonEnabled,
+           let dueSoonOption = NotificationDueSoonOption.options.first(where: { $0.minutes == dueSoonLeadMinutes }) {
+            details.append("Due soon alerts are sent \(dueSoonOption.description).")
+        }
+
+        if details.isEmpty {
+            return "Turn on a notification type to schedule local alerts for this device."
+        }
+
+        return details.joined(separator: " ")
+    }
+}
+
+private struct NotificationDigestTimeOption: Identifiable {
+    let hour: Int
+    let minute: Int
+    let title: String
+
+    var id: String {
+        Self.id(hour: hour, minute: minute)
+    }
+
+    static let options = [
+        NotificationDigestTimeOption(hour: 6, minute: 0, title: "6:00 AM"),
+        NotificationDigestTimeOption(hour: 7, minute: 0, title: "7:00 AM"),
+        NotificationDigestTimeOption(hour: 8, minute: 0, title: "8:00 AM"),
+        NotificationDigestTimeOption(hour: 9, minute: 0, title: "9:00 AM"),
+        NotificationDigestTimeOption(hour: 18, minute: 0, title: "6:00 PM"),
+        NotificationDigestTimeOption(hour: 20, minute: 0, title: "8:00 PM")
+    ]
+
+    static func id(hour: Int, minute: Int) -> String {
+        "\(hour):\(minute)"
+    }
+
+    static func title(hour: Int, minute: Int) -> String {
+        options.first(where: { $0.hour == hour && $0.minute == minute })?.title ?? String(format: "%02d:%02d", hour, minute)
+    }
+}
+
+private struct NotificationDueSoonOption: Identifiable {
+    let minutes: Int
+    let title: String
+    let description: String
+
+    var id: Int { minutes }
+
+    static let options = [
+        NotificationDueSoonOption(minutes: 0, title: "At due time", description: "at the due time"),
+        NotificationDueSoonOption(minutes: 15, title: "15 minutes before", description: "15 minutes before the due time"),
+        NotificationDueSoonOption(minutes: 30, title: "30 minutes before", description: "30 minutes before the due time"),
+        NotificationDueSoonOption(minutes: 60, title: "1 hour before", description: "1 hour before the due time"),
+        NotificationDueSoonOption(minutes: 180, title: "3 hours before", description: "3 hours before the due time"),
+        NotificationDueSoonOption(minutes: 1_440, title: "1 day before", description: "1 day before the due date")
+    ]
 }
 
 struct SyncSettingsView: View {

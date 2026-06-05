@@ -7,6 +7,7 @@ struct FamilyTasksApp: App {
     @StateObject private var organizerStore = OrganizerStore()
     @StateObject private var calendarSync = CalendarSyncService()
     @StateObject private var sharedHouseholdStore = SharedHouseholdStore.shared
+    @StateObject private var notificationScheduler = NotificationScheduler.shared
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("profile.email") private var profileEmail = ""
     @AppStorage("profile.isSetup") private var isProfileSetup = false
@@ -24,14 +25,17 @@ struct FamilyTasksApp: App {
             .environmentObject(organizerStore)
             .environmentObject(calendarSync)
             .environmentObject(sharedHouseholdStore)
+            .environmentObject(notificationScheduler)
             .onAppear {
                 sharedHouseholdStore.configure(taskStore: taskStore, organizerStore: organizerStore)
+                notificationScheduler.configure(taskStore: taskStore)
             }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active {
                     organizerStore.refreshShopping()
                     Task {
                         await sharedHouseholdStore.syncOnAppActivation()
+                        await notificationScheduler.reschedule()
                     }
                 }
             }
