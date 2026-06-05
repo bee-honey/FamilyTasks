@@ -30,7 +30,7 @@
 	<string>Family Tasks lets you choose a profile photo for your local app profile.</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.productivity</string>
-	<key>SKSharingSupported</key>
+	<key>CKSharingSupported</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>

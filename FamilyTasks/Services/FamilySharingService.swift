@@ -230,6 +230,33 @@ final class SharedHouseholdStore: ObservableObject {
         }
     }
 
+    func acceptShareLink(_ link: String) async {
+        let trimmedLink = link.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let shareURL = URL(string: trimmedLink),
+              shareURL.scheme?.lowercased().hasPrefix("http") == true else {
+            lastErrorMessage = "Paste a valid iCloud invite link."
+            statusMessage = "Could not join shared list"
+            return
+        }
+
+        isSyncing = true
+        lastErrorMessage = nil
+
+        do {
+            let metadata = try await shareMetadata(for: shareURL)
+            try await accept(metadata)
+            store(recordID: metadata.rootRecordID, databaseScope: .shared)
+            statusMessage = "Joined shared family list"
+            await refreshFromCloud()
+            await uploadNow()
+        } catch {
+            lastErrorMessage = userFacingMessage(for: error)
+            statusMessage = "Could not join shared list"
+        }
+
+        isSyncing = false
+    }
+
     private var databaseScope: CKDatabase.Scope {
         let rawValue = defaults.integer(forKey: DefaultsKey.databaseScope)
         return CKDatabase.Scope(rawValue: rawValue) ?? .private
@@ -357,6 +384,32 @@ final class SharedHouseholdStore: ObservableObject {
             return "iCloud is temporarily unavailable. Check your connection and try again."
         default:
             return cloudError.localizedDescription
+        }
+    }
+
+    private func shareMetadata(for shareURL: URL) async throws -> CKShare.Metadata {
+        try await withCheckedThrowingContinuation { continuation in
+            var fetchedMetadata: CKShare.Metadata?
+
+            let operation = CKFetchShareMetadataOperation(shareURLs: [shareURL])
+            operation.shouldFetchRootRecord = true
+            operation.perShareMetadataBlock = { _, metadata, _ in
+                fetchedMetadata = metadata
+            }
+            operation.fetchShareMetadataCompletionBlock = { error in
+                if let fetchedMetadata {
+                    continuation.resume(returning: fetchedMetadata)
+                    return
+                }
+
+                continuation.resume(throwing: error ?? NSError(
+                    domain: "FamilyTasks.CloudSharing",
+                    code: 1,
+                    userInfo: [NSLocalizedDescriptionKey: "Could not read the iCloud invite link."]
+                ))
+            }
+            operation.qualityOfService = .userInitiated
+            container.add(operation)
         }
     }
 

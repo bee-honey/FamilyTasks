@@ -183,6 +183,7 @@ struct SyncSettingsView: View {
     @AppStorage("calendar.integration.enabled") private var calendarIntegrationEnabled = false
     @State private var preparedCloudShare: PreparedCloudShare?
     @State private var isRefreshingCalendar = false
+    @State private var inviteLinkText = ""
 
     var body: some View {
         NavigationStack {
@@ -246,6 +247,37 @@ struct SyncSettingsView: View {
                         }
 
                         Text(memberStatusDetail)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 4)
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        TextField("Paste iCloud invite link", text: $inviteLinkText)
+                            .keyboardType(.URL)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+
+                        Button {
+                            Task {
+                                await sharedHouseholdStore.acceptShareLink(inviteLinkText)
+                                if sharedHouseholdStore.lastErrorMessage == nil {
+                                    inviteLinkText = ""
+                                }
+                            }
+                        } label: {
+                            if sharedHouseholdStore.isSyncing {
+                                HStack {
+                                    ProgressView()
+                                    Text("Joining Household")
+                                }
+                            } else {
+                                Label("Accept Invite Link", systemImage: "link.badge.plus")
+                            }
+                        }
+                        .disabled(!canAcceptInviteLink || sharedHouseholdStore.isSyncing)
+
+                        Text("Use this if the iCloud invite opens the App Store first. Install the app, copy the original invite link, paste it here, and join the shared household.")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
@@ -397,6 +429,12 @@ struct SyncSettingsView: View {
         }
 
         return "Members are shared after the first iCloud invite is created. Each person confirms their own profile email in this app."
+    }
+
+    private var canAcceptInviteLink: Bool {
+        let trimmedLink = inviteLinkText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let url = URL(string: trimmedLink) else { return false }
+        return url.scheme?.lowercased().hasPrefix("http") == true
     }
 
     private var calendarRefreshDetail: String {
