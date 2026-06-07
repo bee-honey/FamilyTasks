@@ -63,6 +63,18 @@ final class OrganizerStore: ObservableObject {
         shops.append(Shop(name: trimmed))
     }
 
+    func updateShop(_ shop: Shop, name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty,
+              let index = shops.firstIndex(where: { $0.id == shop.id }) else { return }
+        guard !shops.contains(where: { candidate in
+            candidate.id != shop.id && candidate.name.caseInsensitiveCompare(trimmed) == .orderedSame
+        }) else { return }
+
+        shops[index].name = trimmed
+        shops[index].updatedAt = Date()
+    }
+
     func moveShop(id movingID: UUID, before targetID: UUID) {
         guard movingID != targetID,
               let sourceIndex = shops.firstIndex(where: { $0.id == movingID }),
