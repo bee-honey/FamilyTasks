@@ -6,60 +6,23 @@ struct ShoppingView: View {
     @State private var isAddingShop = false
     @State private var activeItemID: UUID?
     @State private var activeShopID: UUID?
-    @State private var activeShopMenuID: UUID?
-    @State private var editingShop: Shop?
-    @State private var deletingShop: Shop?
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                ScrollView {
-                    LazyVStack(spacing: 12) {
-                        ForEach(organizerStore.shops) { shop in
-                            ShopSectionView(
-                                shop: shop,
-                                draggedItemID: $activeItemID,
-                                draggedShopID: $activeShopID,
-                                activeShopMenuID: $activeShopMenuID,
-                                onMoveShopBefore: { movingID, targetID in
-                                    organizerStore.moveShop(id: movingID, before: targetID)
-                                }
-                            )
-                        }
+            ScrollView {
+                LazyVStack(spacing: 12) {
+                    ForEach(organizerStore.shops) { shop in
+                        ShopSectionView(
+                            shop: shop,
+                            draggedItemID: $activeItemID,
+                            draggedShopID: $activeShopID,
+                            onMoveShopBefore: { movingID, targetID in
+                                organizerStore.moveShop(id: movingID, before: targetID)
+                            }
+                        )
                     }
-                    .padding(14)
                 }
-
-                if let activeShop {
-                    Color.black.opacity(0.001)
-                        .ignoresSafeArea()
-                        .onTapGesture {
-                            closeShopActions()
-                        }
-
-                    ShopActionMenu(
-                        isFirstShop: isFirstShop(activeShop),
-                        isLastShop: isLastShop(activeShop),
-                        onEdit: {
-                            editingShop = activeShop
-                            closeShopActions()
-                        },
-                        onMoveUp: {
-                            organizerStore.moveShopUp(activeShop)
-                            closeShopActions()
-                        },
-                        onMoveDown: {
-                            organizerStore.moveShopDown(activeShop)
-                            closeShopActions()
-                        },
-                        onDelete: {
-                            deletingShop = activeShop
-                            closeShopActions()
-                        }
-                    )
-                    .transition(.opacity.combined(with: .scale(scale: 0.96)))
-                    .zIndex(10)
-                }
+                .padding(14)
             }
             .background(AppTheme.background)
             .navigationTitle("Shopping")
@@ -76,44 +39,6 @@ struct ShoppingView: View {
             .sheet(isPresented: $isAddingShop) {
                 AddShopView()
             }
-            .sheet(item: $editingShop) { shop in
-                EditShopView(shop: shop)
-            }
-            .alert("Delete \(deletingShop?.name ?? "Shop")?", isPresented: Binding(
-                get: { deletingShop != nil },
-                set: { if !$0 { deletingShop = nil } }
-            )) {
-                Button("Cancel", role: .cancel) {
-                    deletingShop = nil
-                }
-                Button("Delete", role: .destructive) {
-                    if let deletingShop {
-                        organizerStore.deleteShop(deletingShop)
-                    }
-                    deletingShop = nil
-                }
-            } message: {
-                Text("This removes the shop and all shopping items in it.")
-            }
-        }
-    }
-
-    private var activeShop: Shop? {
-        guard let activeShopMenuID else { return nil }
-        return organizerStore.shops.first { $0.id == activeShopMenuID }
-    }
-
-    private func isFirstShop(_ shop: Shop) -> Bool {
-        organizerStore.shops.first?.id == shop.id
-    }
-
-    private func isLastShop(_ shop: Shop) -> Bool {
-        organizerStore.shops.last?.id == shop.id
-    }
-
-    private func closeShopActions() {
-        withAnimation(.snappy) {
-            activeShopMenuID = nil
         }
     }
 }
@@ -215,9 +140,10 @@ private struct ShopSectionView: View {
     let shop: Shop
     @Binding var draggedItemID: UUID?
     @Binding var draggedShopID: UUID?
-    @Binding var activeShopMenuID: UUID?
     let onMoveShopBefore: (UUID, UUID) -> Void
     @State private var isExpanded = false
+    @State private var isConfirmingDelete = false
+    @State private var isEditingShop = false
     @State private var newItemName = ""
     @State private var newUsualItemName = ""
 
@@ -276,9 +202,31 @@ private struct ShopSectionView: View {
                 .buttonStyle(.borderless)
                 .disabled(!items.contains(where: \.isPurchased))
 
-                Button {
-                    withAnimation(.snappy) {
-                        activeShopMenuID = activeShopMenuID == shop.id ? nil : shop.id
+                Menu {
+                    Button {
+                        isEditingShop = true
+                    } label: {
+                        Label("Edit Shop", systemImage: "pencil")
+                    }
+
+                    Button {
+                        organizerStore.moveShopUp(shop)
+                    } label: {
+                        Label("Move Up", systemImage: "arrow.up")
+                    }
+                    .disabled(isFirstShop)
+
+                    Button {
+                        organizerStore.moveShopDown(shop)
+                    } label: {
+                        Label("Move Down", systemImage: "arrow.down")
+                    }
+                    .disabled(isLastShop)
+
+                    Button(role: .destructive) {
+                        isConfirmingDelete = true
+                    } label: {
+                        Label("Delete Shop", systemImage: "trash")
                     }
                 } label: {
                     Image(systemName: "ellipsis.circle")
@@ -313,6 +261,17 @@ private struct ShopSectionView: View {
             }
         }
         .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))
+        .sheet(isPresented: $isEditingShop) {
+            EditShopView(shop: shop)
+        }
+        .alert("Delete \(shop.name)?", isPresented: $isConfirmingDelete) {
+            Button("Cancel", role: .cancel) {}
+            Button("Delete", role: .destructive) {
+                organizerStore.deleteShop(shop)
+            }
+        } message: {
+            Text("This removes the shop and all shopping items in it.")
+        }
         .onDrop(of: [UTType.text], isTargeted: nil) { providers in
             guard let provider = providers.first else { return false }
             provider.loadItem(forTypeIdentifier: UTType.text.identifier, options: nil) { item, _ in
@@ -332,9 +291,6 @@ private struct ShopSectionView: View {
                 }
             }
             return true
-        }
-        .onChange(of: isExpanded) { _, _ in
-            closeShopActions()
         }
     }
 
@@ -358,14 +314,6 @@ private struct ShopSectionView: View {
     private func toggleExpanded() {
         withAnimation(.snappy) {
             isExpanded.toggle()
-        }
-    }
-
-    private func closeShopActions() {
-        withAnimation(.snappy) {
-            if activeShopMenuID == shop.id {
-                activeShopMenuID = nil
-            }
         }
     }
 
@@ -437,53 +385,6 @@ private struct ShopSectionView: View {
     private func addUsualItem() {
         organizerStore.addUsualItem(newUsualItemName, to: shop)
         newUsualItemName = ""
-    }
-}
-
-private struct ShopActionMenu: View {
-    let isFirstShop: Bool
-    let isLastShop: Bool
-    let onEdit: () -> Void
-    let onMoveUp: () -> Void
-    let onMoveDown: () -> Void
-    let onDelete: () -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            actionButton("Edit Shop", systemImage: "pencil", action: onEdit)
-            Divider()
-            actionButton("Move Up", systemImage: "arrow.up", isDisabled: isFirstShop, action: onMoveUp)
-            actionButton("Move Down", systemImage: "arrow.down", isDisabled: isLastShop, action: onMoveDown)
-            Divider()
-            actionButton("Delete Shop", systemImage: "trash", role: .destructive, action: onDelete)
-        }
-        .frame(width: 190)
-        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(AppTheme.surfaceMuted, lineWidth: 1)
-        }
-        .shadow(color: .black.opacity(0.16), radius: 12, x: 0, y: 6)
-    }
-
-    private func actionButton(
-        _ title: String,
-        systemImage: String,
-        role: ButtonRole? = nil,
-        isDisabled: Bool = false,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(role: role, action: action) {
-            Label(title, systemImage: systemImage)
-                .font(.footnote.weight(.medium))
-                .foregroundStyle(role == .destructive ? AppTheme.destructive : .primary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 10)
-        }
-        .buttonStyle(.plain)
-        .disabled(isDisabled)
-        .opacity(isDisabled ? 0.35 : 1)
     }
 }
 
