@@ -27,6 +27,7 @@ struct EditTaskView: View {
                     } else {
                         Picker("Assigned to", selection: $draft.assignedTo) {
                             Text("Unassigned").tag("")
+                            Text("Everyone").tag(Assignee.everyone)
                             ForEach(taskStore.familyMembers, id: \.self) { member in
                                 Text(member).tag(member)
                             }

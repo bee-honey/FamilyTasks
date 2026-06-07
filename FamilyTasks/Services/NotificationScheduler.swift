@@ -11,6 +11,7 @@ final class NotificationScheduler: ObservableObject {
     private let center = UNUserNotificationCenter.current()
     private weak var taskStore: TaskStore?
     private var changeObserver: NSObjectProtocol?
+    private var sharedTaskObserver: NSObjectProtocol?
     private let defaults = UserDefaults.standard
 
     private enum DefaultsKey {
@@ -25,6 +26,7 @@ final class NotificationScheduler: ObservableObject {
     private enum IdentifierPrefix {
         static let todayDigest = "familytasks.todayDigest."
         static let dueSoon = "familytasks.dueSoon."
+        static let sharedTaskArrival = "familytasks.sharedTaskArrival."
     }
 
     private init() {
@@ -34,6 +36,9 @@ final class NotificationScheduler: ObservableObject {
     deinit {
         if let changeObserver {
             NotificationCenter.default.removeObserver(changeObserver)
+        }
+        if let sharedTaskObserver {
+            NotificationCenter.default.removeObserver(sharedTaskObserver)
         }
     }
 
@@ -48,6 +53,20 @@ final class NotificationScheduler: ObservableObject {
             ) { [weak self] _ in
                 Task { @MainActor in
                     await self?.reschedule()
+                }
+            }
+        }
+
+        if sharedTaskObserver == nil {
+            sharedTaskObserver = NotificationCenter.default.addObserver(
+                forName: .sharedTasksDidArrive,
+                object: nil,
+                queue: .main
+            ) { [weak self] notification in
+                let count = notification.userInfo?["count"] as? Int ?? 1
+                let title = notification.userInfo?["title"] as? String
+                Task { @MainActor in
+                    await self?.scheduleSharedTaskArrival(count: count, title: title)
                 }
             }
         }
@@ -152,7 +171,8 @@ final class NotificationScheduler: ObservableObject {
             .map(\.identifier)
             .filter {
                 $0.hasPrefix(IdentifierPrefix.todayDigest) ||
-                $0.hasPrefix(IdentifierPrefix.dueSoon)
+                $0.hasPrefix(IdentifierPrefix.dueSoon) ||
+                $0.hasPrefix(IdentifierPrefix.sharedTaskArrival)
             }
     }
 
@@ -259,6 +279,41 @@ final class NotificationScheduler: ObservableObject {
                 trigger: trigger
             )
             center.add(request)
+        }
+    }
+
+    private func scheduleSharedTaskArrival(count: Int, title: String?) async {
+        guard defaults.bool(forKey: DefaultsKey.enabled) else { return }
+
+        let settings = await center.notificationSettings()
+        guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else {
+            await refreshStatus(settings: settings)
+            return
+        }
+
+        let content = UNMutableNotificationContent()
+        content.title = count == 1 ? "New Family Task" : "New Family Tasks"
+
+        let trimmedTitle = title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if count == 1, !trimmedTitle.isEmpty {
+            content.body = "\(trimmedTitle) was added to your shared tasks."
+        } else {
+            content.body = "\(count) tasks were added to your shared family list."
+        }
+
+        content.sound = .default
+
+        let request = UNNotificationRequest(
+            identifier: "\(IdentifierPrefix.sharedTaskArrival)\(UUID().uuidString)",
+            content: content,
+            trigger: UNTimeIntervalNotificationTrigger(timeInterval: 2, repeats: false)
+        )
+
+        do {
+            try await center.add(request)
+            await refreshStatus(settings: settings)
+        } catch {
+            statusMessage = "Could not schedule shared task notification: \(error.localizedDescription)"
         }
     }
 

@@ -168,7 +168,25 @@ final class TaskStore: ObservableObject {
     }
 
     func deleteFamilyMember(at offsets: IndexSet) {
+        let removedMembers = offsets.map { familyMembers[$0] }
         familyMembers.remove(atOffsets: offsets)
+        removedMembers.forEach(clearAssignee)
+    }
+
+    private func clearAssignee(_ assignee: String) {
+        let normalizedAssignee = assignee.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !normalizedAssignee.isEmpty else { return }
+
+        tasks = tasks.map { task in
+            guard task.assignedTo.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == normalizedAssignee else {
+                return task
+            }
+
+            var updated = task
+            updated.assignedTo = ""
+            updated.updatedAt = Date()
+            return updated
+        }
     }
 
     private func load() {
@@ -226,7 +244,9 @@ final class TaskStore: ObservableObject {
 
         var changedTasks = false
         tasks = tasks.map { task in
-            guard !task.assignedTo.isEmpty, !Self.isValidEmail(task.assignedTo) else {
+            guard !task.assignedTo.isEmpty,
+                  !Assignee.isEveryone(task.assignedTo),
+                  !Self.isValidEmail(task.assignedTo) else {
                 return task
             }
 

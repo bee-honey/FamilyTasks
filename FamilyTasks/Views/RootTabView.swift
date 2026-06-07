@@ -21,6 +21,21 @@ struct RootTabView: View {
                     }
                     .listRowBackground(AppTheme.surface)
 
+                    NavigationLink(value: AppSection.calendarSettings) {
+                        Label(AppSection.calendarSettings.title, systemImage: AppSection.calendarSettings.systemImage)
+                    }
+                    .listRowBackground(AppTheme.surface)
+
+                    NavigationLink(value: AppSection.notificationSettings) {
+                        Label(AppSection.notificationSettings.title, systemImage: AppSection.notificationSettings.systemImage)
+                    }
+                    .listRowBackground(AppTheme.surface)
+
+                    NavigationLink(value: AppSection.viewSettings) {
+                        Label(AppSection.viewSettings.title, systemImage: AppSection.viewSettings.systemImage)
+                    }
+                    .listRowBackground(AppTheme.surface)
+
                     NavigationLink(value: AppSection.profile) {
                         Label(AppSection.profile.title, systemImage: AppSection.profile.systemImage)
                     }
@@ -45,6 +60,12 @@ struct RootTabView: View {
                 RecurringTasksView()
             case .syncSettings:
                 SyncSettingsView()
+            case .calendarSettings:
+                CalendarSettingsView()
+            case .notificationSettings:
+                NotificationSettingsView()
+            case .viewSettings:
+                ViewSettingsView()
             case .profile:
                 ProfileView()
             }
@@ -60,6 +81,9 @@ private enum AppSection: String, CaseIterable, Identifiable {
     case mealPlan
     case recurring
     case syncSettings
+    case calendarSettings
+    case notificationSettings
+    case viewSettings
     case profile
 
     var id: String { rawValue }
@@ -75,7 +99,10 @@ private enum AppSection: String, CaseIterable, Identifiable {
         case .shopping: "Shopping"
         case .mealPlan: "Meal Plan"
         case .recurring: "Recurring"
-        case .syncSettings: "Sync Settings"
+        case .syncSettings: "iCloud Settings"
+        case .calendarSettings: "Calendar Settings"
+        case .notificationSettings: "Notification Settings"
+        case .viewSettings: "View Settings"
         case .profile: "Profile"
         }
     }
@@ -87,7 +114,10 @@ private enum AppSection: String, CaseIterable, Identifiable {
         case .shopping: "cart"
         case .mealPlan: "fork.knife"
         case .recurring: "repeat"
-        case .syncSettings: "arrow.triangle.2.circlepath"
+        case .syncSettings: "icloud"
+        case .calendarSettings: "calendar.badge.clock"
+        case .notificationSettings: "bell.badge"
+        case .viewSettings: "slider.horizontal.3"
         case .profile: "person.crop.circle"
         }
     }

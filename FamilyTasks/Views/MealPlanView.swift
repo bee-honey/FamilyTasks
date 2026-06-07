@@ -70,7 +70,7 @@ struct MealPlanView: View {
                 }
             }
             .sheet(isPresented: $isAddingMeal) {
-                MealEditorView()
+                MealEditorView(initialCategory: selectedMealCategory)
             }
             .sheet(item: $editingMeal) { meal in
                 MealEditorView(meal: meal)
@@ -93,6 +93,7 @@ struct MealPlanView: View {
                     DayMealSection(day: day, meals: plannedMeals(on: day), accentColor: dayAccentColors[index % dayAccentColors.count]) { slot in
                         planningDate = day
                         planningSlot = slot
+                        selectedMealCategory = mealCategory(for: slot)
                         selectedDay = day
                         selectedTab = .meals
                     } onDelete: { plannedMeal in
@@ -195,6 +196,15 @@ struct MealPlanView: View {
 
     private var dayAccentColors: [Color] {
         [.red, .orange, .yellow, .green, .teal, .blue, .purple]
+    }
+
+    private func mealCategory(for slot: MealSlot) -> MealCategory {
+        switch slot {
+        case .breakfast:
+            return .breakfast
+        case .lunch, .dinner:
+            return .mainCourse
+        }
     }
 }
 
@@ -379,10 +389,10 @@ private struct MealEditorView: View {
     @State private var notes: String
     @State private var ingredients: [MealIngredient]
 
-    init(meal: MealIdea? = nil) {
+    init(meal: MealIdea? = nil, initialCategory: MealCategory = .mainCourse) {
         self.meal = meal
         _name = State(initialValue: meal?.name ?? "")
-        _category = State(initialValue: meal?.category ?? .mainCourse)
+        _category = State(initialValue: meal?.category ?? initialCategory)
         _notes = State(initialValue: meal?.notes ?? "")
         let existing = meal?.ingredients ?? []
         _ingredients = State(initialValue: existing.isEmpty ? [MealIngredient(name: "")] : existing)

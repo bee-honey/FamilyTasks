@@ -3,14 +3,24 @@ import SwiftUI
 struct RecurringTasksView: View {
     @EnvironmentObject private var organizerStore: OrganizerStore
     @State private var isAdding = false
+    @State private var editingTask: RecurringTask?
 
     var body: some View {
         NavigationStack {
             List {
                 Section {
                     ForEach(organizerStore.recurringTasks.sorted(by: { $0.nextDueDate < $1.nextDueDate })) { task in
-                        RecurringTaskRow(task: task)
+                        RecurringTaskRow(task: task) {
+                            editingTask = task
+                        }
                             .swipeActions(edge: .trailing) {
+                                Button {
+                                    editingTask = task
+                                } label: {
+                                    Label("Edit", systemImage: "pencil")
+                                }
+                                .tint(AppTheme.primary)
+
                                 Button(role: .destructive) {
                                     organizerStore.deleteRecurringTask(task)
                                 } label: {
@@ -35,7 +45,10 @@ struct RecurringTasksView: View {
                 }
             }
             .sheet(isPresented: $isAdding) {
-                AddRecurringTaskView()
+                RecurringTaskEditorView()
+            }
+            .sheet(item: $editingTask) { task in
+                RecurringTaskEditorView(task: task)
             }
         }
     }
@@ -44,6 +57,7 @@ struct RecurringTasksView: View {
 private struct RecurringTaskRow: View {
     @EnvironmentObject private var organizerStore: OrganizerStore
     let task: RecurringTask
+    let onEdit: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
@@ -91,15 +105,28 @@ private struct RecurringTaskRow: View {
         }
         .opacity(task.isActive ? 1 : 0.45)
         .padding(.vertical, 4)
+        .contentShape(Rectangle())
+        .onTapGesture(count: 2, perform: onEdit)
+        .contextMenu {
+            Button(action: onEdit) {
+                Label("Edit", systemImage: "pencil")
+            }
+        }
     }
 }
 
-private struct AddRecurringTaskView: View {
+private struct RecurringTaskEditorView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var organizerStore: OrganizerStore
     @EnvironmentObject private var taskStore: TaskStore
     @AppStorage("profile.email") private var profileEmail = ""
-    @State private var draft = RecurringTaskDraft()
+    let task: RecurringTask?
+    @State private var draft: RecurringTaskDraft
+
+    init(task: RecurringTask? = nil) {
+        self.task = task
+        _draft = State(initialValue: task.map(RecurringTaskDraft.init(task:)) ?? RecurringTaskDraft())
+    }
 
     var body: some View {
         NavigationStack {
@@ -122,13 +149,14 @@ private struct AddRecurringTaskView: View {
 
                     Picker("Assigned to", selection: $draft.assignedTo) {
                         Text("Unassigned").tag("")
+                        Text("Everyone").tag(Assignee.everyone)
                         ForEach(taskStore.familyMembers, id: \.self) { member in
                             Text(member).tag(member)
                         }
                     }
                 }
             }
-            .navigationTitle("New Recurring")
+            .navigationTitle(task == nil ? "New Recurring" : "Edit Recurring")
             .navigationBarTitleDisplayMode(.inline)
             .scrollContentBackground(.hidden)
             .background(AppTheme.background)
@@ -139,15 +167,21 @@ private struct AddRecurringTaskView: View {
                     }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        organizerStore.addRecurringTask(draft)
+                    Button(task == nil ? "Save" : "Update") {
+                        if let task {
+                            organizerStore.updateRecurringTask(task, with: draft)
+                        } else {
+                            organizerStore.addRecurringTask(draft)
+                        }
                         dismiss()
                     }
                     .disabled(draft.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
             .onAppear {
-                applyDefaultAssigneeIfNeeded()
+                if task == nil {
+                    applyDefaultAssigneeIfNeeded()
+                }
             }
         }
     }

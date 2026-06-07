@@ -208,6 +208,20 @@ final class OrganizerStore: ObservableObject {
         )
     }
 
+    func updateRecurringTask(_ task: RecurringTask, with draft: RecurringTaskDraft) {
+        guard let index = recurringTasks.firstIndex(where: { $0.id == task.id }) else { return }
+        let title = draft.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty else { return }
+
+        recurringTasks[index].title = title
+        recurringTasks[index].notes = draft.notes.trimmingCharacters(in: .whitespacesAndNewlines)
+        recurringTasks[index].amount = draft.amount.trimmingCharacters(in: .whitespacesAndNewlines)
+        recurringTasks[index].frequency = draft.frequency
+        recurringTasks[index].nextDueDate = draft.nextDueDate
+        recurringTasks[index].assignedTo = draft.assignedTo.trimmingCharacters(in: .whitespacesAndNewlines)
+        recurringTasks[index].updatedAt = Date()
+    }
+
     func recurringTasks(on date: Date, calendar: Calendar = .current) -> [RecurringTask] {
         recurringTasks
             .filter { task in
@@ -241,6 +255,22 @@ final class OrganizerStore: ObservableObject {
 
     func deleteRecurringTask(_ task: RecurringTask) {
         recurringTasks.removeAll { $0.id == task.id }
+    }
+
+    func clearRecurringAssignee(_ assignee: String) {
+        let normalizedAssignee = assignee.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !normalizedAssignee.isEmpty else { return }
+
+        recurringTasks = recurringTasks.map { task in
+            guard task.assignedTo.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == normalizedAssignee else {
+                return task
+            }
+
+            var updated = task
+            updated.assignedTo = ""
+            updated.updatedAt = Date()
+            return updated
+        }
     }
 
     private func seedDefaultsIfNeeded() {
@@ -372,4 +402,15 @@ struct RecurringTaskDraft {
     var frequency: RecurrenceFrequency = .monthly
     var nextDueDate = Date()
     var assignedTo = ""
+
+    init() {}
+
+    init(task: RecurringTask) {
+        title = task.title
+        notes = task.notes
+        amount = task.amount
+        frequency = task.frequency
+        nextDueDate = task.nextDueDate
+        assignedTo = task.assignedTo
+    }
 }

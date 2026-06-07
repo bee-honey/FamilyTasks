@@ -9,6 +9,7 @@ struct AssigneeAvatarView: View {
 
     private var isCurrentUser: Bool {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !Assignee.isEveryone(trimmed) else { return false }
         let trimmedProfileEmail = profileEmail.trimmingCharacters(in: .whitespacesAndNewlines)
         return !trimmed.isEmpty && trimmed.caseInsensitiveCompare(trimmedProfileEmail) == .orderedSame
     }
@@ -16,6 +17,10 @@ struct AssigneeAvatarView: View {
     private var initials: String {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return "?" }
+        if Assignee.isEveryone(trimmed) {
+            return "ALL"
+        }
+
         let trimmedProfileEmail = profileEmail.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedProfileInitials = profileInitials.trimmingCharacters(in: .whitespacesAndNewlines)
 
@@ -45,7 +50,7 @@ struct AssigneeAvatarView: View {
         }
         .frame(width: 38, height: 38)
         .clipShape(Circle())
-        .accessibilityLabel(name.isEmpty ? "Unassigned" : "Assigned to \(name)")
+        .accessibilityLabel(name.isEmpty ? "Unassigned" : "Assigned to \(Assignee.displayName(for: name))")
     }
 
     private var avatarColor: Color {

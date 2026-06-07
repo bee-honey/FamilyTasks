@@ -1,5 +1,17 @@
 import Foundation
 
+enum Assignee {
+    static let everyone = "__familytasks_everyone__"
+
+    static func isEveryone(_ value: String) -> Bool {
+        value.trimmingCharacters(in: .whitespacesAndNewlines) == everyone
+    }
+
+    static func displayName(for value: String) -> String {
+        isEveryone(value) ? "Everyone" : value
+    }
+}
+
 struct FamilyTask: Identifiable, Codable, Equatable {
     var id: UUID
     var title: String

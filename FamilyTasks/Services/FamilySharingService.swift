@@ -36,6 +36,7 @@ struct SharedHouseholdPayload: Codable {
 
 extension Notification.Name {
     static let familyDataDidChange = Notification.Name("FamilyDataDidChange")
+    static let sharedTasksDidArrive = Notification.Name("SharedTasksDidArrive")
 }
 
 enum FamilySharingDefaults {
@@ -61,6 +62,7 @@ final class SharedHouseholdStore: ObservableObject {
     private weak var organizerStore: OrganizerStore?
     private var changeObserver: NSObjectProtocol?
     private var pendingUploadTask: Task<Void, Never>?
+    private var suppressNextSharedTaskArrivalNotification = false
     private let defaults = UserDefaults.standard
 
     private enum DefaultsKey {
@@ -134,7 +136,9 @@ final class SharedHouseholdStore: ObservableObject {
                 return
             }
 
+            let sharedTaskArrival = sharedTaskArrival(from: payload)
             apply(payload)
+            postSharedTaskArrival(sharedTaskArrival)
             taskStore?.ensureProfileMember()
             statusMessage = "Updated \(payload.updatedAt.formatted(date: .abbreviated, time: .shortened))"
         } catch {
@@ -220,6 +224,7 @@ final class SharedHouseholdStore: ObservableObject {
                 try await accept(metadata)
                 store(recordID: metadata.rootRecordID, databaseScope: .shared)
                 statusMessage = "Joined shared family list"
+                suppressNextSharedTaskArrivalNotification = true
                 await refreshFromCloud()
                 await uploadNow()
             } catch {
@@ -248,6 +253,7 @@ final class SharedHouseholdStore: ObservableObject {
             try await accept(metadata)
             store(recordID: metadata.rootRecordID, databaseScope: .shared)
             statusMessage = "Joined shared family list"
+            suppressNextSharedTaskArrivalNotification = true
             await refreshFromCloud()
             await uploadNow()
         } catch {
@@ -347,6 +353,45 @@ final class SharedHouseholdStore: ObservableObject {
         )
     }
 
+    private func sharedTaskArrival(from payload: SharedHouseholdPayload) -> (count: Int, title: String?)? {
+        if suppressNextSharedTaskArrivalNotification {
+            suppressNextSharedTaskArrivalNotification = false
+            return nil
+        }
+
+        guard let taskStore else { return nil }
+
+        let currentEmail = (defaults.string(forKey: "profile.email") ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        let updatedBy = payload.updatedBy
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+
+        if !currentEmail.isEmpty, !updatedBy.isEmpty, currentEmail == updatedBy {
+            return nil
+        }
+
+        let existingTaskIDs = Set(taskStore.exportTasks().map(\.id))
+        let newTasks = payload.tasks.filter { !existingTaskIDs.contains($0.id) }
+        guard !newTasks.isEmpty else { return nil }
+
+        return (newTasks.count, newTasks.first?.title)
+    }
+
+    private func postSharedTaskArrival(_ arrival: (count: Int, title: String?)?) {
+        guard let arrival else { return }
+
+        NotificationCenter.default.post(
+            name: .sharedTasksDidArrive,
+            object: self,
+            userInfo: [
+                "count": arrival.count,
+                "title": arrival.title ?? ""
+            ]
+        )
+    }
+
     private func encode(_ payload: SharedHouseholdPayload, into record: CKRecord) {
         guard let data = try? JSONEncoder().encode(payload) else { return }
         record[RecordKey.name] = "Family Tasks" as CKRecordValue
@@ -376,7 +421,7 @@ final class SharedHouseholdStore: ObservableObject {
 
         switch cloudError.code {
         case .quotaExceeded:
-            return "iCloud storage is full. Free up iCloud storage or upgrade the storage plan, then try sharing again."
+            return "Need to clean up some space in your iCloud to share."
         case .notAuthenticated:
             return "Sign in to iCloud on this device, then try sharing again."
         case .permissionFailure:

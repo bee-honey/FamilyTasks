@@ -8,6 +8,7 @@ struct TodayTasksView: View {
     @AppStorage("schedule.showTaskTime") private var showTaskTime = false
     @AppStorage("schedule.showTaskBucket") private var showTaskBucket = false
     @AppStorage("schedule.defaultDisplayMode") private var defaultDisplayModeRaw = ScheduleDisplayMode.week.rawValue
+    @AppStorage("schedule.contentPriority") private var contentPriorityRaw = ScheduleContentPriority.tasksFirst.rawValue
     @State private var isAddingTask = false
     @State private var editingTask: FamilyTask?
     @State private var selectedDate = Date()
@@ -294,6 +295,29 @@ struct TodayTasksView: View {
                 .listRowBackground(Color.clear)
         }
 
+        if scheduleContentPriority == .tasksFirst {
+            scheduledTaskSections(selectedTasks: selectedTasks, recurringTasks: recurringTasks)
+            calendarSection(calendarEvents)
+        } else {
+            calendarSection(calendarEvents)
+            scheduledTaskSections(selectedTasks: selectedTasks, recurringTasks: recurringTasks)
+        }
+
+        if !pendingTasks.isEmpty {
+            Section("Pending") {
+                ForEach(pendingTasks) { task in
+                    taskRow(task)
+                }
+            }
+        }
+    }
+
+    private var scheduleContentPriority: ScheduleContentPriority {
+        ScheduleContentPriority(rawValue: contentPriorityRaw) ?? .tasksFirst
+    }
+
+    @ViewBuilder
+    private func scheduledTaskSections(selectedTasks: [FamilyTask], recurringTasks: [RecurringTask]) -> some View {
         if !selectedTasks.isEmpty {
             Section {
                 ForEach(selectedTasks) { task in
@@ -320,7 +344,10 @@ struct TodayTasksView: View {
                 }
             }
         }
+    }
 
+    @ViewBuilder
+    private func calendarSection(_ calendarEvents: [CalendarDayEvent]) -> some View {
         if !calendarEvents.isEmpty {
             Section("Calendar") {
                 ForEach(calendarEvents) { event in
@@ -332,14 +359,6 @@ struct TodayTasksView: View {
                                 Label("Remove", systemImage: "trash")
                             }
                         }
-                }
-            }
-        }
-
-        if !pendingTasks.isEmpty {
-            Section("Pending") {
-                ForEach(pendingTasks) { task in
-                    taskRow(task)
                 }
             }
         }
@@ -723,6 +742,20 @@ private struct TodayTaskRow: View {
             } label: {
                 Label("Edit", systemImage: "pencil")
             }
+        }
+    }
+}
+
+enum ScheduleContentPriority: String, CaseIterable, Identifiable {
+    case tasksFirst
+    case calendarFirst
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .tasksFirst: "Tasks First"
+        case .calendarFirst: "Calendar First"
         }
     }
 }

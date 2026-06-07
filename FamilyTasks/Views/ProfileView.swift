@@ -5,19 +5,9 @@ import UserNotifications
 struct ProfileView: View {
     @EnvironmentObject private var taskStore: TaskStore
     @EnvironmentObject private var sharedHouseholdStore: SharedHouseholdStore
-    @EnvironmentObject private var notificationScheduler: NotificationScheduler
     @AppStorage("profile.email") private var email = ""
     @AppStorage("profile.initials") private var initials = ""
     @AppStorage("profile.imageData") private var imageData = Data()
-    @AppStorage("schedule.showTaskTime") private var showTaskTime = false
-    @AppStorage("schedule.showTaskBucket") private var showTaskBucket = false
-    @AppStorage("schedule.defaultDisplayMode") private var defaultScheduleView = "week"
-    @AppStorage("notifications.enabled") private var notificationsEnabled = false
-    @AppStorage("notifications.todayDigest") private var todayDigestEnabled = true
-    @AppStorage("notifications.dueSoon") private var dueSoonEnabled = true
-    @AppStorage("notifications.todayDigestHour") private var todayDigestHour = 8
-    @AppStorage("notifications.todayDigestMinute") private var todayDigestMinute = 0
-    @AppStorage("notifications.dueSoonLeadMinutes") private var dueSoonLeadMinutes = 60
     @State private var selectedPhoto: PhotosPickerItem?
 
     var body: some View {
@@ -69,7 +59,93 @@ struct ProfileView: View {
                     Text("Family sharing uses this email for in-app assignees. Apple does not share invite recipients' iMessage address or phone number with the app.")
                 }
 
-                Section("Schedule") {
+                Section("About") {
+                    HStack {
+                        Label("Version", systemImage: "info.circle")
+                        Spacer()
+                        Text(appVersionDisplay)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .navigationTitle("Profile")
+            .scrollContentBackground(.hidden)
+            .background(AppTheme.background)
+            .onChange(of: selectedPhoto) { _, item in
+                Task {
+                    if let data = try? await item?.loadTransferable(type: Data.self) {
+                        imageData = data
+                    }
+                }
+            }
+            .onDisappear(perform: syncProfileMember)
+        }
+    }
+
+    private var appVersionDisplay: String {
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String
+        return "\(version?.isEmpty == false ? version! : "1.0") (\(build?.isEmpty == false ? build! : "1"))"
+    }
+
+    @ViewBuilder
+    private var profileImage: some View {
+        if let image = UIImage(data: imageData) {
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFill()
+                .frame(width: 64, height: 64)
+                .clipShape(Circle())
+        } else {
+            Text(displayInitials)
+                .font(.title2.weight(.bold))
+                .foregroundStyle(.white)
+                .frame(width: 64, height: 64)
+                .background(AppTheme.primary, in: Circle())
+        }
+    }
+
+    private var displayInitials: String {
+        let trimmedInitials = initials.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedInitials.isEmpty {
+            return trimmedInitials.uppercased()
+        }
+
+        let localPart = email.split(separator: "@").first.map(String.init) ?? ""
+        let parts = localPart.split(whereSeparator: { $0 == "." || $0 == "_" || $0 == "-" || $0 == " " })
+        let letters = parts.prefix(2).compactMap(\.first)
+        return letters.isEmpty ? "ME" : String(letters).uppercased()
+    }
+
+    private func syncProfileMember() {
+        let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard TaskStore.isValidEmail(trimmedEmail) else { return }
+
+        if trimmedEmail != email {
+            email = trimmedEmail
+        }
+
+        taskStore.addFamilyMember(named: trimmedEmail)
+
+        guard sharedHouseholdStore.isSharingConfigured else { return }
+        Task {
+            await sharedHouseholdStore.uploadNow()
+        }
+    }
+}
+
+struct ViewSettingsView: View {
+    @EnvironmentObject private var calendarSync: CalendarSyncService
+    @AppStorage("schedule.showTaskTime") private var showTaskTime = false
+    @AppStorage("schedule.showTaskBucket") private var showTaskBucket = false
+    @AppStorage("schedule.defaultDisplayMode") private var defaultScheduleView = "week"
+    @AppStorage("calendar.integration.enabled") private var calendarIntegrationEnabled = false
+    @AppStorage("schedule.contentPriority") private var scheduleContentPriority = ScheduleContentPriority.tasksFirst.rawValue
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Schedule View") {
                     Picker("Default View", selection: $defaultScheduleView) {
                         Text("Today").tag("today")
                         Text("Week").tag("week")
@@ -80,6 +156,52 @@ struct ProfileView: View {
                     Toggle("Show Bucket On Tasks", isOn: $showTaskBucket)
                 }
 
+                Section("Tasks and Calendars") {
+                    Toggle("Show Calendar Events in Schedule", isOn: $calendarIntegrationEnabled)
+                        .onChange(of: calendarIntegrationEnabled) { _, enabled in
+                            Task {
+                                if enabled {
+                                    let connected = await calendarSync.requestFullAccessForReadingIfNeeded()
+                                    calendarIntegrationEnabled = connected
+                                    if connected {
+                                        await calendarSync.loadTodayEvents()
+                                    }
+                                } else {
+                                    calendarSync.clearTodayEvents()
+                                }
+                            }
+                        }
+
+                    Picker("Schedule Priority", selection: $scheduleContentPriority) {
+                        ForEach(ScheduleContentPriority.allCases) { priority in
+                            Text(priority.title).tag(priority.rawValue)
+                        }
+                    }
+
+                    Text("Choose whether Schedule leads with family tasks or calendar events.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .navigationTitle("View Settings")
+            .scrollContentBackground(.hidden)
+            .background(AppTheme.background)
+        }
+    }
+}
+
+struct NotificationSettingsView: View {
+    @EnvironmentObject private var notificationScheduler: NotificationScheduler
+    @AppStorage("notifications.enabled") private var notificationsEnabled = false
+    @AppStorage("notifications.todayDigest") private var todayDigestEnabled = true
+    @AppStorage("notifications.dueSoon") private var dueSoonEnabled = true
+    @AppStorage("notifications.todayDigestHour") private var todayDigestHour = 8
+    @AppStorage("notifications.todayDigestMinute") private var todayDigestMinute = 0
+    @AppStorage("notifications.dueSoonLeadMinutes") private var dueSoonLeadMinutes = 60
+
+    var body: some View {
+        NavigationStack {
+            Form {
                 Section("Notifications") {
                     Toggle("Enable Notifications", isOn: $notificationsEnabled)
                         .onChange(of: notificationsEnabled) { _, enabled in
@@ -132,90 +254,37 @@ struct ProfileView: View {
                     Text(notificationDetail)
                         .font(.caption)
                         .foregroundStyle(.secondary)
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Label("Notification Status", systemImage: "bell.badge")
-                            Spacer()
-                            Text(notificationScheduler.pendingAlertCount == 1 ? "1 pending" : "\(notificationScheduler.pendingAlertCount) pending")
-                                .foregroundStyle(.secondary)
-                        }
-
-                        Text(notificationScheduler.statusMessage)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-
-                        Button {
-                            Task {
-                                await notificationScheduler.sendTestNotification()
-                            }
-                        } label: {
-                            Label("Send Test Notification", systemImage: "paperplane")
-                        }
-                        .disabled(!notificationsEnabled)
-                    }
-                    .padding(.vertical, 4)
                 }
 
-                Section("About") {
+                Section("Status") {
                     HStack {
-                        Label("Version", systemImage: "info.circle")
+                        Label("Notification Status", systemImage: "bell.badge")
                         Spacer()
-                        Text(appVersionDisplay)
+                        Text(notificationScheduler.pendingAlertCount == 1 ? "1 pending" : "\(notificationScheduler.pendingAlertCount) pending")
                             .foregroundStyle(.secondary)
                     }
+
+                    Text(notificationScheduler.statusMessage)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    Button {
+                        Task {
+                            await notificationScheduler.sendTestNotification()
+                        }
+                    } label: {
+                        Label("Send Test Notification", systemImage: "paperplane")
+                    }
+                    .disabled(!notificationsEnabled)
                 }
             }
-            .navigationTitle("Profile")
+            .navigationTitle("Notification Settings")
             .scrollContentBackground(.hidden)
             .background(AppTheme.background)
-            .onChange(of: selectedPhoto) { _, item in
-                Task {
-                    if let data = try? await item?.loadTransferable(type: Data.self) {
-                        imageData = data
-                    }
-                }
-            }
             .task {
                 await notificationScheduler.refreshStatus()
             }
-            .onDisappear(perform: syncProfileMember)
         }
-    }
-
-    private var appVersionDisplay: String {
-        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
-        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String
-        return "\(version?.isEmpty == false ? version! : "1.0") (\(build?.isEmpty == false ? build! : "1"))"
-    }
-
-    @ViewBuilder
-    private var profileImage: some View {
-        if let image = UIImage(data: imageData) {
-            Image(uiImage: image)
-                .resizable()
-                .scaledToFill()
-                .frame(width: 64, height: 64)
-                .clipShape(Circle())
-        } else {
-            Text(displayInitials)
-                .font(.title2.weight(.bold))
-                .foregroundStyle(.white)
-                .frame(width: 64, height: 64)
-                .background(AppTheme.primary, in: Circle())
-        }
-    }
-
-    private var displayInitials: String {
-        let trimmedInitials = initials.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !trimmedInitials.isEmpty {
-            return trimmedInitials.uppercased()
-        }
-
-        let localPart = email.split(separator: "@").first.map(String.init) ?? ""
-        let parts = localPart.split(whereSeparator: { $0 == "." || $0 == "_" || $0 == "-" || $0 == " " })
-        let letters = parts.prefix(2).compactMap(\.first)
-        return letters.isEmpty ? "ME" : String(letters).uppercased()
     }
 
     private func requestNotificationPermission() {
@@ -235,22 +304,6 @@ struct ProfileView: View {
     private func rescheduleNotifications() {
         Task {
             await notificationScheduler.reschedule()
-        }
-    }
-
-    private func syncProfileMember() {
-        let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        guard TaskStore.isValidEmail(trimmedEmail) else { return }
-
-        if trimmedEmail != email {
-            email = trimmedEmail
-        }
-
-        taskStore.addFamilyMember(named: trimmedEmail)
-
-        guard sharedHouseholdStore.isSharingConfigured else { return }
-        Task {
-            await sharedHouseholdStore.uploadNow()
         }
     }
 
@@ -331,11 +384,8 @@ private struct NotificationDueSoonOption: Identifiable {
 
 struct SyncSettingsView: View {
     @EnvironmentObject private var taskStore: TaskStore
-    @EnvironmentObject private var calendarSync: CalendarSyncService
     @EnvironmentObject private var sharedHouseholdStore: SharedHouseholdStore
-    @AppStorage("calendar.integration.enabled") private var calendarIntegrationEnabled = false
     @State private var preparedCloudShare: PreparedCloudShare?
-    @State private var isRefreshingCalendar = false
     @State private var inviteLinkText = ""
 
     var body: some View {
@@ -377,6 +427,23 @@ struct SyncSettingsView: View {
                     }
                     .buttonStyle(.plain)
                     .disabled(sharedHouseholdStore.isSyncing)
+
+                    if sharedHouseholdStore.isSharingConfigured {
+                        Button {
+                            Task {
+                                do {
+                                    preparedCloudShare = try await sharedHouseholdStore.prepareCloudShare()
+                                } catch {
+                                    // The store exposes the user-facing error in the sharing status rows.
+                                }
+                            }
+                        } label: {
+                            Label("Manage iCloud Share", systemImage: "person.2.slash")
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(sharedHouseholdStore.isSyncing)
+                    }
 
                     VStack(alignment: .leading, spacing: 8) {
                         Label("Members", systemImage: "person.2")
@@ -488,23 +555,40 @@ struct SyncSettingsView: View {
                     }
                     .padding(.vertical, 4)
                 }
+            }
+            .navigationTitle("iCloud Settings")
+            .scrollContentBackground(.hidden)
+            .background(AppTheme.background)
+            .sheet(item: $preparedCloudShare) { preparedShare in
+                CloudSharingView(preparedShare: preparedShare)
+            }
+        }
+    }
 
-                Section("Calendar") {
-                    Toggle("Show Calendar Events in Schedule", isOn: $calendarIntegrationEnabled)
-                        .onChange(of: calendarIntegrationEnabled) { _, enabled in
-                            Task {
-                                if enabled {
-                                    let connected = await calendarSync.requestFullAccessForReadingIfNeeded()
-                                    calendarIntegrationEnabled = connected
-                                    if connected {
-                                        await calendarSync.loadTodayEvents()
-                                    }
-                                } else {
-                                    calendarSync.clearTodayEvents()
-                                }
-                            }
-                        }
+    private var memberStatusDetail: String {
+        if sharedHouseholdStore.isSharingConfigured {
+            return "After someone accepts the iCloud invite, they appear here when their profile email syncs back to the household."
+        }
 
+        return "Members are shared after the first iCloud invite is created. Each person confirms their own profile email in this app."
+    }
+
+    private var canAcceptInviteLink: Bool {
+        let trimmedLink = inviteLinkText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let url = URL(string: trimmedLink) else { return false }
+        return url.scheme?.lowercased().hasPrefix("http") == true
+    }
+}
+
+struct CalendarSettingsView: View {
+    @EnvironmentObject private var calendarSync: CalendarSyncService
+    @AppStorage("calendar.integration.enabled") private var calendarIntegrationEnabled = false
+    @State private var isRefreshingCalendar = false
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Calendar Access") {
                     VStack(alignment: .leading, spacing: 6) {
                         HStack {
                             Label("Calendar Status", systemImage: "calendar")
@@ -516,6 +600,12 @@ struct SyncSettingsView: View {
                         Text(calendarStatusDetail)
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                    }
+
+                    Button {
+                        requestCalendarAccess()
+                    } label: {
+                        Label("Request Calendar Access", systemImage: "calendar.badge.checkmark")
                     }
 
                     Button {
@@ -537,7 +627,7 @@ struct SyncSettingsView: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .buttonStyle(.plain)
-                    .disabled(!calendarIntegrationEnabled && calendarSync.authorizationStatus == .denied)
+                    .disabled(!calendarIntegrationEnabled)
 
                     if let message = calendarSync.lastErrorMessage, !message.isEmpty {
                         Text(message)
@@ -546,12 +636,9 @@ struct SyncSettingsView: View {
                     }
                 }
             }
-            .navigationTitle("Sync Settings")
+            .navigationTitle("Calendar Settings")
             .scrollContentBackground(.hidden)
             .background(AppTheme.background)
-            .sheet(item: $preparedCloudShare) { preparedShare in
-                CloudSharingView(preparedShare: preparedShare)
-            }
         }
     }
 
@@ -573,21 +660,17 @@ struct SyncSettingsView: View {
             }
         }
 
-        return "Turn this on to show calendar events inside Schedule."
+        return "Turn on calendar events in View Settings to show them inside Schedule."
     }
 
-    private var memberStatusDetail: String {
-        if sharedHouseholdStore.isSharingConfigured {
-            return "After someone accepts the iCloud invite, they appear here when their profile email syncs back to the household."
+    private func requestCalendarAccess() {
+        Task {
+            let connected = await calendarSync.requestFullAccessForReadingIfNeeded()
+            calendarIntegrationEnabled = connected
+            if connected {
+                await calendarSync.loadTodayEvents()
+            }
         }
-
-        return "Members are shared after the first iCloud invite is created. Each person confirms their own profile email in this app."
-    }
-
-    private var canAcceptInviteLink: Bool {
-        let trimmedLink = inviteLinkText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let url = URL(string: trimmedLink) else { return false }
-        return url.scheme?.lowercased().hasPrefix("http") == true
     }
 
     private var calendarRefreshDetail: String {
@@ -613,7 +696,6 @@ struct SyncSettingsView: View {
         }
     }
 }
-
 
 struct ProfileSetupView: View {
     @EnvironmentObject private var taskStore: TaskStore

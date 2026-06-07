@@ -3,6 +3,7 @@ import SwiftUI
 struct FamilyMembersView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var taskStore: TaskStore
+    @EnvironmentObject private var organizerStore: OrganizerStore
     @State private var name = ""
     @FocusState private var isNameFocused: Bool
     private var trimmedEmail: String {
@@ -50,7 +51,7 @@ struct FamilyMembersView: View {
                     }
                 }
 
-                Section("Family") {
+                Section {
                     if taskStore.familyMembers.isEmpty {
                         Text("No members yet")
                             .foregroundStyle(.secondary)
@@ -64,15 +65,19 @@ struct FamilyMembersView: View {
                                     .lineLimit(1)
                                 Spacer()
                                 Button(role: .destructive) {
-                                    taskStore.deleteFamilyMember(at: IndexSet(integer: index))
+                                    removeMembers(at: IndexSet(integer: index))
                                 } label: {
                                     Image(systemName: "trash")
                                 }
                                 .buttonStyle(.borderless)
                             }
                         }
-                        .onDelete(perform: taskStore.deleteFamilyMember)
+                        .onDelete(perform: removeMembers)
                     }
+                } header: {
+                    Text("Family")
+                } footer: {
+                    Text("Removing a person here removes them from app assignees. Use iCloud Settings > Manage iCloud Share to remove their iCloud access.")
                 }
             }
             .navigationTitle("Family")
@@ -92,5 +97,11 @@ struct FamilyMembersView: View {
         isNameFocused = false
         taskStore.addFamilyMember(named: trimmedEmail)
         name = ""
+    }
+
+    private func removeMembers(at offsets: IndexSet) {
+        let removedMembers = offsets.map { taskStore.familyMembers[$0] }
+        taskStore.deleteFamilyMember(at: offsets)
+        removedMembers.forEach(organizerStore.clearRecurringAssignee)
     }
 }
