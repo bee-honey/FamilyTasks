@@ -2,17 +2,19 @@ import SwiftUI
 
 struct RootTabView: View {
     @State private var selection: AppSection? = .today
+    @AppStorage("menu.primarySectionOrder") private var primarySectionOrder = AppSection.defaultPrimarySectionOrder
 
     var body: some View {
         NavigationSplitView {
             List(selection: $selection) {
                 Section("Family Tasks") {
-                    ForEach(AppSection.primarySections) { section in
+                    ForEach(primarySections) { section in
                         NavigationLink(value: section) {
                             Label(section.title, systemImage: section.systemImage)
                         }
                         .listRowBackground(AppTheme.surface)
                     }
+                    .onMove(perform: movePrimarySections)
                 }
 
                 Section("Settings") {
@@ -44,8 +46,21 @@ struct RootTabView: View {
             }
             .scrollContentBackground(.hidden)
             .background(AppTheme.background)
+            .safeAreaInset(edge: .bottom) {
+                Text("Version: \(appVersionDisplay)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(AppTheme.background)
+            }
             .navigationTitle("Menu")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    EditButton()
+                }
+            }
         } detail: {
             switch selection ?? .today {
             case .today:
@@ -72,6 +87,29 @@ struct RootTabView: View {
         }
         .tint(AppTheme.primary)
     }
+
+    private var primarySections: [AppSection] {
+        let savedSections = primarySectionOrder
+            .split(separator: ",")
+            .compactMap { AppSection(rawValue: String($0)) }
+            .filter(\.isPrimary)
+
+        let missingSections = AppSection.defaultPrimarySections.filter { !savedSections.contains($0) }
+        let orderedSections = savedSections + missingSections
+        return orderedSections.isEmpty ? AppSection.defaultPrimarySections : orderedSections
+    }
+
+    private func movePrimarySections(from source: IndexSet, to destination: Int) {
+        var sections = primarySections
+        sections.move(fromOffsets: source, toOffset: destination)
+        primarySectionOrder = sections.map(\.rawValue).joined(separator: ",")
+    }
+
+    private var appVersionDisplay: String {
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String
+        return "\(version?.isEmpty == false ? version! : "1.0")(\(build?.isEmpty == false ? build! : "1"))"
+    }
 }
 
 private enum AppSection: String, CaseIterable, Identifiable {
@@ -88,8 +126,14 @@ private enum AppSection: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    static var primarySections: [AppSection] {
+    static let defaultPrimarySections: [AppSection] = {
         [.today, .matrix, .shopping, .mealPlan, .recurring]
+    }()
+
+    static let defaultPrimarySectionOrder = defaultPrimarySections.map(\.rawValue).joined(separator: ",")
+
+    var isPrimary: Bool {
+        Self.defaultPrimarySections.contains(self)
     }
 
     var title: String {
