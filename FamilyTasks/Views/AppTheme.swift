@@ -1,32 +1,39 @@
 import SwiftUI
+import UIKit
 
 enum AppTheme {
-    static let background = Color(hex: 0xF6F2EC)
-    static let surface = Color(hex: 0xFFFDF8)
-    static let surfaceMuted = Color(hex: 0xEFE8DF)
-    static let primary = Color(hex: 0x167C80)
-    static let primarySoft = Color(hex: 0xD9EEEA)
-    static let success = Color(hex: 0x4F8A6B)
-    static let warning = Color(hex: 0xD9912B)
-    static let destructive = Color(hex: 0xC85D5A)
-    static let ink = Color(hex: 0x242424)
+    static let background = Color(light: 0xF6F2EC, dark: 0x171411)
+    static let surface = Color(light: 0xFFFDF8, dark: 0x24201B)
+    static let surfaceMuted = Color(light: 0xEFE8DF, dark: 0x332D26)
+    static let primary = Color(light: 0x167C80, dark: 0x58C7C5)
+    static let primarySoft = Color(light: 0xD9EEEA, dark: 0x173D3E)
+    static let success = Color(light: 0x4F8A6B, dark: 0x74C69D)
+    static let warning = Color(light: 0xD9912B, dark: 0xF0B85A)
+    static let destructive = Color(light: 0xC85D5A, dark: 0xFF8A86)
+    static let ink = Color(light: 0x242424, dark: 0xF4EFE7)
 
     static let avatarPalette: [Color] = [
-        Color(hex: 0x167C80),
-        Color(hex: 0x7B6BA8),
-        Color(hex: 0xC66F4E),
-        Color(hex: 0x4F8A6B),
-        Color(hex: 0xB45F7A),
-        Color(hex: 0x5E7F9A)
+        Color(light: 0x167C80, dark: 0x58C7C5),
+        Color(light: 0x7B6BA8, dark: 0xB5A6E4),
+        Color(light: 0xC66F4E, dark: 0xF3A47F),
+        Color(light: 0x4F8A6B, dark: 0x74C69D),
+        Color(light: 0xB45F7A, dark: 0xEA93AF),
+        Color(light: 0x5E7F9A, dark: 0x9CBBD4)
     ]
 
-    static let taskDo = Color(hex: 0xC85D5A)
-    static let taskSchedule = Color(hex: 0x3E7C9F)
-    static let taskDelegate = Color(hex: 0xD9912B)
-    static let taskDrop = Color(hex: 0x4F8A6B)
+    static let taskDo = Color(light: 0xC85D5A, dark: 0xFF8A86)
+    static let taskSchedule = Color(light: 0x3E7C9F, dark: 0x79BFE2)
+    static let taskDelegate = Color(light: 0xD9912B, dark: 0xF0B85A)
+    static let taskDrop = Color(light: 0x4F8A6B, dark: 0x74C69D)
 }
 
 extension Color {
+    init(light: UInt, dark: UInt, opacity: Double = 1) {
+        self.init(uiColor: UIColor { traits in
+            UIColor(hex: traits.userInterfaceStyle == .dark ? dark : light, opacity: opacity)
+        })
+    }
+
     init(hex: UInt, opacity: Double = 1) {
         self.init(
             .sRGB,
@@ -34,6 +41,17 @@ extension Color {
             green: Double((hex >> 8) & 0xFF) / 255,
             blue: Double(hex & 0xFF) / 255,
             opacity: opacity
+        )
+    }
+}
+
+private extension UIColor {
+    convenience init(hex: UInt, opacity: Double = 1) {
+        self.init(
+            red: CGFloat((hex >> 16) & 0xFF) / 255,
+            green: CGFloat((hex >> 8) & 0xFF) / 255,
+            blue: CGFloat(hex & 0xFF) / 255,
+            alpha: opacity
         )
     }
 }
