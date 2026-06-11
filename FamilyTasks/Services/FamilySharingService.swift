@@ -9,6 +9,7 @@ struct SharedHouseholdPayload: Codable {
     var updatedBy: String
     var tasks: [FamilyTask]
     var familyMembers: [String]
+    var profiles: [SharedMemberProfile]
     var shopping: ShoppingPayload
     var recurringTasks: [RecurringTask]
     var mealPlan: MealPlanPayload
@@ -19,6 +20,7 @@ struct SharedHouseholdPayload: Codable {
         updatedBy: String = "",
         tasks: [FamilyTask] = [],
         familyMembers: [String] = [],
+        profiles: [SharedMemberProfile] = [],
         shopping: ShoppingPayload = ShoppingPayload(shops: [], items: []),
         recurringTasks: [RecurringTask] = [],
         mealPlan: MealPlanPayload = MealPlanPayload(mealIdeas: [], plannedMeals: [])
@@ -28,9 +30,149 @@ struct SharedHouseholdPayload: Codable {
         self.updatedBy = updatedBy
         self.tasks = tasks
         self.familyMembers = familyMembers
+        self.profiles = profiles
         self.shopping = shopping
         self.recurringTasks = recurringTasks
         self.mealPlan = mealPlan
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case schemaVersion
+        case updatedAt
+        case updatedBy
+        case tasks
+        case familyMembers
+        case profiles
+        case shopping
+        case recurringTasks
+        case mealPlan
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        schemaVersion = (try? container.decode(Int.self, forKey: .schemaVersion)) ?? 1
+        updatedAt = (try? container.decode(Date.self, forKey: .updatedAt)) ?? Date()
+        updatedBy = (try? container.decode(String.self, forKey: .updatedBy)) ?? ""
+        tasks = (try? container.decode([FamilyTask].self, forKey: .tasks)) ?? []
+        familyMembers = (try? container.decode([String].self, forKey: .familyMembers)) ?? []
+        profiles = (try? container.decode([SharedMemberProfile].self, forKey: .profiles)) ?? []
+        shopping = (try? container.decode(ShoppingPayload.self, forKey: .shopping)) ?? ShoppingPayload(shops: [], items: [])
+        recurringTasks = (try? container.decode([RecurringTask].self, forKey: .recurringTasks)) ?? []
+        mealPlan = (try? container.decode(MealPlanPayload.self, forKey: .mealPlan)) ?? MealPlanPayload(mealIdeas: [], plannedMeals: [])
+    }
+}
+
+struct SharedMemberProfile: Codable, Identifiable, Equatable {
+    static let storageKey = "familySharing.memberProfiles"
+
+    var email: String
+    var initials: String
+    var imageData: Data?
+    var updatedAt: Date
+
+    var id: String { normalizedEmail }
+
+    var normalizedEmail: String {
+        email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+
+    static func loadProfiles() -> [SharedMemberProfile] {
+        guard let data = UserDefaults.standard.data(forKey: storageKey),
+              let profiles = try? JSONDecoder().decode([SharedMemberProfile].self, from: data) else {
+            return []
+        }
+
+        return profiles
+    }
+
+    static func saveProfiles(_ profiles: [SharedMemberProfile]) {
+        guard let data = try? JSONEncoder().encode(deduplicated(profiles)) else { return }
+        UserDefaults.standard.set(data, forKey: storageKey)
+    }
+
+    static func profile(for email: String, in profiles: [SharedMemberProfile] = loadProfiles()) -> SharedMemberProfile? {
+        let normalizedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !normalizedEmail.isEmpty else { return nil }
+        return profiles.first { $0.normalizedEmail == normalizedEmail }
+    }
+
+    static func currentProfile() -> SharedMemberProfile? {
+        let defaults = UserDefaults.standard
+        let email = (defaults.string(forKey: "profile.email") ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        guard isValidEmail(email) else { return nil }
+
+        let initials = (defaults.string(forKey: "profile.initials") ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .uppercased()
+        let imageData = compressedImageData(from: defaults.data(forKey: "profile.imageData") ?? Data())
+
+        return SharedMemberProfile(
+            email: email,
+            initials: initials,
+            imageData: imageData,
+            updatedAt: Date()
+        )
+    }
+
+    static func profilesForUpload() -> [SharedMemberProfile] {
+        var profiles = loadProfiles()
+        if let currentProfile = currentProfile() {
+            profiles = merge(existing: profiles, incoming: [currentProfile])
+            saveProfiles(profiles)
+        }
+        return profiles
+    }
+
+    static func mergeAndSave(_ incoming: [SharedMemberProfile]) {
+        let merged = merge(existing: loadProfiles(), incoming: incoming)
+        saveProfiles(merged)
+    }
+
+    static func merge(existing: [SharedMemberProfile], incoming: [SharedMemberProfile]) -> [SharedMemberProfile] {
+        deduplicated(existing + incoming)
+    }
+
+    private static func deduplicated(_ profiles: [SharedMemberProfile]) -> [SharedMemberProfile] {
+        var profilesByEmail: [String: SharedMemberProfile] = [:]
+
+        for profile in profiles {
+            let email = profile.normalizedEmail
+            guard isValidEmail(email) else { continue }
+
+            if let existing = profilesByEmail[email], existing.updatedAt > profile.updatedAt {
+                continue
+            }
+
+            var normalized = profile
+            normalized.email = email
+            profilesByEmail[email] = normalized
+        }
+
+        return profilesByEmail.values.sorted { lhs, rhs in
+            lhs.email.localizedCaseInsensitiveCompare(rhs.email) == .orderedAscending
+        }
+    }
+
+    private static func compressedImageData(from data: Data) -> Data? {
+        guard !data.isEmpty, let image = UIImage(data: data) else { return nil }
+
+        let maxSide: CGFloat = 180
+        let largestSide = max(image.size.width, image.size.height)
+        let scale = largestSide > 0 ? min(1, maxSide / largestSide) : 1
+        let targetSize = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+        let renderer = UIGraphicsImageRenderer(size: targetSize)
+        let resizedImage = renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: targetSize))
+        }
+
+        return resizedImage.jpegData(compressionQuality: 0.72)
+    }
+
+    private static func isValidEmail(_ value: String) -> Bool {
+        let pattern = #"^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$"#
+        return value.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil
     }
 }
 
@@ -338,6 +480,7 @@ final class SharedHouseholdStore: ObservableObject {
             updatedBy: UserDefaults.standard.string(forKey: "profile.email") ?? "",
             tasks: taskStore.exportTasks(),
             familyMembers: taskStore.exportFamilyMembers(),
+            profiles: SharedMemberProfile.profilesForUpload(),
             shopping: organizerStore.exportShoppingPayload(),
             recurringTasks: organizerStore.recurringTasks,
             mealPlan: organizerStore.exportMealPlanPayload()
@@ -345,6 +488,7 @@ final class SharedHouseholdStore: ObservableObject {
     }
 
     private func apply(_ payload: SharedHouseholdPayload) {
+        SharedMemberProfile.mergeAndSave(payload.profiles)
         taskStore?.applySharedData(tasks: payload.tasks, familyMembers: payload.familyMembers)
         organizerStore?.applySharedData(
             shopping: payload.shopping,

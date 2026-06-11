@@ -6,6 +6,7 @@ struct AssigneeAvatarView: View {
     @AppStorage("profile.email") private var profileEmail = ""
     @AppStorage("profile.initials") private var profileInitials = ""
     @AppStorage("profile.imageData") private var profileImageData = Data()
+    @AppStorage(SharedMemberProfile.storageKey) private var sharedProfilesData = Data()
 
     private var isCurrentUser: Bool {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -28,6 +29,11 @@ struct AssigneeAvatarView: View {
             return String(trimmedProfileInitials.prefix(3)).uppercased()
         }
 
+        if let sharedInitials = sharedProfile?.initials.trimmingCharacters(in: .whitespacesAndNewlines),
+           !sharedInitials.isEmpty {
+            return String(sharedInitials.prefix(3)).uppercased()
+        }
+
         let displayName = trimmed.split(separator: "@").first.map(String.init) ?? trimmed
         let parts = displayName.split(whereSeparator: { $0 == " " || $0 == "." || $0 == "_" || $0 == "-" })
         let letters = parts.prefix(2).compactMap { $0.first }
@@ -36,7 +42,7 @@ struct AssigneeAvatarView: View {
 
     var body: some View {
         Group {
-            if isCurrentUser, let image = UIImage(data: profileImageData) {
+            if let image = avatarImage {
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFill()
@@ -57,5 +63,21 @@ struct AssigneeAvatarView: View {
         let source = name.isEmpty ? "Unassigned" : name
         let index = abs(source.hashValue) % AppTheme.avatarPalette.count
         return AppTheme.avatarPalette[index]
+    }
+
+    private var avatarImage: UIImage? {
+        if isCurrentUser, let image = UIImage(data: profileImageData) {
+            return image
+        }
+
+        guard let imageData = sharedProfile?.imageData else { return nil }
+        return UIImage(data: imageData)
+    }
+
+    private var sharedProfile: SharedMemberProfile? {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, !Assignee.isEveryone(trimmed) else { return nil }
+        guard let profiles = try? JSONDecoder().decode([SharedMemberProfile].self, from: sharedProfilesData) else { return nil }
+        return SharedMemberProfile.profile(for: trimmed, in: profiles)
     }
 }

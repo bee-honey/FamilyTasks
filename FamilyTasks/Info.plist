@@ -27,7 +27,7 @@
 	<key>NSCalendarsUsageDescription</key>
 	<string>Family Tasks adds and updates task due dates on your calendar.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Family Tasks lets you choose a profile photo for your local app profile.</string>
+	<string>Family Tasks lets you choose a profile photo for your app profile and share it with your household.</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.productivity</string>
 	<key>CKSharingSupported</key>

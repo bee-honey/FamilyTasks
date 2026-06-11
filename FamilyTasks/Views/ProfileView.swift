@@ -35,6 +35,7 @@ struct ProfileView: View {
                     if !imageData.isEmpty {
                         Button(role: .destructive) {
                             imageData = Data()
+                            syncProfileMember()
                         } label: {
                             Label("Remove Profile Image", systemImage: "trash")
                         }
@@ -67,6 +68,7 @@ struct ProfileView: View {
                 Task {
                     if let data = try? await item?.loadTransferable(type: Data.self) {
                         imageData = data
+                        syncProfileMember()
                     }
                 }
             }
@@ -112,6 +114,9 @@ struct ProfileView: View {
         }
 
         taskStore.addFamilyMember(named: trimmedEmail)
+        if let currentProfile = SharedMemberProfile.currentProfile() {
+            SharedMemberProfile.mergeAndSave([currentProfile])
+        }
 
         guard sharedHouseholdStore.isSharingConfigured else { return }
         Task {
@@ -532,10 +537,11 @@ struct SyncSettingsView: View {
                     Label("Recurring tasks", systemImage: "repeat")
                     Label("Shopping lists", systemImage: "cart")
                     Label("Meal ideas and planned meals", systemImage: "fork.knife")
+                    Label("Profile initials and photos", systemImage: "person.crop.circle")
 
                     VStack(alignment: .leading, spacing: 6) {
                         Label("Kept Local", systemImage: "lock")
-                        Text("Calendar access, calendar events, notification preferences, profile photo, and display settings stay on each person's device.")
+                        Text("Calendar access, calendar events, notification preferences, and display settings stay on each person's device.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
