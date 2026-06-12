@@ -130,12 +130,26 @@ struct ViewSettingsView: View {
     @AppStorage("schedule.showTaskTime") private var showTaskTime = false
     @AppStorage("schedule.showTaskBucket") private var showTaskBucket = false
     @AppStorage("schedule.defaultDisplayMode") private var defaultScheduleView = "week"
+    @AppStorage("view.appearance") private var appearance = AppAppearance.system.rawValue
     @AppStorage("calendar.integration.enabled") private var calendarIntegrationEnabled = false
     @AppStorage("schedule.contentPriority") private var scheduleContentPriority = ScheduleContentPriority.tasksFirst.rawValue
 
     var body: some View {
         NavigationStack {
             Form {
+                Section("Appearance") {
+                    Picker("Mode", selection: $appearance) {
+                        ForEach(AppAppearance.allCases) { option in
+                            Text(option.title).tag(option.rawValue)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+
+                    Text("System follows the iPhone appearance setting.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
                 Section("Schedule View") {
                     Picker("Default View", selection: $defaultScheduleView) {
                         Text("Today").tag("today")

@@ -27,6 +27,30 @@ enum AppTheme {
     static let taskDrop = Color(light: 0x4F8A6B, dark: 0x74C69D)
 }
 
+enum AppAppearance: String, CaseIterable, Identifiable {
+    case system
+    case light
+    case dark
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .system: "System"
+        case .light: "Light"
+        case .dark: "Dark"
+        }
+    }
+
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .system: nil
+        case .light: .light
+        case .dark: .dark
+        }
+    }
+}
+
 extension Color {
     init(light: UInt, dark: UInt, opacity: Double = 1) {
         self.init(uiColor: UIColor { traits in

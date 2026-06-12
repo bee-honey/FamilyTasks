@@ -11,6 +11,7 @@ struct FamilyTasksApp: App {
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("profile.email") private var profileEmail = ""
     @AppStorage("profile.isSetup") private var isProfileSetup = false
+    @AppStorage("view.appearance") private var appearance = AppAppearance.system.rawValue
 
     var body: some Scene {
         WindowGroup {
@@ -26,6 +27,7 @@ struct FamilyTasksApp: App {
             .environmentObject(calendarSync)
             .environmentObject(sharedHouseholdStore)
             .environmentObject(notificationScheduler)
+            .preferredColorScheme(selectedAppearance.colorScheme)
             .onAppear {
                 sharedHouseholdStore.configure(taskStore: taskStore, organizerStore: organizerStore)
                 notificationScheduler.configure(taskStore: taskStore)
@@ -44,5 +46,9 @@ struct FamilyTasksApp: App {
 
     private var isProfileReady: Bool {
         isProfileSetup && TaskStore.isValidEmail(profileEmail)
+    }
+
+    private var selectedAppearance: AppAppearance {
+        AppAppearance(rawValue: appearance) ?? .system
     }
 }
