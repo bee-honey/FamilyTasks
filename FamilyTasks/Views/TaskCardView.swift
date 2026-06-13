@@ -8,8 +8,8 @@ struct TaskCardView: View {
     let onDone: () -> Void
     let onDelete: () -> Void
     let onSync: () -> Void
-    @AppStorage("tasks.showBucketColors") private var showTaskBucketColors = true
-    @AppStorage("tasks.showPriorityMarkers") private var showTaskPriorityMarkers = true
+    @AppStorage("tasks.showBucketColors") private var showTaskBucketColors = false
+    @AppStorage("tasks.showPriorityMarkers") private var showTaskPriorityMarkers = false
 
     var body: some View {
         HStack(alignment: .top, spacing: 7) {
@@ -29,18 +29,12 @@ struct TaskCardView: View {
 
             VStack(alignment: .leading, spacing: 6) {
                 VStack(alignment: .leading, spacing: 3) {
-                    HStack(alignment: .top, spacing: 5) {
-                        Text(task.title)
-                            .font(.caption.weight(.semibold))
-                            .strikethrough(task.isDone)
-                            .foregroundStyle(task.isDone ? .secondary : .primary)
-                            .lineLimit(3)
-                            .minimumScaleFactor(0.82)
-
-                        if showTaskPriorityMarkers {
-                            TaskPriorityMarkerGroup(task: task)
-                        }
-                    }
+                    Text(task.title)
+                        .font(.caption.weight(.semibold))
+                        .strikethrough(task.isDone)
+                        .foregroundStyle(task.isDone ? .secondary : .primary)
+                        .lineLimit(3)
+                        .minimumScaleFactor(0.82)
 
                     if !task.notes.isEmpty {
                         Text(task.notes)
@@ -51,8 +45,14 @@ struct TaskCardView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 3) {
-                    if let dueDate = task.dueDate {
-                        Label(dueDate.formatted(date: .abbreviated, time: .shortened), systemImage: "calendar")
+                    HStack(spacing: 6) {
+                        if let dueDate = task.dueDate {
+                            Label(dueDate.formatted(date: .abbreviated, time: .shortened), systemImage: "calendar")
+                        }
+
+                        if showTaskPriorityMarkers {
+                            TaskPriorityMarkerGroup(task: task)
+                        }
                     }
                 }
                 .font(.caption2)

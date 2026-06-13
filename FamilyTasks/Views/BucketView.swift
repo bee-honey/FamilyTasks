@@ -107,8 +107,8 @@ private struct MatrixTaskRowView: View {
     let onDelete: () -> Void
     let onSync: () -> Void
     let onEdit: () -> Void
-    @AppStorage("tasks.showBucketColors") private var showTaskBucketColors = true
-    @AppStorage("tasks.showPriorityMarkers") private var showTaskPriorityMarkers = true
+    @AppStorage("tasks.showBucketColors") private var showTaskBucketColors = false
+    @AppStorage("tasks.showPriorityMarkers") private var showTaskPriorityMarkers = false
 
     var body: some View {
         HStack(spacing: 10) {
@@ -121,23 +121,21 @@ private struct MatrixTaskRowView: View {
             .frame(width: 28)
 
             VStack(alignment: .leading, spacing: 3) {
-                HStack(alignment: .top, spacing: 6) {
-                    Text(task.title)
-                        .font(.footnote)
-                        .foregroundStyle(task.isDone ? .secondary : .primary)
-                        .strikethrough(task.isDone)
-                        .lineLimit(2)
-
-                    if showTaskPriorityMarkers {
-                        TaskPriorityMarkerGroup(task: task)
-                    }
-                }
+                Text(task.title)
+                    .font(.footnote)
+                    .foregroundStyle(task.isDone ? .secondary : .primary)
+                    .strikethrough(task.isDone)
+                    .lineLimit(2)
 
                 if !task.notes.isEmpty {
                     Text(task.notes)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
+                }
+
+                if showTaskPriorityMarkers {
+                    TaskPriorityMarkerGroup(task: task)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)

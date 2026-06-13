@@ -129,11 +129,10 @@ struct ProfileView: View {
 struct ViewSettingsView: View {
     @EnvironmentObject private var calendarSync: CalendarSyncService
     @AppStorage("schedule.showTaskTime") private var showTaskTime = false
-    @AppStorage("schedule.showTaskBucket") private var showTaskBucket = false
     @AppStorage("schedule.defaultDisplayMode") private var defaultScheduleView = "week"
     @AppStorage("schedule.taskSortOrder") private var taskSortOrder = ScheduleTaskSortOrder.priority.rawValue
-    @AppStorage("tasks.showBucketColors") private var showTaskBucketColors = true
-    @AppStorage("tasks.showPriorityMarkers") private var showTaskPriorityMarkers = true
+    @AppStorage("tasks.showBucketColors") private var showTaskBucketColors = false
+    @AppStorage("tasks.showPriorityMarkers") private var showTaskPriorityMarkers = false
     @AppStorage("view.appearance") private var appearance = AppAppearance.system.rawValue
     @AppStorage("calendar.integration.enabled") private var calendarIntegrationEnabled = false
     @AppStorage("schedule.contentPriority") private var scheduleContentPriority = ScheduleContentPriority.tasksFirst.rawValue
@@ -168,9 +167,8 @@ struct ViewSettingsView: View {
                     }
 
                     Toggle("Show Time On Tasks", isOn: $showTaskTime)
-                    Toggle("Show Bucket On Tasks", isOn: $showTaskBucket)
                     Toggle("Show Task Colors", isOn: $showTaskBucketColors)
-                    Toggle("Show U/I Markers", isOn: $showTaskPriorityMarkers)
+                    Toggle("Show Bucket Markers", isOn: $showTaskPriorityMarkers)
                 }
 
                 Section("Tasks and Calendars") {

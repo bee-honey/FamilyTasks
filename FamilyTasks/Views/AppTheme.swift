@@ -86,18 +86,27 @@ struct TaskPriorityMarkerGroup: View {
     var body: some View {
         HStack(spacing: 4) {
             ForEach(task.priorityMarkers, id: \.self) { marker in
-                Text(marker)
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(.white)
-                    .frame(width: 19, height: 19)
-                    .background(markerColor(for: marker), in: Circle())
-                    .accessibilityLabel(marker == "U" ? "Urgent" : "Important")
+                TaskPriorityMarkerBadge(marker: marker, color: markerColor(for: marker))
             }
         }
     }
 
     private func markerColor(for marker: String) -> Color {
         marker == "U" ? AppTheme.warning : task.bucket.accentColor
+    }
+}
+
+struct TaskPriorityMarkerBadge: View {
+    let marker: String
+    let color: Color
+
+    var body: some View {
+        Text(marker)
+            .font(.caption2.weight(.bold))
+            .foregroundStyle(.white)
+            .frame(width: 19, height: 19)
+            .background(color, in: Circle())
+            .accessibilityLabel(marker == "U" ? "Urgent" : "Important")
     }
 }
 

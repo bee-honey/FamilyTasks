@@ -6,12 +6,11 @@ struct TodayTasksView: View {
     @EnvironmentObject private var calendarSync: CalendarSyncService
     @AppStorage("calendar.integration.enabled") private var calendarIntegrationEnabled = false
     @AppStorage("schedule.showTaskTime") private var showTaskTime = false
-    @AppStorage("schedule.showTaskBucket") private var showTaskBucket = false
     @AppStorage("schedule.defaultDisplayMode") private var defaultDisplayModeRaw = ScheduleDisplayMode.week.rawValue
     @AppStorage("schedule.contentPriority") private var contentPriorityRaw = ScheduleContentPriority.tasksFirst.rawValue
     @AppStorage("schedule.taskSortOrder") private var taskSortOrderRaw = ScheduleTaskSortOrder.priority.rawValue
-    @AppStorage("tasks.showBucketColors") private var showTaskBucketColors = true
-    @AppStorage("tasks.showPriorityMarkers") private var showTaskPriorityMarkers = true
+    @AppStorage("tasks.showBucketColors") private var showTaskBucketColors = false
+    @AppStorage("tasks.showPriorityMarkers") private var showTaskPriorityMarkers = false
     @State private var isAddingTask = false
     @State private var editingTask: FamilyTask?
     @State private var selectedDate = Date()
@@ -405,7 +404,6 @@ struct TodayTasksView: View {
         TodayTaskRow(
             task: task,
             showTime: showTaskTime,
-            showBucket: showTaskBucket,
             showBucketColors: showTaskBucketColors,
             showPriorityMarkers: showTaskPriorityMarkers
         ) {
@@ -729,7 +727,6 @@ private struct RecurringScheduleRow: View {
 private struct TodayTaskRow: View {
     let task: FamilyTask
     let showTime: Bool
-    let showBucket: Bool
     let showBucketColors: Bool
     let showPriorityMarkers: Bool
     let onDone: () -> Void
@@ -746,20 +743,16 @@ private struct TodayTaskRow: View {
                         .lineLimit(2)
                         .strikethrough(task.isDone)
                         .foregroundStyle(task.isDone ? .secondary : .primary)
-
-                    if showPriorityMarkers {
-                        TaskPriorityMarkerGroup(task: task)
-                    }
                 }
 
-                if showTime || showBucket {
+                if showTime || showPriorityMarkers {
                     HStack(spacing: 8) {
                         if showTime, let dueDate = task.dueDate {
                             Label(dueDate.formatted(date: .omitted, time: .shortened), systemImage: "clock")
                         }
 
-                        if showBucket {
-                            Text(task.bucket.title)
+                        if showPriorityMarkers {
+                            TaskPriorityMarkerGroup(task: task)
                         }
                     }
                     .font(.caption2)

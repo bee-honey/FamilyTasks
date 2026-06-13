@@ -36,8 +36,12 @@ struct EditTaskView: View {
                 }
 
                 Section("Priority") {
-                    Toggle("Urgent", isOn: $draft.isUrgent)
-                    Toggle("Important", isOn: $draft.isImportant)
+                    Toggle(isOn: $draft.isUrgent) {
+                        PriorityToggleLabel(title: "Urgent", marker: "U", color: AppTheme.warning)
+                    }
+                    Toggle(isOn: $draft.isImportant) {
+                        PriorityToggleLabel(title: "Important", marker: "I", color: AppTheme.taskSchedule)
+                    }
                 }
 
                 Section("Schedule") {
@@ -79,5 +83,18 @@ struct EditTaskView: View {
     private func clampDueDateToFuture() {
         guard draft.includeDueDate, draft.dueDate < Date() else { return }
         draft.dueDate = Date()
+    }
+}
+
+private struct PriorityToggleLabel: View {
+    let title: String
+    let marker: String
+    let color: Color
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text(title)
+            TaskPriorityMarkerBadge(marker: marker, color: color)
+        }
     }
 }
