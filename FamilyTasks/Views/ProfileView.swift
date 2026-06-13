@@ -1,5 +1,6 @@
 import PhotosUI
 import SwiftUI
+import UIKit
 import UserNotifications
 
 struct ProfileView: View {
@@ -608,10 +609,14 @@ struct CalendarSettingsView: View {
                             .foregroundStyle(.secondary)
                     }
 
-                    Button {
-                        requestCalendarAccess()
+                    Button(role: isCalendarConnected ? .destructive : nil) {
+                        if isCalendarConnected {
+                            revokeCalendarAccess()
+                        } else {
+                            requestCalendarAccess()
+                        }
                     } label: {
-                        Label("Request Calendar Access", systemImage: "calendar.badge.checkmark")
+                        Label(calendarAccessActionTitle, systemImage: calendarAccessActionIcon)
                     }
 
                     Button {
@@ -669,6 +674,23 @@ struct CalendarSettingsView: View {
         return "Turn on calendar events in View Settings to show them inside Schedule."
     }
 
+    private var isCalendarConnected: Bool {
+        switch calendarSync.authorizationStatus {
+        case .authorized, .fullAccess:
+            return true
+        default:
+            return false
+        }
+    }
+
+    private var calendarAccessActionTitle: String {
+        isCalendarConnected ? "Revoke Calendar Access" : "Request Calendar Access"
+    }
+
+    private var calendarAccessActionIcon: String {
+        isCalendarConnected ? "calendar.badge.minus" : "calendar.badge.checkmark"
+    }
+
     private func requestCalendarAccess() {
         Task {
             let connected = await calendarSync.requestFullAccessForReadingIfNeeded()
@@ -677,6 +699,14 @@ struct CalendarSettingsView: View {
                 await calendarSync.loadTodayEvents()
             }
         }
+    }
+
+    private func revokeCalendarAccess() {
+        calendarIntegrationEnabled = false
+        calendarSync.clearTodayEvents()
+
+        guard let settingsURL = URL(string: UIApplication.openSettingsURLString) else { return }
+        UIApplication.shared.open(settingsURL)
     }
 
     private var calendarRefreshDetail: String {
