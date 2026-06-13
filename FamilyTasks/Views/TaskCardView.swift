@@ -8,6 +8,8 @@ struct TaskCardView: View {
     let onDone: () -> Void
     let onDelete: () -> Void
     let onSync: () -> Void
+    @AppStorage("tasks.showBucketColors") private var showTaskBucketColors = true
+    @AppStorage("tasks.showPriorityMarkers") private var showTaskPriorityMarkers = true
 
     var body: some View {
         HStack(alignment: .top, spacing: 7) {
@@ -27,12 +29,18 @@ struct TaskCardView: View {
 
             VStack(alignment: .leading, spacing: 6) {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(task.title)
-                        .font(.caption.weight(.semibold))
-                        .strikethrough(task.isDone)
-                        .foregroundStyle(task.isDone ? .secondary : .primary)
-                        .lineLimit(3)
-                        .minimumScaleFactor(0.82)
+                    HStack(alignment: .top, spacing: 5) {
+                        Text(task.title)
+                            .font(.caption.weight(.semibold))
+                            .strikethrough(task.isDone)
+                            .foregroundStyle(task.isDone ? .secondary : .primary)
+                            .lineLimit(3)
+                            .minimumScaleFactor(0.82)
+
+                        if showTaskPriorityMarkers {
+                            TaskPriorityMarkerGroup(task: task)
+                        }
+                    }
 
                     if !task.notes.isEmpty {
                         Text(task.notes)
@@ -87,11 +95,13 @@ struct TaskCardView: View {
             }
         }
         .padding(8)
-        .background(task.bucket.taskBackgroundColor)
+        .background(showTaskBucketColors ? task.bucket.taskBackgroundColor : AppTheme.surfaceMuted)
         .overlay(alignment: .leading) {
-            Rectangle()
-                .fill(task.bucket.accentColor.opacity(0.55))
-                .frame(width: 3)
+            if showTaskBucketColors {
+                Rectangle()
+                    .fill(task.bucket.accentColor.opacity(0.55))
+                    .frame(width: 3)
+            }
         }
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
     }

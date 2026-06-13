@@ -54,6 +54,17 @@ struct FamilyTask: Identifiable, Codable, Equatable {
     var bucket: TaskBucket {
         TaskBucket(urgent: isUrgent, important: isImportant)
     }
+
+    var priorityMarkers: [String] {
+        var markers: [String] = []
+        if isUrgent {
+            markers.append("U")
+        }
+        if isImportant {
+            markers.append("I")
+        }
+        return markers
+    }
 }
 
 enum TaskBucket: String, CaseIterable, Identifiable {

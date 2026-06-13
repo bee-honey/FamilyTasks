@@ -107,6 +107,8 @@ private struct MatrixTaskRowView: View {
     let onDelete: () -> Void
     let onSync: () -> Void
     let onEdit: () -> Void
+    @AppStorage("tasks.showBucketColors") private var showTaskBucketColors = true
+    @AppStorage("tasks.showPriorityMarkers") private var showTaskPriorityMarkers = true
 
     var body: some View {
         HStack(spacing: 10) {
@@ -119,11 +121,17 @@ private struct MatrixTaskRowView: View {
             .frame(width: 28)
 
             VStack(alignment: .leading, spacing: 3) {
-                Text(task.title)
-                    .font(.footnote)
-                    .foregroundStyle(task.isDone ? .secondary : .primary)
-                    .strikethrough(task.isDone)
-                    .lineLimit(2)
+                HStack(alignment: .top, spacing: 6) {
+                    Text(task.title)
+                        .font(.footnote)
+                        .foregroundStyle(task.isDone ? .secondary : .primary)
+                        .strikethrough(task.isDone)
+                        .lineLimit(2)
+
+                    if showTaskPriorityMarkers {
+                        TaskPriorityMarkerGroup(task: task)
+                    }
+                }
 
                 if !task.notes.isEmpty {
                     Text(task.notes)
@@ -175,11 +183,13 @@ private struct MatrixTaskRowView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
-        .background(task.bucket.taskBackgroundColor)
+        .background(showTaskBucketColors ? task.bucket.taskBackgroundColor : Color.clear)
         .overlay(alignment: .leading) {
-            Rectangle()
-                .fill(task.bucket.accentColor.opacity(0.45))
-                .frame(width: 3)
+            if showTaskBucketColors {
+                Rectangle()
+                    .fill(task.bucket.accentColor.opacity(0.45))
+                    .frame(width: 3)
+            }
         }
         .contentShape(Rectangle())
         .onTapGesture(count: 2, perform: onEdit)

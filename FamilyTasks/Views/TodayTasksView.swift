@@ -9,6 +9,9 @@ struct TodayTasksView: View {
     @AppStorage("schedule.showTaskBucket") private var showTaskBucket = false
     @AppStorage("schedule.defaultDisplayMode") private var defaultDisplayModeRaw = ScheduleDisplayMode.week.rawValue
     @AppStorage("schedule.contentPriority") private var contentPriorityRaw = ScheduleContentPriority.tasksFirst.rawValue
+    @AppStorage("schedule.taskSortOrder") private var taskSortOrderRaw = ScheduleTaskSortOrder.priority.rawValue
+    @AppStorage("tasks.showBucketColors") private var showTaskBucketColors = true
+    @AppStorage("tasks.showPriorityMarkers") private var showTaskPriorityMarkers = true
     @State private var isAddingTask = false
     @State private var editingTask: FamilyTask?
     @State private var selectedDate = Date()
@@ -25,7 +28,7 @@ struct TodayTasksView: View {
                     .padding(.bottom, 2)
 
                 List {
-                    let selectedTasks = taskStore.tasksScheduled(on: selectedDate)
+                    let selectedTasks = sortedTasks(taskStore.tasksScheduled(on: selectedDate))
                     let recurringTasks = organizerStore.recurringTasks(on: selectedDate)
                     let pendingTasks = pendingTasksForCurrentView
                     let calendarEvents = calendarSync.dayEvents
@@ -37,7 +40,7 @@ struct TodayTasksView: View {
                     case .week:
                         Section {
                             WeekStripView(selectedDate: $selectedDate) { day in
-                                taskStore.tasksScheduled(on: day)
+                                sortedTasks(taskStore.tasksScheduled(on: day))
                             } recurringForDay: { day in
                                 organizerStore.recurringTasks(on: day)
                             }
@@ -50,7 +53,7 @@ struct TodayTasksView: View {
                     case .month:
                         Section {
                             MonthGridView(selectedDate: $selectedDate) { day in
-                                taskStore.tasksScheduled(on: day)
+                                sortedTasks(taskStore.tasksScheduled(on: day))
                             } recurringForDay: { day in
                                 organizerStore.recurringTasks(on: day)
                             }
@@ -274,9 +277,7 @@ struct TodayTasksView: View {
 
         return grouped.compactMap { date, tasks -> (date: Date, tasks: [FamilyTask])? in
             guard let date else { return nil }
-            return (date, tasks.sorted { lhs, rhs in
-                (lhs.dueDate ?? lhs.updatedAt) < (rhs.dueDate ?? rhs.updatedAt)
-            })
+            return (date, sortedTasks(tasks))
         }
         .sorted { $0.date < $1.date }
     }
@@ -285,7 +286,7 @@ struct TodayTasksView: View {
         let pending = taskStore.pendingTasks(before: Date())
         let today = calendar.startOfDay(for: Date())
         let selectedDay = calendar.startOfDay(for: selectedDate)
-        return selectedDay == today ? pending : []
+        return selectedDay == today ? sortedTasks(pending) : []
     }
 
     @ViewBuilder
@@ -314,6 +315,42 @@ struct TodayTasksView: View {
 
     private var scheduleContentPriority: ScheduleContentPriority {
         ScheduleContentPriority(rawValue: contentPriorityRaw) ?? .tasksFirst
+    }
+
+    private var taskSortOrder: ScheduleTaskSortOrder {
+        ScheduleTaskSortOrder(rawValue: taskSortOrderRaw) ?? .priority
+    }
+
+    private func sortedTasks(_ tasks: [FamilyTask]) -> [FamilyTask] {
+        tasks.sorted { lhs, rhs in
+            if lhs.isDone != rhs.isDone {
+                return !lhs.isDone
+            }
+
+            switch taskSortOrder {
+            case .priority:
+                if lhs.bucket.sortPriority != rhs.bucket.sortPriority {
+                    return lhs.bucket.sortPriority < rhs.bucket.sortPriority
+                }
+                return taskDeadlineSort(lhs, rhs)
+            case .deadline:
+                if taskDeadlineKey(lhs) != taskDeadlineKey(rhs) {
+                    return taskDeadlineKey(lhs) < taskDeadlineKey(rhs)
+                }
+                return lhs.bucket.sortPriority < rhs.bucket.sortPriority
+            }
+        }
+    }
+
+    private func taskDeadlineSort(_ lhs: FamilyTask, _ rhs: FamilyTask) -> Bool {
+        if taskDeadlineKey(lhs) != taskDeadlineKey(rhs) {
+            return taskDeadlineKey(lhs) < taskDeadlineKey(rhs)
+        }
+        return lhs.updatedAt > rhs.updatedAt
+    }
+
+    private func taskDeadlineKey(_ task: FamilyTask) -> Date {
+        task.dueDate ?? Date.distantFuture
     }
 
     @ViewBuilder
@@ -365,12 +402,18 @@ struct TodayTasksView: View {
     }
 
     private func taskRow(_ task: FamilyTask) -> some View {
-        TodayTaskRow(task: task, showTime: showTaskTime, showBucket: showTaskBucket) {
+        TodayTaskRow(
+            task: task,
+            showTime: showTaskTime,
+            showBucket: showTaskBucket,
+            showBucketColors: showTaskBucketColors,
+            showPriorityMarkers: showTaskPriorityMarkers
+        ) {
             taskStore.markDone(task)
         } onEdit: {
             editingTask = task
         }
-        .listRowBackground(task.bucket.taskBackgroundColor)
+        .listRowBackground(showTaskBucketColors ? task.bucket.taskBackgroundColor : AppTheme.surface)
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             Button(role: .destructive) {
                 taskStore.delete(task)
@@ -687,6 +730,8 @@ private struct TodayTaskRow: View {
     let task: FamilyTask
     let showTime: Bool
     let showBucket: Bool
+    let showBucketColors: Bool
+    let showPriorityMarkers: Bool
     let onDone: () -> Void
     let onEdit: () -> Void
 
@@ -702,9 +747,8 @@ private struct TodayTaskRow: View {
                         .strikethrough(task.isDone)
                         .foregroundStyle(task.isDone ? .secondary : .primary)
 
-                    if task.isUrgent {
-                        Image(systemName: "exclamationmark.circle.fill")
-                            .foregroundStyle(AppTheme.warning)
+                    if showPriorityMarkers {
+                        TaskPriorityMarkerGroup(task: task)
                     }
                 }
 
@@ -734,11 +778,13 @@ private struct TodayTaskRow: View {
         }
         .padding(.vertical, 6)
         .padding(.horizontal, 8)
-        .background(task.bucket.taskBackgroundColor, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .background(taskBackgroundColor, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
         .overlay(alignment: .leading) {
-            RoundedRectangle(cornerRadius: 1.5, style: .continuous)
-                .fill(task.bucket.accentColor.opacity(0.5))
-                .frame(width: 3)
+            if showBucketColors {
+                RoundedRectangle(cornerRadius: 1.5, style: .continuous)
+                    .fill(task.bucket.accentColor.opacity(0.5))
+                    .frame(width: 3)
+            }
         }
         .contentShape(Rectangle())
         .onTapGesture(count: 2, perform: onEdit)
@@ -751,6 +797,10 @@ private struct TodayTaskRow: View {
                 Label("Edit", systemImage: "pencil")
             }
         }
+    }
+
+    private var taskBackgroundColor: Color {
+        showBucketColors ? task.bucket.taskBackgroundColor : AppTheme.surface
     }
 }
 

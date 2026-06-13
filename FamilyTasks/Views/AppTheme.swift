@@ -51,6 +51,20 @@ enum AppAppearance: String, CaseIterable, Identifiable {
     }
 }
 
+enum ScheduleTaskSortOrder: String, CaseIterable, Identifiable {
+    case priority
+    case deadline
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .priority: "Priority"
+        case .deadline: "Deadline"
+        }
+    }
+}
+
 extension TaskBucket {
     var accentColor: Color {
         switch self {
@@ -63,6 +77,27 @@ extension TaskBucket {
 
     var taskBackgroundColor: Color {
         accentColor.opacity(0.11)
+    }
+}
+
+struct TaskPriorityMarkerGroup: View {
+    let task: FamilyTask
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(task.priorityMarkers, id: \.self) { marker in
+                Text(marker)
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(.white)
+                    .frame(width: 19, height: 19)
+                    .background(markerColor(for: marker), in: Circle())
+                    .accessibilityLabel(marker == "U" ? "Urgent" : "Important")
+            }
+        }
+    }
+
+    private func markerColor(for marker: String) -> Color {
+        marker == "U" ? AppTheme.warning : task.bucket.accentColor
     }
 }
 
