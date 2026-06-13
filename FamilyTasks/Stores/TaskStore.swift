@@ -292,6 +292,10 @@ final class TaskStore: ObservableObject {
             return !lhs.isDone
         }
 
+        if lhs.bucket.sortPriority != rhs.bucket.sortPriority {
+            return lhs.bucket.sortPriority < rhs.bucket.sortPriority
+        }
+
         switch (lhs.dueDate, rhs.dueDate) {
         case let (left?, right?):
             return left < right

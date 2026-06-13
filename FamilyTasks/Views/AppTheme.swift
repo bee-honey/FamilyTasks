@@ -51,6 +51,21 @@ enum AppAppearance: String, CaseIterable, Identifiable {
     }
 }
 
+extension TaskBucket {
+    var accentColor: Color {
+        switch self {
+        case .doNow: AppTheme.taskDo
+        case .schedule: AppTheme.taskSchedule
+        case .delegate: AppTheme.taskDelegate
+        case .delete: AppTheme.taskDrop
+        }
+    }
+
+    var taskBackgroundColor: Color {
+        accentColor.opacity(0.11)
+    }
+}
+
 extension Color {
     init(light: UInt, dark: UInt, opacity: Double = 1) {
         self.init(uiColor: UIColor { traits in

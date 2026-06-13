@@ -103,4 +103,13 @@ enum TaskBucket: String, CaseIterable, Identifiable {
         case .delete: (false, false)
         }
     }
+
+    var sortPriority: Int {
+        switch self {
+        case .doNow: 0
+        case .schedule: 1
+        case .delegate: 2
+        case .delete: 3
+        }
+    }
 }

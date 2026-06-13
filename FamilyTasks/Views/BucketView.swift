@@ -175,6 +175,12 @@ private struct MatrixTaskRowView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
+        .background(task.bucket.taskBackgroundColor)
+        .overlay(alignment: .leading) {
+            Rectangle()
+                .fill(task.bucket.accentColor.opacity(0.45))
+                .frame(width: 3)
+        }
         .contentShape(Rectangle())
         .onTapGesture(count: 2, perform: onEdit)
         .contextMenu {
@@ -225,16 +231,5 @@ private struct EmptyBucketView: View {
         .foregroundStyle(.secondary)
         .frame(maxWidth: .infinity, minHeight: 52)
         .background(AppTheme.surfaceMuted, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-    }
-}
-
-private extension TaskBucket {
-    var accentColor: Color {
-        switch self {
-        case .doNow: AppTheme.taskDo
-        case .schedule: AppTheme.taskSchedule
-        case .delegate: AppTheme.taskDelegate
-        case .delete: AppTheme.taskDrop
-        }
     }
 }

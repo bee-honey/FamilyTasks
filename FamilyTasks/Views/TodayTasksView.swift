@@ -370,6 +370,7 @@ struct TodayTasksView: View {
         } onEdit: {
             editingTask = task
         }
+        .listRowBackground(task.bucket.taskBackgroundColor)
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             Button(role: .destructive) {
                 taskStore.delete(task)
@@ -732,6 +733,13 @@ private struct TodayTaskRow: View {
             .buttonStyle(.plain)
         }
         .padding(.vertical, 6)
+        .padding(.horizontal, 8)
+        .background(task.bucket.taskBackgroundColor, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay(alignment: .leading) {
+            RoundedRectangle(cornerRadius: 1.5, style: .continuous)
+                .fill(task.bucket.accentColor.opacity(0.5))
+                .frame(width: 3)
+        }
         .contentShape(Rectangle())
         .onTapGesture(count: 2, perform: onEdit)
         .contextMenu {
@@ -762,15 +770,6 @@ enum ScheduleContentPriority: String, CaseIterable, Identifiable {
 
 private extension TaskBucket {
     var scheduleColor: Color {
-        switch self {
-        case .doNow:
-            AppTheme.taskDo
-        case .schedule:
-            AppTheme.taskSchedule
-        case .delegate:
-            AppTheme.taskDelegate
-        case .delete:
-            AppTheme.taskDrop
-        }
+        accentColor
     }
 }

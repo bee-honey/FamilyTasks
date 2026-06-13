@@ -87,7 +87,12 @@ struct TaskCardView: View {
             }
         }
         .padding(8)
-        .background(AppTheme.surfaceMuted)
+        .background(task.bucket.taskBackgroundColor)
+        .overlay(alignment: .leading) {
+            Rectangle()
+                .fill(task.bucket.accentColor.opacity(0.55))
+                .frame(width: 3)
+        }
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 }
