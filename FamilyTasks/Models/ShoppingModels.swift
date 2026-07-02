@@ -250,6 +250,7 @@ struct RecurringTask: Identifiable, Codable, Equatable {
     var nextDueDate: Date
     var assignedTo: String
     var isActive: Bool
+    var notificationPreference: TaskNotificationPreference?
     var createdAt: Date
     var updatedAt: Date
 
@@ -262,6 +263,7 @@ struct RecurringTask: Identifiable, Codable, Equatable {
         nextDueDate: Date = Date(),
         assignedTo: String = "",
         isActive: Bool = true,
+        notificationPreference: TaskNotificationPreference? = nil,
         createdAt: Date = Date(),
         updatedAt: Date = Date()
     ) {
@@ -273,6 +275,7 @@ struct RecurringTask: Identifiable, Codable, Equatable {
         self.nextDueDate = nextDueDate
         self.assignedTo = assignedTo
         self.isActive = isActive
+        self.notificationPreference = notificationPreference
         self.createdAt = createdAt
         self.updatedAt = updatedAt
     }

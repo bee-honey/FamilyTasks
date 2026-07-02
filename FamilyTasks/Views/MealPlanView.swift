@@ -195,7 +195,7 @@ struct MealPlanView: View {
     }
 
     private var dayAccentColors: [Color] {
-        [.red, .orange, .yellow, .green, .teal, .blue, .purple]
+        Array(repeating: AppTheme.primary, count: 7)
     }
 
     private func mealCategory(for slot: MealSlot) -> MealCategory {

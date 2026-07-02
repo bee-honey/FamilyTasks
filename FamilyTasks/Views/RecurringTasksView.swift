@@ -155,6 +155,10 @@ private struct RecurringTaskEditorView: View {
                         }
                     }
                 }
+
+                Section("Notifications") {
+                    NotificationPreferenceEditor(preference: $draft.notificationPreference)
+                }
             }
             .navigationTitle(task == nil ? "New Recurring" : "Edit Recurring")
             .navigationBarTitleDisplayMode(.inline)
@@ -191,5 +195,25 @@ private struct RecurringTaskEditorView: View {
         guard draft.assignedTo.isEmpty, TaskStore.isValidEmail(email) else { return }
         taskStore.addFamilyMember(named: email)
         draft.assignedTo = email
+    }
+}
+
+private struct NotificationPreferenceEditor: View {
+    @Binding var preference: TaskNotificationPreference
+
+    var body: some View {
+        Toggle("Use Default Notification", isOn: $preference.usesDefaultSettings)
+
+        if !preference.usesDefaultSettings {
+            Toggle("Notify For This Task", isOn: $preference.customEnabled)
+
+            if preference.customEnabled {
+                Picker("Alert Time", selection: $preference.leadMinutes) {
+                    ForEach(NotificationLeadTimeOption.options) { option in
+                        Text(option.title).tag(option.minutes)
+                    }
+                }
+            }
+        }
     }
 }

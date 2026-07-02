@@ -215,7 +215,8 @@ final class OrganizerStore: ObservableObject {
                 amount: draft.amount.trimmingCharacters(in: .whitespacesAndNewlines),
                 frequency: draft.frequency,
                 nextDueDate: draft.nextDueDate,
-                assignedTo: draft.assignedTo.trimmingCharacters(in: .whitespacesAndNewlines)
+                assignedTo: draft.assignedTo.trimmingCharacters(in: .whitespacesAndNewlines),
+                notificationPreference: draft.notificationPreference
             )
         )
     }
@@ -231,6 +232,7 @@ final class OrganizerStore: ObservableObject {
         recurringTasks[index].frequency = draft.frequency
         recurringTasks[index].nextDueDate = draft.nextDueDate
         recurringTasks[index].assignedTo = draft.assignedTo.trimmingCharacters(in: .whitespacesAndNewlines)
+        recurringTasks[index].notificationPreference = draft.notificationPreference
         recurringTasks[index].updatedAt = Date()
     }
 
@@ -352,6 +354,10 @@ final class OrganizerStore: ObservableObject {
         MealPlanPayload(mealIdeas: mealIdeas, plannedMeals: plannedMeals)
     }
 
+    func exportRecurringTasks() -> [RecurringTask] {
+        recurringTasks
+    }
+
     func applySharedData(shopping: ShoppingPayload, recurringTasks: [RecurringTask], mealPlan: MealPlanPayload) {
         isApplyingSharedData = true
         shops = shopping.shops
@@ -414,6 +420,7 @@ struct RecurringTaskDraft {
     var frequency: RecurrenceFrequency = .monthly
     var nextDueDate = Date()
     var assignedTo = ""
+    var notificationPreference = TaskNotificationPreference()
 
     init() {}
 
@@ -424,5 +431,6 @@ struct RecurringTaskDraft {
         frequency = task.frequency
         nextDueDate = task.nextDueDate
         assignedTo = task.assignedTo
+        notificationPreference = task.notificationPreference ?? TaskNotificationPreference()
     }
 }

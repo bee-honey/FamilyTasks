@@ -44,6 +44,12 @@ struct AddTaskView: View {
                         DatePicker("Due", selection: $draft.dueDate, in: Date()...)
                     }
                 }
+
+                if draft.includeDueDate {
+                    Section("Notifications") {
+                        NotificationPreferenceEditor(preference: $draft.notificationPreference)
+                    }
+                }
             }
             .navigationTitle("New Task")
             .navigationBarTitleDisplayMode(.inline)
@@ -97,6 +103,26 @@ private struct PriorityToggleLabel: View {
         HStack(spacing: 8) {
             Text(title)
             TaskPriorityMarkerBadge(marker: marker, color: color)
+        }
+    }
+}
+
+private struct NotificationPreferenceEditor: View {
+    @Binding var preference: TaskNotificationPreference
+
+    var body: some View {
+        Toggle("Use Default Notification", isOn: $preference.usesDefaultSettings)
+
+        if !preference.usesDefaultSettings {
+            Toggle("Notify For This Task", isOn: $preference.customEnabled)
+
+            if preference.customEnabled {
+                Picker("Alert Time", selection: $preference.leadMinutes) {
+                    ForEach(NotificationLeadTimeOption.options) { option in
+                        Text(option.title).tag(option.minutes)
+                    }
+                }
+            }
         }
     }
 }

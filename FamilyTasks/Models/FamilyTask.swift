@@ -22,6 +22,7 @@ struct FamilyTask: Identifiable, Codable, Equatable {
     var isDone: Bool
     var assignedTo: String
     var calendarEventIdentifier: String?
+    var notificationPreference: TaskNotificationPreference?
     var createdAt: Date
     var updatedAt: Date
 
@@ -35,6 +36,7 @@ struct FamilyTask: Identifiable, Codable, Equatable {
         isDone: Bool = false,
         assignedTo: String = "",
         calendarEventIdentifier: String? = nil,
+        notificationPreference: TaskNotificationPreference? = nil,
         createdAt: Date = Date(),
         updatedAt: Date = Date()
     ) {
@@ -47,6 +49,7 @@ struct FamilyTask: Identifiable, Codable, Equatable {
         self.isDone = isDone
         self.assignedTo = assignedTo
         self.calendarEventIdentifier = calendarEventIdentifier
+        self.notificationPreference = notificationPreference
         self.createdAt = createdAt
         self.updatedAt = updatedAt
     }
@@ -64,6 +67,22 @@ struct FamilyTask: Identifiable, Codable, Equatable {
             markers.append("I")
         }
         return markers
+    }
+}
+
+struct TaskNotificationPreference: Codable, Equatable {
+    var usesDefaultSettings: Bool
+    var customEnabled: Bool
+    var leadMinutes: Int
+
+    init(
+        usesDefaultSettings: Bool = true,
+        customEnabled: Bool = true,
+        leadMinutes: Int = 60
+    ) {
+        self.usesDefaultSettings = usesDefaultSettings
+        self.customEnabled = customEnabled
+        self.leadMinutes = leadMinutes
     }
 }
 

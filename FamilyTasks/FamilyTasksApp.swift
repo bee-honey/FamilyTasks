@@ -30,7 +30,7 @@ struct FamilyTasksApp: App {
             .preferredColorScheme(selectedAppearance.colorScheme)
             .onAppear {
                 sharedHouseholdStore.configure(taskStore: taskStore, organizerStore: organizerStore)
-                notificationScheduler.configure(taskStore: taskStore)
+                notificationScheduler.configure(taskStore: taskStore, organizerStore: organizerStore)
             }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active {

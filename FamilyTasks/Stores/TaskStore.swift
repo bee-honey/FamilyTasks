@@ -85,7 +85,8 @@ final class TaskStore: ObservableObject {
                 dueDate: draft.includeDueDate ? draft.dueDate : nil,
                 isUrgent: draft.isUrgent,
                 isImportant: draft.isImportant,
-                assignedTo: draft.assignedTo.trimmingCharacters(in: .whitespacesAndNewlines)
+                assignedTo: draft.assignedTo.trimmingCharacters(in: .whitespacesAndNewlines),
+                notificationPreference: draft.notificationPreference
             )
         )
     }
@@ -98,6 +99,7 @@ final class TaskStore: ObservableObject {
         changed.isUrgent = draft.isUrgent
         changed.isImportant = draft.isImportant
         changed.assignedTo = draft.assignedTo.trimmingCharacters(in: .whitespacesAndNewlines)
+        changed.notificationPreference = draft.notificationPreference
         update(changed)
     }
 
@@ -317,6 +319,7 @@ struct TaskDraft {
     var dueDate = Calendar.current.date(byAdding: .hour, value: 2, to: Date()) ?? Date()
     var isUrgent = true
     var isImportant = true
+    var notificationPreference = TaskNotificationPreference()
 
     init() {}
 
@@ -328,5 +331,6 @@ struct TaskDraft {
         dueDate = task.dueDate ?? Date()
         isUrgent = task.isUrgent
         isImportant = task.isImportant
+        notificationPreference = task.notificationPreference ?? TaskNotificationPreference()
     }
 }
