@@ -409,6 +409,10 @@ final class NotificationScheduler: ObservableObject {
             return "\(title) is due in \(leadMinutes) minutes at \(dueText)."
         case 60:
             return "\(title) is due in 1 hour at \(dueText)."
+        case let minutes where minutes % 10_080 == 0:
+            let weeks = minutes / 10_080
+            let weekText = weeks == 1 ? "1 week" : "\(weeks) weeks"
+            return "\(title) is due in \(weekText)."
         case let minutes where minutes % 1_440 == 0:
             let days = minutes / 1_440
             let dayText = days == 1 ? "1 day" : "\(days) days"
@@ -427,12 +431,39 @@ struct NotificationLeadTimeOption: Identifiable {
 
     var id: Int { minutes }
 
-    static let options = [
-        NotificationLeadTimeOption(minutes: 0, title: "At due time", description: "at the due time"),
-        NotificationLeadTimeOption(minutes: 15, title: "15 minutes before", description: "15 minutes before the due time"),
-        NotificationLeadTimeOption(minutes: 30, title: "30 minutes before", description: "30 minutes before the due time"),
-        NotificationLeadTimeOption(minutes: 60, title: "1 hour before", description: "1 hour before the due time"),
-        NotificationLeadTimeOption(minutes: 180, title: "3 hours before", description: "3 hours before the due time"),
-        NotificationLeadTimeOption(minutes: 1_440, title: "1 day before", description: "1 day before the due date")
-    ]
+    static let options: [NotificationLeadTimeOption] = {
+        let minuteOptions = [15, 30, 45].map { minutes in
+            NotificationLeadTimeOption(
+                minutes: minutes,
+                title: "\(minutes) minutes before",
+                description: "\(minutes) minutes before the due time"
+            )
+        }
+
+        let hourOptions = (1...24).map { hours in
+            NotificationLeadTimeOption(
+                minutes: hours * 60,
+                title: hours == 1 ? "1 hour before" : "\(hours) hours before",
+                description: hours == 1 ? "1 hour before the due time" : "\(hours) hours before the due time"
+            )
+        }
+
+        let dayOptions = (1...7).map { days in
+            NotificationLeadTimeOption(
+                minutes: days * 1_440,
+                title: days == 1 ? "1 day before" : "\(days) days before",
+                description: days == 1 ? "1 day before the due date" : "\(days) days before the due date"
+            )
+        }
+
+        let weekOptions = (1...4).map { weeks in
+            NotificationLeadTimeOption(
+                minutes: weeks * 10_080,
+                title: weeks == 1 ? "1 week before" : "\(weeks) weeks before",
+                description: weeks == 1 ? "1 week before the due date" : "\(weeks) weeks before the due date"
+            )
+        }
+
+        return minuteOptions + hourOptions + dayOptions + weekOptions
+    }()
 }

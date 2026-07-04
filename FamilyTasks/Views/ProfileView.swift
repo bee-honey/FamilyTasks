@@ -256,7 +256,7 @@ struct NotificationSettingsView: View {
                         }
 
                     if dueSoonEnabled {
-                        NotificationLeadTimeSelectionList(selectedMinutes: dueSoonLeadMinutesSelection)
+                        NotificationLeadTimeEditor(selectedMinutes: dueSoonLeadMinutesSelection)
                             .disabled(!notificationsEnabled)
                             .onChange(of: dueSoonLeadMinutesList) { _, _ in
                                 rescheduleNotifications()
@@ -357,7 +357,7 @@ struct NotificationSettingsView: View {
         Binding(
             get: { selectedDueSoonLeadMinutes },
             set: { newValue in
-                let normalized = NotificationLeadTimeSelectionList.normalizedLeadMinutes(newValue)
+                let normalized = NotificationLeadTimeEditor.normalizedLeadMinutes(newValue)
                 dueSoonLeadMinutesList = normalized.map(String.init).joined(separator: ",")
                 dueSoonLeadMinutes = normalized.first ?? 60
             }
@@ -369,9 +369,9 @@ struct NotificationSettingsView: View {
             .split(separator: ",")
             .compactMap { Int($0.trimmingCharacters(in: .whitespacesAndNewlines)) }
         if !parsedList.isEmpty {
-            return NotificationLeadTimeSelectionList.normalizedLeadMinutes(parsedList)
+            return NotificationLeadTimeEditor.normalizedLeadMinutes(parsedList)
         }
-        return NotificationLeadTimeSelectionList.normalizedLeadMinutes([dueSoonLeadMinutes])
+        return NotificationLeadTimeEditor.normalizedLeadMinutes([dueSoonLeadMinutes])
     }
 
     private func formattedLeadTimeDescriptions(_ descriptions: [String]) -> String {
@@ -415,12 +415,24 @@ private struct NotificationDigestTimeOption: Identifiable {
     }
 }
 
-struct NotificationLeadTimeSelectionList: View {
+struct NotificationLeadTimeEditor: View {
     @Binding var selectedMinutes: [Int]
 
     var body: some View {
-        ForEach(NotificationLeadTimeOption.options) { option in
-            Toggle(option.title, isOn: binding(for: option.minutes))
+        ForEach(selectedMinutes.indices, id: \.self) { index in
+            NotificationLeadTimeRow(
+                minutes: binding(for: index),
+                canDelete: selectedMinutes.count > 1,
+                onDelete: {
+                    removeNotification(at: index)
+                }
+            )
+        }
+
+        Button {
+            addNotification()
+        } label: {
+            Label("Add Notification", systemImage: "plus.circle")
         }
     }
 
@@ -430,23 +442,164 @@ struct NotificationLeadTimeSelectionList: View {
         return normalized.isEmpty ? [60] : normalized
     }
 
-    private func binding(for minutes: Int) -> Binding<Bool> {
+    private func binding(for index: Int) -> Binding<Int> {
         Binding(
             get: {
-                Self.normalizedLeadMinutes(selectedMinutes).contains(minutes)
+                guard selectedMinutes.indices.contains(index) else { return 60 }
+                return selectedMinutes[index]
             },
-            set: { isOn in
-                var nextSelection = Self.normalizedLeadMinutes(selectedMinutes)
-                if isOn {
-                    nextSelection.append(minutes)
-                } else {
-                    nextSelection.removeAll { $0 == minutes }
-                }
+            set: { newValue in
+                guard selectedMinutes.indices.contains(index) else { return }
+                var nextSelection = selectedMinutes
+                nextSelection[index] = newValue
                 selectedMinutes = Self.normalizedLeadMinutes(nextSelection)
             }
         )
     }
+
+    private func addNotification() {
+        let selected = Set(selectedMinutes)
+        let preferredValues = [60, 30, 15, 180, 1_440]
+        let nextValue = preferredValues.first { !selected.contains($0) } ?? 120
+        selectedMinutes = Self.normalizedLeadMinutes(selectedMinutes + [nextValue])
+    }
+
+    private func removeNotification(at index: Int) {
+        guard selectedMinutes.count > 1, selectedMinutes.indices.contains(index) else { return }
+        var nextSelection = selectedMinutes
+        nextSelection.remove(at: index)
+        selectedMinutes = Self.normalizedLeadMinutes(nextSelection)
+    }
 }
+
+private struct NotificationLeadTimeRow: View {
+    @Binding var minutes: Int
+    let canDelete: Bool
+    let onDelete: () -> Void
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Picker("Amount", selection: amountBinding) {
+                ForEach(unit.values, id: \.self) { value in
+                    Text("\(value)").tag(value)
+                }
+            }
+            .pickerStyle(.menu)
+            .labelsHidden()
+
+            Picker("Unit", selection: unitBinding) {
+                ForEach(NotificationLeadTimeUnit.allCases) { option in
+                    Text(option.title).tag(option)
+                }
+            }
+            .pickerStyle(.menu)
+            .labelsHidden()
+
+            Spacer()
+
+            Button(role: .destructive, action: onDelete) {
+                Image(systemName: "trash")
+            }
+            .buttonStyle(.borderless)
+            .disabled(!canDelete)
+            .accessibilityLabel("Remove notification")
+        }
+    }
+
+    private var unit: NotificationLeadTimeUnit {
+        NotificationLeadTimeUnit.unit(for: minutes)
+    }
+
+    private var amount: Int {
+        unit.amount(for: minutes)
+    }
+
+    private var amountBinding: Binding<Int> {
+        Binding(
+            get: { amount },
+            set: { newValue in
+                minutes = unit.minutes(for: newValue)
+            }
+        )
+    }
+
+    private var unitBinding: Binding<NotificationLeadTimeUnit> {
+        Binding(
+            get: { unit },
+            set: { newUnit in
+                let boundedAmount = min(max(amount, newUnit.values.first ?? 1), newUnit.values.last ?? amount)
+                minutes = newUnit.minutes(for: boundedAmount)
+            }
+        )
+    }
+}
+
+private enum NotificationLeadTimeUnit: String, CaseIterable, Identifiable {
+    case minutes
+    case hours
+    case days
+    case weeks
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .minutes: return "Minutes"
+        case .hours: return "Hours"
+        case .days: return "Days"
+        case .weeks: return "Weeks"
+        }
+    }
+
+    var values: [Int] {
+        switch self {
+        case .minutes: return [15, 30, 45]
+        case .hours: return Array(1...24)
+        case .days: return Array(1...7)
+        case .weeks: return Array(1...4)
+        }
+    }
+
+    static func unit(for minutes: Int) -> NotificationLeadTimeUnit {
+        if minutes % 10_080 == 0, minutes >= 10_080 {
+            return .weeks
+        }
+        if minutes % 1_440 == 0, minutes >= 1_440 {
+            return .days
+        }
+        if minutes % 60 == 0, minutes >= 60 {
+            return .hours
+        }
+        return .minutes
+    }
+
+    func amount(for minutes: Int) -> Int {
+        switch self {
+        case .minutes:
+            return values.contains(minutes) ? minutes : 15
+        case .hours:
+            return min(max(minutes / 60, 1), 24)
+        case .days:
+            return min(max(minutes / 1_440, 1), 7)
+        case .weeks:
+            return min(max(minutes / 10_080, 1), 4)
+        }
+    }
+
+    func minutes(for amount: Int) -> Int {
+        switch self {
+        case .minutes:
+            return amount
+        case .hours:
+            return amount * 60
+        case .days:
+            return amount * 1_440
+        case .weeks:
+            return amount * 10_080
+        }
+    }
+}
+
 struct SyncSettingsView: View {
     @EnvironmentObject private var taskStore: TaskStore
     @EnvironmentObject private var sharedHouseholdStore: SharedHouseholdStore

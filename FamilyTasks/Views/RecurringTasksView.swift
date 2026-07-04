@@ -208,7 +208,7 @@ private struct NotificationPreferenceEditor: View {
             Toggle("Notify For This Task", isOn: $preference.customEnabled)
 
             if preference.customEnabled {
-                NotificationLeadTimeSelectionList(selectedMinutes: selectedLeadMinutes)
+                NotificationLeadTimeEditor(selectedMinutes: selectedLeadMinutes)
             }
         }
     }
@@ -217,7 +217,7 @@ private struct NotificationPreferenceEditor: View {
         Binding(
             get: { preference.selectedLeadMinutes },
             set: { newValue in
-                let normalized = NotificationLeadTimeSelectionList.normalizedLeadMinutes(newValue)
+                let normalized = NotificationLeadTimeEditor.normalizedLeadMinutes(newValue)
                 preference.leadMinutesList = normalized
                 preference.leadMinutes = normalized.first ?? 60
             }
