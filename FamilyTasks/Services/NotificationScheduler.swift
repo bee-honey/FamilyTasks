@@ -22,6 +22,7 @@ final class NotificationScheduler: ObservableObject {
         static let todayDigestHour = "notifications.todayDigestHour"
         static let todayDigestMinute = "notifications.todayDigestMinute"
         static let dueSoonLeadMinutes = "notifications.dueSoonLeadMinutes"
+        static let dueSoonLeadMinutesList = "notifications.dueSoonLeadMinutesList"
     }
 
     private enum IdentifierPrefix {
@@ -165,7 +166,8 @@ final class NotificationScheduler: ObservableObject {
             DefaultsKey.dueSoon: true,
             DefaultsKey.todayDigestHour: 8,
             DefaultsKey.todayDigestMinute: 0,
-            DefaultsKey.dueSoonLeadMinutes: 60
+            DefaultsKey.dueSoonLeadMinutes: 60,
+            DefaultsKey.dueSoonLeadMinutesList: "60"
         ])
     }
 
@@ -263,26 +265,28 @@ final class NotificationScheduler: ObservableObject {
         for task in tasks {
             guard let dueDate = task.dueDate else { continue }
             guard dueDate > now else { continue }
-            guard let leadMinutes = leadMinutes(for: task.notificationPreference) else { continue }
+            let leadMinuteValues = leadMinutes(for: task.notificationPreference)
 
-            let triggerDate = dueDate.addingTimeInterval(TimeInterval(-leadMinutes * 60))
-            let effectiveTriggerDate = max(triggerDate, now.addingTimeInterval(3))
+            for leadMinutes in leadMinuteValues {
+                let triggerDate = dueDate.addingTimeInterval(TimeInterval(-leadMinutes * 60))
+                let effectiveTriggerDate = max(triggerDate, now.addingTimeInterval(3))
 
-            let content = UNMutableNotificationContent()
-            content.title = leadMinutes == 0 ? "Task Due Now" : "Task Due Soon"
-            content.body = dueSoonBody(for: task, leadMinutes: leadMinutes)
-            content.sound = .default
+                let content = UNMutableNotificationContent()
+                content.title = leadMinutes == 0 ? "Task Due Now" : "Task Due Soon"
+                content.body = dueSoonBody(for: task, leadMinutes: leadMinutes)
+                content.sound = .default
 
-            let trigger = UNTimeIntervalNotificationTrigger(
-                timeInterval: max(1, effectiveTriggerDate.timeIntervalSince(now)),
-                repeats: false
-            )
-            let request = UNNotificationRequest(
-                identifier: "\(IdentifierPrefix.dueSoon)\(task.id.uuidString)",
-                content: content,
-                trigger: trigger
-            )
-            center.add(request)
+                let trigger = UNTimeIntervalNotificationTrigger(
+                    timeInterval: max(1, effectiveTriggerDate.timeIntervalSince(now)),
+                    repeats: false
+                )
+                let request = UNNotificationRequest(
+                    identifier: "\(IdentifierPrefix.dueSoon)\(task.id.uuidString).\(leadMinutes)",
+                    content: content,
+                    trigger: trigger
+                )
+                center.add(request)
+            }
         }
     }
 
@@ -291,39 +295,58 @@ final class NotificationScheduler: ObservableObject {
 
         for task in recurringTasks {
             guard task.nextDueDate > now else { continue }
-            guard let leadMinutes = leadMinutes(for: task.notificationPreference) else { continue }
+            let leadMinuteValues = leadMinutes(for: task.notificationPreference)
 
-            let triggerDate = task.nextDueDate.addingTimeInterval(TimeInterval(-leadMinutes * 60))
-            let effectiveTriggerDate = max(triggerDate, now.addingTimeInterval(3))
+            for leadMinutes in leadMinuteValues {
+                let triggerDate = task.nextDueDate.addingTimeInterval(TimeInterval(-leadMinutes * 60))
+                let effectiveTriggerDate = max(triggerDate, now.addingTimeInterval(3))
 
-            let content = UNMutableNotificationContent()
-            content.title = leadMinutes == 0 ? "Recurring Task Due Now" : "Recurring Task Due Soon"
-            content.body = dueSoonBody(title: task.title, dueDate: task.nextDueDate, leadMinutes: leadMinutes)
-            content.sound = .default
+                let content = UNMutableNotificationContent()
+                content.title = leadMinutes == 0 ? "Recurring Task Due Now" : "Recurring Task Due Soon"
+                content.body = dueSoonBody(title: task.title, dueDate: task.nextDueDate, leadMinutes: leadMinutes)
+                content.sound = .default
 
-            let trigger = UNTimeIntervalNotificationTrigger(
-                timeInterval: max(1, effectiveTriggerDate.timeIntervalSince(now)),
-                repeats: false
-            )
-            let request = UNNotificationRequest(
-                identifier: "\(IdentifierPrefix.recurringDueSoon)\(task.id.uuidString)",
-                content: content,
-                trigger: trigger
-            )
-            center.add(request)
+                let trigger = UNTimeIntervalNotificationTrigger(
+                    timeInterval: max(1, effectiveTriggerDate.timeIntervalSince(now)),
+                    repeats: false
+                )
+                let request = UNNotificationRequest(
+                    identifier: "\(IdentifierPrefix.recurringDueSoon)\(task.id.uuidString).\(leadMinutes)",
+                    content: content,
+                    trigger: trigger
+                )
+                center.add(request)
+            }
         }
     }
 
-    private func leadMinutes(for preference: TaskNotificationPreference?) -> Int? {
+    private func leadMinutes(for preference: TaskNotificationPreference?) -> [Int] {
         let preference = preference ?? TaskNotificationPreference()
 
         if preference.usesDefaultSettings {
-            guard defaults.bool(forKey: DefaultsKey.dueSoon) else { return nil }
-            return defaults.integer(forKey: DefaultsKey.dueSoonLeadMinutes)
+            guard defaults.bool(forKey: DefaultsKey.dueSoon) else { return [] }
+            return globalDueSoonLeadMinutes
         }
 
-        guard preference.customEnabled else { return nil }
-        return preference.leadMinutes
+        guard preference.customEnabled else { return [] }
+        return preference.selectedLeadMinutes
+    }
+
+    private var globalDueSoonLeadMinutes: [Int] {
+        let rawList = defaults.string(forKey: DefaultsKey.dueSoonLeadMinutesList) ?? ""
+        let parsedList = rawList
+            .split(separator: ",")
+            .compactMap { Int($0.trimmingCharacters(in: .whitespacesAndNewlines)) }
+        if !parsedList.isEmpty {
+            return normalizedLeadMinutes(parsedList)
+        }
+        return normalizedLeadMinutes([defaults.integer(forKey: DefaultsKey.dueSoonLeadMinutes)])
+    }
+
+    private func normalizedLeadMinutes(_ values: [Int]) -> [Int] {
+        let validValues = Set(NotificationLeadTimeOption.options.map(\.minutes))
+        let normalized = Array(Set(values.filter { validValues.contains($0) })).sorted()
+        return normalized.isEmpty ? [60] : normalized
     }
 
     private func scheduleSharedTaskArrival(count: Int, title: String?) async {

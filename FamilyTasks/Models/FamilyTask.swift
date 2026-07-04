@@ -74,15 +74,44 @@ struct TaskNotificationPreference: Codable, Equatable {
     var usesDefaultSettings: Bool
     var customEnabled: Bool
     var leadMinutes: Int
+    var leadMinutesList: [Int]
 
     init(
         usesDefaultSettings: Bool = true,
         customEnabled: Bool = true,
-        leadMinutes: Int = 60
+        leadMinutes: Int = 60,
+        leadMinutesList: [Int]? = nil
     ) {
         self.usesDefaultSettings = usesDefaultSettings
         self.customEnabled = customEnabled
         self.leadMinutes = leadMinutes
+        self.leadMinutesList = Self.normalizedLeadMinutes(leadMinutesList ?? [leadMinutes])
+    }
+
+    var selectedLeadMinutes: [Int] {
+        Self.normalizedLeadMinutes(leadMinutesList.isEmpty ? [leadMinutes] : leadMinutesList)
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case usesDefaultSettings
+        case customEnabled
+        case leadMinutes
+        case leadMinutesList
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        usesDefaultSettings = (try? container.decode(Bool.self, forKey: .usesDefaultSettings)) ?? true
+        customEnabled = (try? container.decode(Bool.self, forKey: .customEnabled)) ?? true
+        leadMinutes = (try? container.decode(Int.self, forKey: .leadMinutes)) ?? 60
+        let decodedList = (try? container.decode([Int].self, forKey: .leadMinutesList)) ?? [leadMinutes]
+        leadMinutesList = Self.normalizedLeadMinutes(decodedList)
+    }
+
+    private static func normalizedLeadMinutes(_ values: [Int]) -> [Int] {
+        let validValues = Set(NotificationLeadTimeOption.options.map(\.minutes))
+        let normalized = Array(Set(values.filter { validValues.contains($0) })).sorted()
+        return normalized.isEmpty ? [60] : normalized
     }
 }
 

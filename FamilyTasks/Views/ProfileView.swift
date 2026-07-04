@@ -213,6 +213,7 @@ struct NotificationSettingsView: View {
     @AppStorage("notifications.todayDigestHour") private var todayDigestHour = 8
     @AppStorage("notifications.todayDigestMinute") private var todayDigestMinute = 0
     @AppStorage("notifications.dueSoonLeadMinutes") private var dueSoonLeadMinutes = 60
+    @AppStorage("notifications.dueSoonLeadMinutesList") private var dueSoonLeadMinutesList = "60"
 
     var body: some View {
         NavigationStack {
@@ -255,15 +256,11 @@ struct NotificationSettingsView: View {
                         }
 
                     if dueSoonEnabled {
-                        Picker("Due Soon Means", selection: $dueSoonLeadMinutes) {
-                            ForEach(NotificationDueSoonOption.options) { option in
-                                Text(option.title).tag(option.minutes)
+                        NotificationLeadTimeSelectionList(selectedMinutes: dueSoonLeadMinutesSelection)
+                            .disabled(!notificationsEnabled)
+                            .onChange(of: dueSoonLeadMinutesList) { _, _ in
+                                rescheduleNotifications()
                             }
-                        }
-                        .disabled(!notificationsEnabled)
-                        .onChange(of: dueSoonLeadMinutes) { _, _ in
-                            rescheduleNotifications()
-                        }
                     }
 
                     Text(notificationDetail)
@@ -340,9 +337,13 @@ struct NotificationSettingsView: View {
             details.append("Digest at \(NotificationDigestTimeOption.title(hour: todayDigestHour, minute: todayDigestMinute)) for tasks scheduled that day.")
         }
 
-        if dueSoonEnabled,
-           let dueSoonOption = NotificationDueSoonOption.options.first(where: { $0.minutes == dueSoonLeadMinutes }) {
-            details.append("Due soon alerts are sent \(dueSoonOption.description).")
+        if dueSoonEnabled {
+            let descriptions = selectedDueSoonLeadMinutes.compactMap { minutes in
+                NotificationLeadTimeOption.options.first(where: { $0.minutes == minutes })?.description
+            }
+            if !descriptions.isEmpty {
+                details.append("Due soon alerts are sent \(formattedLeadTimeDescriptions(descriptions)).")
+            }
         }
 
         if details.isEmpty {
@@ -350,6 +351,40 @@ struct NotificationSettingsView: View {
         }
 
         return details.joined(separator: " ")
+    }
+
+    private var dueSoonLeadMinutesSelection: Binding<[Int]> {
+        Binding(
+            get: { selectedDueSoonLeadMinutes },
+            set: { newValue in
+                let normalized = NotificationLeadTimeSelectionList.normalizedLeadMinutes(newValue)
+                dueSoonLeadMinutesList = normalized.map(String.init).joined(separator: ",")
+                dueSoonLeadMinutes = normalized.first ?? 60
+            }
+        )
+    }
+
+    private var selectedDueSoonLeadMinutes: [Int] {
+        let parsedList = dueSoonLeadMinutesList
+            .split(separator: ",")
+            .compactMap { Int($0.trimmingCharacters(in: .whitespacesAndNewlines)) }
+        if !parsedList.isEmpty {
+            return NotificationLeadTimeSelectionList.normalizedLeadMinutes(parsedList)
+        }
+        return NotificationLeadTimeSelectionList.normalizedLeadMinutes([dueSoonLeadMinutes])
+    }
+
+    private func formattedLeadTimeDescriptions(_ descriptions: [String]) -> String {
+        switch descriptions.count {
+        case 0:
+            return "1 hour before the due time"
+        case 1:
+            return descriptions[0]
+        case 2:
+            return "\(descriptions[0]) and \(descriptions[1])"
+        default:
+            return "\(descriptions.dropLast().joined(separator: ", ")), and \(descriptions.last ?? "")"
+        }
     }
 }
 
@@ -380,23 +415,38 @@ private struct NotificationDigestTimeOption: Identifiable {
     }
 }
 
-private struct NotificationDueSoonOption: Identifiable {
-    let minutes: Int
-    let title: String
-    let description: String
+struct NotificationLeadTimeSelectionList: View {
+    @Binding var selectedMinutes: [Int]
 
-    var id: Int { minutes }
+    var body: some View {
+        ForEach(NotificationLeadTimeOption.options) { option in
+            Toggle(option.title, isOn: binding(for: option.minutes))
+        }
+    }
 
-    static let options = [
-        NotificationDueSoonOption(minutes: 0, title: "At due time", description: "at the due time"),
-        NotificationDueSoonOption(minutes: 15, title: "15 minutes before", description: "15 minutes before the due time"),
-        NotificationDueSoonOption(minutes: 30, title: "30 minutes before", description: "30 minutes before the due time"),
-        NotificationDueSoonOption(minutes: 60, title: "1 hour before", description: "1 hour before the due time"),
-        NotificationDueSoonOption(minutes: 180, title: "3 hours before", description: "3 hours before the due time"),
-        NotificationDueSoonOption(minutes: 1_440, title: "1 day before", description: "1 day before the due date")
-    ]
+    static func normalizedLeadMinutes(_ values: [Int]) -> [Int] {
+        let validValues = Set(NotificationLeadTimeOption.options.map(\.minutes))
+        let normalized = Array(Set(values.filter { validValues.contains($0) })).sorted()
+        return normalized.isEmpty ? [60] : normalized
+    }
+
+    private func binding(for minutes: Int) -> Binding<Bool> {
+        Binding(
+            get: {
+                Self.normalizedLeadMinutes(selectedMinutes).contains(minutes)
+            },
+            set: { isOn in
+                var nextSelection = Self.normalizedLeadMinutes(selectedMinutes)
+                if isOn {
+                    nextSelection.append(minutes)
+                } else {
+                    nextSelection.removeAll { $0 == minutes }
+                }
+                selectedMinutes = Self.normalizedLeadMinutes(nextSelection)
+            }
+        )
+    }
 }
-
 struct SyncSettingsView: View {
     @EnvironmentObject private var taskStore: TaskStore
     @EnvironmentObject private var sharedHouseholdStore: SharedHouseholdStore
