@@ -162,6 +162,7 @@ private struct IdeaEditorView: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var draft: IdeaDraft
+    @State private var showingCustomTagField = false
     let mode: Mode
     let onSave: (IdeaDraft) -> Void
 
@@ -190,20 +191,22 @@ private struct IdeaEditorView: View {
                 }
 
                 Section("Tags") {
-                    TagChipPicker(tags: tagChoices, selectedTags: $draft.tags)
-
-                    HStack {
-                        TextField("Add tag", text: $draft.customTag)
-                            .textInputAutocapitalization(.words)
-                        Button("Add") {
-                            addCustomTag()
-                        }
-                        .disabled(draft.customTag.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    TagChipPicker(tags: tagChoices, selectedTags: $draft.tags) {
+                        showingCustomTagField = true
                     }
 
-                    Text("Start with a few tags, then add your own as your family saves more ideas.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    if showingCustomTagField {
+                        HStack {
+                            TextField("Add tag", text: $draft.customTag)
+                                .textInputAutocapitalization(.words)
+                                .submitLabel(.done)
+                                .onSubmit(addCustomTag)
+                            Button("Add") {
+                                addCustomTag()
+                            }
+                            .disabled(draft.customTag.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        }
+                    }
                 }
             }
             .navigationTitle(mode.title)
@@ -233,12 +236,14 @@ private struct IdeaEditorView: View {
         guard !trimmed.isEmpty else { return }
         draft.tags.insert(trimmed)
         draft.customTag = ""
+        showingCustomTagField = false
     }
 }
 
 private struct TagChipPicker: View {
     let tags: [String]
     @Binding var selectedTags: Set<String>
+    let onAddTag: () -> Void
 
     var body: some View {
         FlowLayout(spacing: 8, rowSpacing: 8) {
@@ -256,6 +261,16 @@ private struct TagChipPicker: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel(selectedTags.contains(tag) ? "Remove \(tag) tag" : "Add \(tag) tag")
             }
+
+            Button(action: onAddTag) {
+                Image(systemName: "plus")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(AppTheme.primary)
+                    .frame(width: 30, height: 30)
+                    .background(AppTheme.primarySoft, in: Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Add new tag")
         }
         .padding(.vertical, 4)
     }
