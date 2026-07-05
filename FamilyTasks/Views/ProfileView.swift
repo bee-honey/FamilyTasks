@@ -128,6 +128,7 @@ struct ProfileView: View {
 
 struct ViewSettingsView: View {
     @EnvironmentObject private var calendarSync: CalendarSyncService
+    @StateObject private var healthService = HealthMetricsService()
     @AppStorage("schedule.showTaskTime") private var showTaskTime = false
     @AppStorage("schedule.defaultDisplayMode") private var defaultScheduleView = "week"
     @AppStorage("schedule.taskSortOrder") private var taskSortOrder = ScheduleTaskSortOrder.priority.rawValue
@@ -136,6 +137,7 @@ struct ViewSettingsView: View {
     @AppStorage("view.appearance") private var appearance = AppAppearance.system.rawValue
     @AppStorage("calendar.integration.enabled") private var calendarIntegrationEnabled = false
     @AppStorage("schedule.contentPriority") private var scheduleContentPriority = ScheduleContentPriority.tasksFirst.rawValue
+    @AppStorage("health.section.enabled") private var healthSectionEnabled = false
 
     var body: some View {
         NavigationStack {
@@ -171,6 +173,31 @@ struct ViewSettingsView: View {
                     Toggle("Show Bucket Markers", isOn: $showTaskPriorityMarkers)
                 }
 
+                Section("Optional Sections") {
+                    Toggle("Show Health Section", isOn: $healthSectionEnabled)
+
+                    if healthSectionEnabled {
+                        Button {
+                            Task {
+                                await healthService.requestAccessAndRefresh()
+                            }
+                        } label: {
+                            Label("Allow Health Access", systemImage: "heart")
+                        }
+                        .disabled(!healthService.isHealthAvailable)
+
+                        Button {
+                            openAppSettings()
+                        } label: {
+                            Label("Manage or Revoke Health Access", systemImage: "gear")
+                        }
+
+                        Text(healthService.authorizationStatus)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
                 Section("Tasks and Calendars") {
                     Toggle("Show Calendar Events in Schedule", isOn: $calendarIntegrationEnabled)
                         .onChange(of: calendarIntegrationEnabled) { _, enabled in
@@ -202,6 +229,11 @@ struct ViewSettingsView: View {
             .scrollContentBackground(.hidden)
             .background(AppTheme.background)
         }
+    }
+
+    private func openAppSettings() {
+        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+        UIApplication.shared.open(url)
     }
 }
 

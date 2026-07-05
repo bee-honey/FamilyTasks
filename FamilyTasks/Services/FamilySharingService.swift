@@ -13,6 +13,7 @@ struct SharedHouseholdPayload: Codable {
     var shopping: ShoppingPayload
     var recurringTasks: [RecurringTask]
     var mealPlan: MealPlanPayload
+    var ideas: [IdeaNote]
 
     init(
         schemaVersion: Int = 1,
@@ -23,7 +24,8 @@ struct SharedHouseholdPayload: Codable {
         profiles: [SharedMemberProfile] = [],
         shopping: ShoppingPayload = ShoppingPayload(shops: [], items: []),
         recurringTasks: [RecurringTask] = [],
-        mealPlan: MealPlanPayload = MealPlanPayload(mealIdeas: [], plannedMeals: [])
+        mealPlan: MealPlanPayload = MealPlanPayload(mealIdeas: [], plannedMeals: []),
+        ideas: [IdeaNote] = []
     ) {
         self.schemaVersion = schemaVersion
         self.updatedAt = updatedAt
@@ -34,6 +36,7 @@ struct SharedHouseholdPayload: Codable {
         self.shopping = shopping
         self.recurringTasks = recurringTasks
         self.mealPlan = mealPlan
+        self.ideas = ideas
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -46,6 +49,7 @@ struct SharedHouseholdPayload: Codable {
         case shopping
         case recurringTasks
         case mealPlan
+        case ideas
     }
 
     init(from decoder: Decoder) throws {
@@ -59,6 +63,7 @@ struct SharedHouseholdPayload: Codable {
         shopping = (try? container.decode(ShoppingPayload.self, forKey: .shopping)) ?? ShoppingPayload(shops: [], items: [])
         recurringTasks = (try? container.decode([RecurringTask].self, forKey: .recurringTasks)) ?? []
         mealPlan = (try? container.decode(MealPlanPayload.self, forKey: .mealPlan)) ?? MealPlanPayload(mealIdeas: [], plannedMeals: [])
+        ideas = (try? container.decode([IdeaNote].self, forKey: .ideas)) ?? []
     }
 }
 
@@ -483,7 +488,8 @@ final class SharedHouseholdStore: ObservableObject {
             profiles: SharedMemberProfile.profilesForUpload(),
             shopping: organizerStore.exportShoppingPayload(),
             recurringTasks: organizerStore.recurringTasks,
-            mealPlan: organizerStore.exportMealPlanPayload()
+            mealPlan: organizerStore.exportMealPlanPayload(),
+            ideas: organizerStore.exportIdeas()
         )
     }
 
@@ -493,7 +499,8 @@ final class SharedHouseholdStore: ObservableObject {
         organizerStore?.applySharedData(
             shopping: payload.shopping,
             recurringTasks: payload.recurringTasks,
-            mealPlan: payload.mealPlan
+            mealPlan: payload.mealPlan,
+            ideas: payload.ideas
         )
     }
 

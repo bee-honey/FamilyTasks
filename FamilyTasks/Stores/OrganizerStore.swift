@@ -22,9 +22,14 @@ final class OrganizerStore: ObservableObject {
         didSet { saveMealPlan() }
     }
 
+    @Published private(set) var ideaNotes: [IdeaNote] = [] {
+        didSet { saveIdeas() }
+    }
+
     private let shoppingURL: URL
     private let recurringTasksURL: URL
     private let mealPlanURL: URL
+    private let ideasURL: URL
     private var isApplyingSharedData = false
 
     init(directory: URL? = nil) {
@@ -32,9 +37,11 @@ final class OrganizerStore: ObservableObject {
         shoppingURL = documents.appendingPathComponent("family-shopping.json")
         recurringTasksURL = documents.appendingPathComponent("family-recurring-tasks.json")
         mealPlanURL = documents.appendingPathComponent("family-meal-plan.json")
+        ideasURL = documents.appendingPathComponent("family-ideas.json")
         loadShopping()
         loadRecurringTasks()
         loadMealPlan()
+        loadIdeas()
         seedDefaultsIfNeeded()
     }
 
@@ -205,6 +212,45 @@ final class OrganizerStore: ObservableObject {
         }
     }
 
+    func ideas(tag: String? = nil) -> [IdeaNote] {
+        ideaNotes
+            .filter { idea in
+                guard let tag else { return true }
+                return idea.tags.contains { $0.caseInsensitiveCompare(tag) == .orderedSame }
+            }
+            .sorted { lhs, rhs in
+                lhs.updatedAt > rhs.updatedAt
+            }
+    }
+
+    func addIdea(_ draft: IdeaDraft) {
+        let title = draft.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty else { return }
+        ideaNotes.append(
+            IdeaNote(
+                title: title,
+                notes: draft.notes.trimmingCharacters(in: .whitespacesAndNewlines),
+                link: draft.link.trimmingCharacters(in: .whitespacesAndNewlines),
+                tags: draft.normalizedTags
+            )
+        )
+    }
+
+    func updateIdea(_ idea: IdeaNote, with draft: IdeaDraft) {
+        guard let index = ideaNotes.firstIndex(where: { $0.id == idea.id }) else { return }
+        let title = draft.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty else { return }
+        ideaNotes[index].title = title
+        ideaNotes[index].notes = draft.notes.trimmingCharacters(in: .whitespacesAndNewlines)
+        ideaNotes[index].link = draft.link.trimmingCharacters(in: .whitespacesAndNewlines)
+        ideaNotes[index].tags = draft.normalizedTags
+        ideaNotes[index].updatedAt = Date()
+    }
+
+    func deleteIdea(_ idea: IdeaNote) {
+        ideaNotes.removeAll { $0.id == idea.id }
+    }
+
     func addRecurringTask(_ draft: RecurringTaskDraft) {
         let title = draft.title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty else { return }
@@ -346,6 +392,18 @@ final class OrganizerStore: ObservableObject {
         notifySharedDataChanged()
     }
 
+    private func loadIdeas() {
+        guard let data = try? Data(contentsOf: ideasURL),
+              let notes = try? JSONDecoder().decode([IdeaNote].self, from: data) else { return }
+        ideaNotes = notes
+    }
+
+    private func saveIdeas() {
+        guard let data = try? JSONEncoder().encode(ideaNotes) else { return }
+        try? data.write(to: ideasURL, options: [.atomic])
+        notifySharedDataChanged()
+    }
+
     func exportShoppingPayload() -> ShoppingPayload {
         ShoppingPayload(shops: shops, items: shoppingItems)
     }
@@ -358,16 +416,22 @@ final class OrganizerStore: ObservableObject {
         recurringTasks
     }
 
-    func applySharedData(shopping: ShoppingPayload, recurringTasks: [RecurringTask], mealPlan: MealPlanPayload) {
+    func exportIdeas() -> [IdeaNote] {
+        ideaNotes
+    }
+
+    func applySharedData(shopping: ShoppingPayload, recurringTasks: [RecurringTask], mealPlan: MealPlanPayload, ideas: [IdeaNote]) {
         isApplyingSharedData = true
         shops = shopping.shops
         shoppingItems = shopping.items
         self.recurringTasks = recurringTasks
         mealIdeas = mealPlan.mealIdeas
         plannedMeals = mealPlan.plannedMeals
+        ideaNotes = ideas
         saveShopping()
         saveRecurringTasks()
         saveMealPlan()
+        saveIdeas()
         isApplyingSharedData = false
     }
 

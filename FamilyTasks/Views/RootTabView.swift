@@ -3,6 +3,7 @@ import SwiftUI
 struct RootTabView: View {
     @State private var selection: AppSection? = .today
     @AppStorage("menu.primarySectionOrder") private var primarySectionOrder = AppSection.defaultPrimarySectionOrder
+    @AppStorage("health.section.enabled") private var healthSectionEnabled = false
 
     var body: some View {
         NavigationSplitView {
@@ -73,6 +74,10 @@ struct RootTabView: View {
                 MealPlanView()
             case .recurring:
                 RecurringTasksView()
+            case .ideas:
+                IdeaNotebookView()
+            case .health:
+                HealthView()
             case .syncSettings:
                 SyncSettingsView()
             case .calendarSettings:
@@ -94,9 +99,11 @@ struct RootTabView: View {
             .compactMap { AppSection(rawValue: String($0)) }
             .filter(\.isPrimary)
 
-        let missingSections = AppSection.defaultPrimarySections.filter { !savedSections.contains($0) }
-        let orderedSections = savedSections + missingSections
-        return orderedSections.isEmpty ? AppSection.defaultPrimarySections : orderedSections
+        let availableSections = AppSection.defaultPrimarySections(healthEnabled: healthSectionEnabled)
+        let savedAvailableSections = savedSections.filter { availableSections.contains($0) }
+        let missingSections = availableSections.filter { !savedAvailableSections.contains($0) }
+        let orderedSections = savedAvailableSections + missingSections
+        return orderedSections.isEmpty ? availableSections : orderedSections
     }
 
     private func movePrimarySections(from source: IndexSet, to destination: Int) {
@@ -118,6 +125,8 @@ private enum AppSection: String, CaseIterable, Identifiable {
     case shopping
     case mealPlan
     case recurring
+    case ideas
+    case health
     case syncSettings
     case calendarSettings
     case notificationSettings
@@ -126,14 +135,24 @@ private enum AppSection: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    static let defaultPrimarySections: [AppSection] = {
-        [.today, .matrix, .shopping, .mealPlan, .recurring]
-    }()
+    static func defaultPrimarySections(healthEnabled: Bool) -> [AppSection] {
+        var sections: [AppSection] = [.today, .matrix, .shopping, .mealPlan, .recurring, .ideas]
+        if healthEnabled {
+            sections.append(.health)
+        }
+        return sections
+    }
 
+    static let defaultPrimarySections = defaultPrimarySections(healthEnabled: false)
     static let defaultPrimarySectionOrder = defaultPrimarySections.map(\.rawValue).joined(separator: ",")
 
     var isPrimary: Bool {
-        Self.defaultPrimarySections.contains(self)
+        switch self {
+        case .today, .matrix, .shopping, .mealPlan, .recurring, .ideas, .health:
+            return true
+        case .syncSettings, .calendarSettings, .notificationSettings, .viewSettings, .profile:
+            return false
+        }
     }
 
     var title: String {
@@ -143,6 +162,8 @@ private enum AppSection: String, CaseIterable, Identifiable {
         case .shopping: "Shopping"
         case .mealPlan: "Meal Plan"
         case .recurring: "Recurring"
+        case .ideas: "Ideas"
+        case .health: "Health"
         case .syncSettings: "iCloud Settings"
         case .calendarSettings: "Calendar Settings"
         case .notificationSettings: "Notification Settings"
@@ -158,6 +179,8 @@ private enum AppSection: String, CaseIterable, Identifiable {
         case .shopping: "cart"
         case .mealPlan: "fork.knife"
         case .recurring: "repeat"
+        case .ideas: "lightbulb"
+        case .health: "heart.text.square"
         case .syncSettings: "icloud"
         case .calendarSettings: "calendar.badge.clock"
         case .notificationSettings: "bell.badge"

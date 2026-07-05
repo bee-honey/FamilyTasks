@@ -33,6 +33,10 @@
 		2C0A004B2C0A000000000001 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 2C0A004A2C0A000000000001 /* LaunchScreen.storyboard */; };
 		2C0A004C2C0A000000000001 /* ShoppingListIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A004D2C0A000000000001 /* ShoppingListIntent.swift */; };
 		2C0A004E2C0A000000000001 /* NotificationScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A004F2C0A000000000001 /* NotificationScheduler.swift */; };
+		2C0A00512C0A000000000001 /* IdeaModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A00502C0A000000000001 /* IdeaModels.swift */; };
+		2C0A00532C0A000000000001 /* IdeaNotebookView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A00522C0A000000000001 /* IdeaNotebookView.swift */; };
+		2C0A00552C0A000000000001 /* HealthMetricsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A00542C0A000000000001 /* HealthMetricsService.swift */; };
+		2C0A00572C0A000000000001 /* HealthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A00562C0A000000000001 /* HealthView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -66,6 +70,10 @@
 		2C0A004A2C0A000000000001 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 		2C0A004D2C0A000000000001 /* ShoppingListIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShoppingListIntent.swift; sourceTree = "<group>"; };
 		2C0A004F2C0A000000000001 /* NotificationScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationScheduler.swift; sourceTree = "<group>"; };
+		2C0A00502C0A000000000001 /* IdeaModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeaModels.swift; sourceTree = "<group>"; };
+		2C0A00522C0A000000000001 /* IdeaNotebookView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeaNotebookView.swift; sourceTree = "<group>"; };
+		2C0A00542C0A000000000001 /* HealthMetricsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthMetricsService.swift; sourceTree = "<group>"; };
+		2C0A00562C0A000000000001 /* HealthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -117,6 +125,7 @@
 			isa = PBXGroup;
 			children = (
 				2C0A000C2C0A000000000001 /* FamilyTask.swift */,
+				2C0A00502C0A000000000001 /* IdeaModels.swift */,
 				2C0A003C2C0A000000000001 /* ShoppingModels.swift */,
 			);
 			path = Models;
@@ -136,6 +145,7 @@
 			children = (
 				2C0A00102C0A000000000001 /* CalendarSyncService.swift */,
 				2C0A00122C0A000000000001 /* FamilySharingService.swift */,
+				2C0A00542C0A000000000001 /* HealthMetricsService.swift */,
 				2C0A004F2C0A000000000001 /* NotificationScheduler.swift */,
 				2C0A004D2C0A000000000001 /* ShoppingListIntent.swift */,
 			);
@@ -153,6 +163,8 @@
 				2C0A00402C0A000000000001 /* ShoppingView.swift */,
 				2C0A00482C0A000000000001 /* MealPlanView.swift */,
 				2C0A00422C0A000000000001 /* RecurringTasksView.swift */,
+				2C0A00522C0A000000000001 /* IdeaNotebookView.swift */,
+				2C0A00562C0A000000000001 /* HealthView.swift */,
 				2C0A002F2C0A000000000001 /* AssigneeAvatarView.swift */,
 				2C0A00142C0A000000000001 /* TaskBoardView.swift */,
 				2C0A00162C0A000000000001 /* BucketView.swift */,
@@ -235,6 +247,10 @@
 			buildActionMask = 2147483647;
 			files = (
 				2C0A001B2C0A000000000001 /* AddTaskView.swift in Sources */,
+				2C0A00512C0A000000000001 /* IdeaModels.swift in Sources */,
+				2C0A00532C0A000000000001 /* IdeaNotebookView.swift in Sources */,
+				2C0A00552C0A000000000001 /* HealthMetricsService.swift in Sources */,
+				2C0A00572C0A000000000001 /* HealthView.swift in Sources */,
 				2C0A00172C0A000000000001 /* BucketView.swift in Sources */,
 				2C0A00112C0A000000000001 /* CalendarSyncService.swift in Sources */,
 				2C0A000D2C0A000000000001 /* FamilyTask.swift in Sources */,
@@ -386,7 +402,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = FamilyTasks/FamilyTasks.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 11;
+				CURRENT_PROJECT_VERSION = 12;
 				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = 2X5AKN2Y8P;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -398,7 +414,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.6;
+				MARKETING_VERSION = 2.7;
 				PRODUCT_BUNDLE_IDENTIFIER = com.naveenkeerthy.FamilyTasks;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -418,7 +434,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = FamilyTasks/FamilyTasks.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 11;
+				CURRENT_PROJECT_VERSION = 12;
 				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = 2X5AKN2Y8P;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -430,7 +446,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.6;
+				MARKETING_VERSION = 2.7;
 				PRODUCT_BUNDLE_IDENTIFIER = com.naveenkeerthy.FamilyTasks;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";

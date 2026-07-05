@@ -218,45 +218,62 @@ final class NotificationScheduler: ObservableObject {
                     minute: minute,
                     second: 0,
                     of: day
-                  ),
-                  triggerDate > now else {
+                  ) else {
                 continue
             }
 
-            let dayTasks = tasks
-                .filter { task in
-                    guard let dueDate = task.dueDate else { return false }
-                    return calendar.isDate(dueDate, inSameDayAs: day)
-                }
-                .sorted { lhs, rhs in
-                    switch (lhs.dueDate, rhs.dueDate) {
-                    case let (left?, right?):
-                        return left < right
-                    case (.some, .none):
-                        return true
-                    case (.none, .some):
-                        return false
-                    case (.none, .none):
-                        return lhs.updatedAt > rhs.updatedAt
-                    }
-                }
-
+            let dayTasks = tasksForDigest(on: day, from: tasks, calendar: calendar)
             guard !dayTasks.isEmpty else { continue }
 
-            let content = UNMutableNotificationContent()
-            content.title = "Today's Family Tasks"
-            content.body = digestBody(for: dayTasks)
-            content.sound = .default
-
-            let components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: triggerDate)
-            let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
-            let request = UNNotificationRequest(
-                identifier: "\(IdentifierPrefix.todayDigest)\(dayOffset)",
-                content: content,
-                trigger: trigger
-            )
-            center.add(request)
+            if triggerDate > now {
+                scheduleDigest(for: dayTasks, on: triggerDate, identifierSuffix: digestIdentifierSuffix(for: day, calendar: calendar))
+            } else if dayOffset == 0 {
+                let catchupDate = now.addingTimeInterval(10)
+                scheduleDigest(for: dayTasks, on: catchupDate, identifierSuffix: "\(digestIdentifierSuffix(for: day, calendar: calendar)).catchup")
+            }
         }
+    }
+
+    private func tasksForDigest(on day: Date, from tasks: [FamilyTask], calendar: Calendar) -> [FamilyTask] {
+        tasks
+            .filter { task in
+                guard let dueDate = task.dueDate else { return false }
+                return calendar.isDate(dueDate, inSameDayAs: day)
+            }
+            .sorted { lhs, rhs in
+                switch (lhs.dueDate, rhs.dueDate) {
+                case let (left?, right?):
+                    return left < right
+                case (.some, .none):
+                    return true
+                case (.none, .some):
+                    return false
+                case (.none, .none):
+                    return lhs.updatedAt > rhs.updatedAt
+                }
+            }
+    }
+
+    private func scheduleDigest(for tasks: [FamilyTask], on triggerDate: Date, identifierSuffix: String) {
+        let calendar = Calendar.current
+        let content = UNMutableNotificationContent()
+        content.title = "Today's Family Tasks"
+        content.body = digestBody(for: tasks)
+        content.sound = .default
+
+        let components = calendar.dateComponents([.year, .month, .day, .hour, .minute, .second], from: triggerDate)
+        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: "\(IdentifierPrefix.todayDigest)\(identifierSuffix)",
+            content: content,
+            trigger: trigger
+        )
+        center.add(request)
+    }
+
+    private func digestIdentifierSuffix(for date: Date, calendar: Calendar) -> String {
+        let components = calendar.dateComponents([.year, .month, .day], from: date)
+        return String(format: "%04d-%02d-%02d", components.year ?? 0, components.month ?? 0, components.day ?? 0)
     }
 
     private func scheduleDueSoonAlerts(for tasks: [FamilyTask]) {
