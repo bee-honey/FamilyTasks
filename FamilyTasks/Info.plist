@@ -30,6 +30,8 @@
 	<string>Family Tasks lets you choose a profile photo for your app profile and share it with your household.</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>Family Tasks can read your steps and sleep so you can compare household wellness when you choose to enable Health.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Family Tasks does not write Health data. This permission description is included because Health features are optional and require HealthKit access.</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.productivity</string>
 	<key>CKSharingSupported</key>
