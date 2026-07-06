@@ -1,12 +1,18 @@
-# Family Tasks
+# Family Task Planner
 
-Family Tasks is a SwiftUI iOS app for running a household together. It combines task planning, calendar-aware today views, shared shopping lists, recurring responsibilities, and meal planning in one family workspace.
+[![Download on the App Store](https://img.shields.io/badge/App%20Store-Download-blue)](https://apps.apple.com/us/app/family-task-planner/id6771995830)
+
+Family Task Planner is a SwiftUI iOS app for running a household together. It combines task planning, calendar-aware today views, shared shopping lists, recurring responsibilities, meal planning, ideas, and optional family health summaries in one family workspace.
 
 ## Screenshots
 
-| Menu | Task Matrix |
-| --- | --- |
-| ![Menu](docs/screenshots/menu.png) | ![Task Matrix](docs/screenshots/matrix.png) |
+| Menu | Task Matrix | Shopping |
+| --- | --- | --- |
+| ![Menu](docs/screenshots/menu.png) | ![Task Matrix](docs/screenshots/matrix.png) | ![Shopping](docs/screenshots/shopping.png) |
+
+| Ideas | Health Day | Health Year |
+| --- | --- | --- |
+| ![Ideas](docs/screenshots/ideas.png) | ![Health Day](docs/screenshots/health-day.png) | ![Health Year](docs/screenshots/health-year.png) |
 
 ## Features
 
@@ -17,16 +23,18 @@ Family Tasks is a SwiftUI iOS app for running a household together. It combines 
 - Shopping lists grouped by shop, with shareable bullet-point lists.
 - Recurring tasks for bills, household services, and repeated chores.
 - Meal planning with reusable meal ideas, week/day planning, breakfast/lunch/dinner slots, and ingredient-to-grocery handoff.
-- Profile/settings area for identity, family members, notifications, and calendar integration.
+- Ideas notebook for saving links, places, activities, and family finds by tag.
+- Optional Health section for opted-in family steps and sleep summaries.
+- Profile/settings area for identity, family members, notifications, calendar integration, view preferences, and Health settings.
 - App icon, privacy manifest, and App Store release checklist included.
 
 ## Project Structure
 
 ```text
 FamilyTasks/
-  Models/       Data models for tasks, shopping, meals, and recurring items
+  Models/       Data models for tasks, shopping, meals, ideas, health summaries, and recurring items
   Stores/       Local persistence and app state
-  Services/     Calendar and CloudKit sharing services
+  Services/     Calendar, notifications, HealthKit, and CloudKit sharing services
   Views/        SwiftUI screens and reusable views
 ```
 
@@ -36,7 +44,9 @@ The app uses EventKit. If a Google account is added under iOS Settings > Calenda
 
 ## Family Sharing
 
-The app uses CloudKit sharing for a shared household workspace. Tasks, family member emails, shopping lists, recurring tasks, meal ideas, and planned meals are stored as one shared household payload after the owner shares it from Profile > Share Household Data.
+The app uses CloudKit sharing for a shared household workspace. Tasks, family member emails, profiles, shopping lists, recurring tasks, meal ideas, planned meals, ideas, and opted-in health summaries are stored as one shared household payload after the owner shares it from iCloud Settings.
+
+Health sharing is opt-in per device. The app stores only small daily steps and sleep summaries in the family iCloud payload; raw HealthKit data stays on each family member's device.
 
 CloudKit family sharing should be tested on physical devices with two separate iCloud accounts before App Store submission.
 
