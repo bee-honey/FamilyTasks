@@ -26,10 +26,15 @@ final class OrganizerStore: ObservableObject {
         didSet { saveIdeas() }
     }
 
+    @Published private(set) var healthSnapshots: [HealthSnapshot] = [] {
+        didSet { saveHealthSnapshots() }
+    }
+
     private let shoppingURL: URL
     private let recurringTasksURL: URL
     private let mealPlanURL: URL
     private let ideasURL: URL
+    private let healthSnapshotsURL: URL
     private var isApplyingSharedData = false
 
     init(directory: URL? = nil) {
@@ -38,10 +43,12 @@ final class OrganizerStore: ObservableObject {
         recurringTasksURL = documents.appendingPathComponent("family-recurring-tasks.json")
         mealPlanURL = documents.appendingPathComponent("family-meal-plan.json")
         ideasURL = documents.appendingPathComponent("family-ideas.json")
+        healthSnapshotsURL = documents.appendingPathComponent("family-health-snapshots.json")
         loadShopping()
         loadRecurringTasks()
         loadMealPlan()
         loadIdeas()
+        loadHealthSnapshots()
         seedDefaultsIfNeeded()
     }
 
@@ -251,6 +258,33 @@ final class OrganizerStore: ObservableObject {
         ideaNotes.removeAll { $0.id == idea.id }
     }
 
+    func upsertHealthSnapshots(_ snapshots: [HealthSnapshot]) {
+        guard !snapshots.isEmpty else { return }
+        healthSnapshots = mergedHealthSnapshots(existing: healthSnapshots, incoming: snapshots)
+    }
+
+    func healthSnapshots(for scope: HealthMetricScope, calendar: Calendar = .current) -> [HealthSnapshot] {
+        let now = Date()
+        let start: Date
+        switch scope {
+        case .day:
+            start = calendar.startOfDay(for: now)
+        case .week:
+            start = calendar.dateInterval(of: .weekOfYear, for: now)?.start ?? calendar.startOfDay(for: now)
+        case .month:
+            start = calendar.dateInterval(of: .month, for: now)?.start ?? calendar.startOfDay(for: now)
+        case .year:
+            start = calendar.dateInterval(of: .year, for: now)?.start ?? calendar.startOfDay(for: now)
+        }
+
+        return healthSnapshots
+            .filter { $0.date >= start && $0.date <= now }
+            .sorted { lhs, rhs in
+                if lhs.date != rhs.date { return lhs.date < rhs.date }
+                return lhs.displayInitials.localizedCaseInsensitiveCompare(rhs.displayInitials) == .orderedAscending
+            }
+    }
+
     func addRecurringTask(_ draft: RecurringTaskDraft) {
         let title = draft.title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty else { return }
@@ -404,6 +438,18 @@ final class OrganizerStore: ObservableObject {
         notifySharedDataChanged()
     }
 
+    private func loadHealthSnapshots() {
+        guard let data = try? Data(contentsOf: healthSnapshotsURL),
+              let snapshots = try? JSONDecoder().decode([HealthSnapshot].self, from: data) else { return }
+        healthSnapshots = snapshots
+    }
+
+    private func saveHealthSnapshots() {
+        guard let data = try? JSONEncoder().encode(healthSnapshots) else { return }
+        try? data.write(to: healthSnapshotsURL, options: [.atomic])
+        notifySharedDataChanged()
+    }
+
     func exportShoppingPayload() -> ShoppingPayload {
         ShoppingPayload(shops: shops, items: shoppingItems)
     }
@@ -420,7 +466,11 @@ final class OrganizerStore: ObservableObject {
         ideaNotes
     }
 
-    func applySharedData(shopping: ShoppingPayload, recurringTasks: [RecurringTask], mealPlan: MealPlanPayload, ideas: [IdeaNote]) {
+    func exportHealthSnapshots() -> [HealthSnapshot] {
+        healthSnapshots
+    }
+
+    func applySharedData(shopping: ShoppingPayload, recurringTasks: [RecurringTask], mealPlan: MealPlanPayload, ideas: [IdeaNote], healthSnapshots: [HealthSnapshot]) {
         isApplyingSharedData = true
         shops = shopping.shops
         shoppingItems = shopping.items
@@ -428,16 +478,38 @@ final class OrganizerStore: ObservableObject {
         mealIdeas = mealPlan.mealIdeas
         plannedMeals = mealPlan.plannedMeals
         ideaNotes = ideas
+        self.healthSnapshots = mergedHealthSnapshots(existing: self.healthSnapshots, incoming: healthSnapshots)
         saveShopping()
         saveRecurringTasks()
         saveMealPlan()
         saveIdeas()
+        saveHealthSnapshots()
         isApplyingSharedData = false
     }
 
     private func notifySharedDataChanged() {
         guard !isApplyingSharedData else { return }
         NotificationCenter.default.post(name: .familyDataDidChange, object: self)
+    }
+
+    private func mergedHealthSnapshots(existing: [HealthSnapshot], incoming: [HealthSnapshot]) -> [HealthSnapshot] {
+        var snapshotsByID: [String: HealthSnapshot] = [:]
+
+        for snapshot in existing + incoming {
+            guard !snapshot.memberEmail.isEmpty else { continue }
+            if let current = snapshotsByID[snapshot.id], current.updatedAt > snapshot.updatedAt {
+                continue
+            }
+            snapshotsByID[snapshot.id] = snapshot
+        }
+
+        let cutoff = Calendar.current.date(byAdding: .day, value: -400, to: Date()) ?? .distantPast
+        return snapshotsByID.values
+            .filter { $0.date >= cutoff }
+            .sorted { lhs, rhs in
+                if lhs.date != rhs.date { return lhs.date < rhs.date }
+                return lhs.memberEmail.localizedCaseInsensitiveCompare(rhs.memberEmail) == .orderedAscending
+            }
     }
 
     private func cleanedIngredients(_ values: [MealIngredient]) -> [MealIngredient] {

@@ -12,6 +12,7 @@ struct FamilyTasksApp: App {
     @AppStorage("profile.email") private var profileEmail = ""
     @AppStorage("profile.isSetup") private var isProfileSetup = false
     @AppStorage("view.appearance") private var appearance = AppAppearance.system.rawValue
+    @AppStorage("health.share.enabled") private var healthSharingEnabled = false
 
     var body: some Scene {
         WindowGroup {
@@ -31,12 +32,30 @@ struct FamilyTasksApp: App {
             .onAppear {
                 sharedHouseholdStore.configure(taskStore: taskStore, organizerStore: organizerStore)
                 notificationScheduler.configure(taskStore: taskStore, organizerStore: organizerStore)
+                HealthSyncCoordinator.shared.scheduleDailyRefresh()
+            }
+            .onChange(of: healthSharingEnabled) { _, enabled in
+                if enabled {
+                    HealthSyncCoordinator.shared.scheduleDailyRefresh()
+                    Task {
+                        await HealthSyncCoordinator.shared.syncNow(
+                            taskStore: taskStore,
+                            organizerStore: organizerStore,
+                            sharedHouseholdStore: sharedHouseholdStore
+                        )
+                    }
+                }
             }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active {
                     organizerStore.refreshShopping()
                     Task {
                         await sharedHouseholdStore.syncOnAppActivation()
+                        await HealthSyncCoordinator.shared.syncIfNeeded(
+                            taskStore: taskStore,
+                            organizerStore: organizerStore,
+                            sharedHouseholdStore: sharedHouseholdStore
+                        )
                         await notificationScheduler.reschedule()
                     }
                 }

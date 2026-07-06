@@ -127,6 +127,9 @@ struct ProfileView: View {
 }
 
 struct ViewSettingsView: View {
+    @EnvironmentObject private var taskStore: TaskStore
+    @EnvironmentObject private var organizerStore: OrganizerStore
+    @EnvironmentObject private var sharedHouseholdStore: SharedHouseholdStore
     @EnvironmentObject private var calendarSync: CalendarSyncService
     @StateObject private var healthService = HealthMetricsService()
     @AppStorage("schedule.showTaskTime") private var showTaskTime = false
@@ -138,6 +141,7 @@ struct ViewSettingsView: View {
     @AppStorage("calendar.integration.enabled") private var calendarIntegrationEnabled = false
     @AppStorage("schedule.contentPriority") private var scheduleContentPriority = ScheduleContentPriority.tasksFirst.rawValue
     @AppStorage("health.section.enabled") private var healthSectionEnabled = false
+    @AppStorage("health.share.enabled") private var healthSharingEnabled = false
 
     var body: some View {
         NavigationStack {
@@ -186,13 +190,43 @@ struct ViewSettingsView: View {
                         }
                         .disabled(!healthService.isHealthAvailable)
 
+                        Toggle("Share Steps and Sleep With Family", isOn: $healthSharingEnabled)
+                            .disabled(!healthService.isHealthAvailable)
+                            .onChange(of: healthSharingEnabled) { _, enabled in
+                                if enabled {
+                                    Task {
+                                        await healthService.requestAccessAndRefresh()
+                                        await HealthSyncCoordinator.shared.syncNow(
+                                            taskStore: taskStore,
+                                            organizerStore: organizerStore,
+                                            sharedHouseholdStore: sharedHouseholdStore
+                                        )
+                                    }
+                                } else {
+                                    HealthSyncCoordinator.shared.scheduleDailyRefresh()
+                                }
+                            }
+
+                        Button {
+                            Task {
+                                await HealthSyncCoordinator.shared.syncNow(
+                                    taskStore: taskStore,
+                                    organizerStore: organizerStore,
+                                    sharedHouseholdStore: sharedHouseholdStore
+                                )
+                            }
+                        } label: {
+                            Label("Sync Health Summary Now", systemImage: "arrow.triangle.2.circlepath")
+                        }
+                        .disabled(!healthSharingEnabled)
+
                         Button {
                             openAppSettings()
                         } label: {
                             Label("Manage or Revoke Health Access", systemImage: "gear")
                         }
 
-                        Text(healthService.authorizationStatus)
+                        Text(healthSharingEnabled ? "When enabled, this device shares one small daily steps and sleep summary with your family around 6 AM. Raw Health data stays on this device." : healthService.authorizationStatus)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }

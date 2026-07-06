@@ -1,5 +1,50 @@
 import Foundation
 import HealthKit
+import BackgroundTasks
+
+
+struct HealthSnapshot: Identifiable, Codable, Equatable {
+    var id: String
+    var memberEmail: String
+    var memberInitials: String
+    var date: Date
+    var dayID: String
+    var steps: Double
+    var sleepSeconds: TimeInterval
+    var updatedAt: Date
+
+    init(
+        memberEmail: String,
+        memberInitials: String,
+        date: Date,
+        dayID: String,
+        steps: Double,
+        sleepSeconds: TimeInterval,
+        updatedAt: Date = Date()
+    ) {
+        let normalizedEmail = memberEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        self.id = "\(normalizedEmail)|\(dayID)"
+        self.memberEmail = normalizedEmail
+        self.memberInitials = memberInitials.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        self.date = date
+        self.dayID = dayID
+        self.steps = steps
+        self.sleepSeconds = sleepSeconds
+        self.updatedAt = updatedAt
+    }
+
+    var displayInitials: String {
+        let trimmed = memberInitials.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty {
+            return String(trimmed.prefix(3)).uppercased()
+        }
+
+        let localPart = memberEmail.split(separator: "@").first.map(String.init) ?? ""
+        let parts = localPart.split(whereSeparator: { $0 == "." || $0 == "_" || $0 == "-" || $0 == " " })
+        let letters = parts.prefix(2).compactMap(\.first)
+        return letters.isEmpty ? "ME" : String(letters).uppercased()
+    }
+}
 
 struct HealthMetricSummary: Identifiable, Equatable {
     var id: String { scope.rawValue }
@@ -49,6 +94,147 @@ enum HealthMetricScope: String, CaseIterable, Identifiable {
         case .month: "Month"
         case .year: "Year"
         }
+    }
+}
+
+
+@MainActor
+final class HealthSyncCoordinator {
+    static let shared = HealthSyncCoordinator()
+    static let backgroundTaskIdentifier = "com.naveenkeerthy.FamilyTasks.healthDailySync"
+
+    private let defaults = UserDefaults.standard
+
+    private enum DefaultsKey {
+        static let healthSectionEnabled = "health.section.enabled"
+        static let healthSharingEnabled = "health.share.enabled"
+        static let lastDailySyncDayID = "health.lastDailySyncDayID"
+    }
+
+    private init() {}
+
+    var isHealthSharingEnabled: Bool {
+        defaults.bool(forKey: DefaultsKey.healthSectionEnabled) && defaults.bool(forKey: DefaultsKey.healthSharingEnabled)
+    }
+
+    func registerBackgroundRefresh() {
+        BGTaskScheduler.shared.register(forTaskWithIdentifier: Self.backgroundTaskIdentifier, using: nil) { task in
+            Task { @MainActor in
+                await self.handleBackgroundRefresh(task: task as? BGAppRefreshTask)
+            }
+        }
+    }
+
+    func scheduleDailyRefresh() {
+        guard isHealthSharingEnabled else { return }
+
+        let request = BGAppRefreshTaskRequest(identifier: Self.backgroundTaskIdentifier)
+        request.earliestBeginDate = nextSixAM(after: Date())
+        try? BGTaskScheduler.shared.submit(request)
+    }
+
+    func syncIfNeeded(
+        taskStore: TaskStore,
+        organizerStore: OrganizerStore,
+        sharedHouseholdStore: SharedHouseholdStore,
+        force: Bool = false
+    ) async {
+        guard isHealthSharingEnabled else { return }
+        guard shouldSyncToday(force: force) else {
+            scheduleDailyRefresh()
+            return
+        }
+
+        await publishSnapshots(taskStore: taskStore, organizerStore: organizerStore, sharedHouseholdStore: sharedHouseholdStore)
+    }
+
+    func syncNow(
+        taskStore: TaskStore,
+        organizerStore: OrganizerStore,
+        sharedHouseholdStore: SharedHouseholdStore
+    ) async {
+        guard isHealthSharingEnabled else { return }
+        await publishSnapshots(taskStore: taskStore, organizerStore: organizerStore, sharedHouseholdStore: sharedHouseholdStore)
+    }
+
+    private func handleBackgroundRefresh(task: BGAppRefreshTask?) async {
+        scheduleDailyRefresh()
+
+        let taskStore = TaskStore()
+        let organizerStore = OrganizerStore()
+        let sharedHouseholdStore = SharedHouseholdStore.shared
+        sharedHouseholdStore.configure(taskStore: taskStore, organizerStore: organizerStore)
+
+        let syncTask = Task { @MainActor in
+            await self.syncIfNeeded(
+                taskStore: taskStore,
+                organizerStore: organizerStore,
+                sharedHouseholdStore: sharedHouseholdStore,
+                force: true
+            )
+        }
+
+        task?.expirationHandler = {
+            syncTask.cancel()
+        }
+
+        await syncTask.value
+        task?.setTaskCompleted(success: !syncTask.isCancelled)
+    }
+
+    private func publishSnapshots(
+        taskStore: TaskStore,
+        organizerStore: OrganizerStore,
+        sharedHouseholdStore: SharedHouseholdStore
+    ) async {
+        let email = (defaults.string(forKey: "profile.email") ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        guard TaskStore.isValidEmail(email) else { return }
+
+        let initials = defaults.string(forKey: "profile.initials") ?? ""
+        let service = HealthMetricsService()
+        let snapshots = await service.dailySnapshots(memberEmail: email, memberInitials: initials)
+        guard !snapshots.isEmpty else {
+            scheduleDailyRefresh()
+            return
+        }
+
+        await sharedHouseholdStore.refreshFromCloud()
+        organizerStore.upsertHealthSnapshots(snapshots)
+        if sharedHouseholdStore.isSharingConfigured {
+            await sharedHouseholdStore.uploadNow()
+        }
+
+        defaults.set(todayDayID(), forKey: DefaultsKey.lastDailySyncDayID)
+        scheduleDailyRefresh()
+    }
+
+    private func shouldSyncToday(force: Bool) -> Bool {
+        if force { return true }
+
+        let now = Date()
+        guard now >= sixAM(on: now) else { return false }
+        return defaults.string(forKey: DefaultsKey.lastDailySyncDayID) != todayDayID()
+    }
+
+    private func sixAM(on date: Date) -> Date {
+        var components = Calendar.current.dateComponents([.year, .month, .day], from: date)
+        components.hour = 6
+        components.minute = 0
+        components.second = 0
+        return Calendar.current.date(from: components) ?? date
+    }
+
+    private func nextSixAM(after date: Date) -> Date {
+        let todaySix = sixAM(on: date)
+        if date < todaySix { return todaySix }
+        return Calendar.current.date(byAdding: .day, value: 1, to: todaySix) ?? date.addingTimeInterval(86_400)
+    }
+
+    private func todayDayID() -> String {
+        let components = Calendar.current.dateComponents([.year, .month, .day], from: Date())
+        return String(format: "%04d-%02d-%02d", components.year ?? 0, components.month ?? 0, components.day ?? 0)
     }
 }
 
@@ -126,6 +312,39 @@ final class HealthMetricsService: ObservableObject {
         }
 
         summaries = nextSummaries
+    }
+
+    func dailySnapshots(memberEmail: String, memberInitials: String, daysBack: Int = 370) async -> [HealthSnapshot] {
+        guard isHealthAvailable else { return [] }
+        guard let stepType = HKObjectType.quantityType(forIdentifier: .stepCount),
+              let sleepType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) else {
+            return []
+        }
+
+        let trimmedEmail = memberEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !trimmedEmail.isEmpty else { return [] }
+
+        let calendar = Calendar.current
+        let now = Date()
+        let today = calendar.startOfDay(for: now)
+        let start = calendar.date(byAdding: .day, value: -max(daysBack, 0), to: today) ?? today
+        let intervals = dayIntervals(from: start, through: now, calendar: calendar, style: .dayNumber)
+
+        var snapshots: [HealthSnapshot] = []
+        for interval in intervals {
+            async let steps = stepCount(type: stepType, start: interval.interval.start, end: interval.interval.end)
+            async let sleep = sleepDuration(type: sleepType, start: interval.interval.start, end: interval.interval.end)
+            snapshots.append(await HealthSnapshot(
+                memberEmail: trimmedEmail,
+                memberInitials: memberInitials,
+                date: interval.interval.start,
+                dayID: interval.id,
+                steps: steps,
+                sleepSeconds: sleep
+            ))
+        }
+
+        return snapshots
     }
 
     private func detailIntervals(for scope: HealthMetricScope, now: Date, calendar: Calendar) -> [HealthDetailInterval] {

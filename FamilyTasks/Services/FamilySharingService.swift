@@ -1,3 +1,4 @@
+import BackgroundTasks
 import CloudKit
 import SwiftUI
 import UIKit
@@ -14,6 +15,7 @@ struct SharedHouseholdPayload: Codable {
     var recurringTasks: [RecurringTask]
     var mealPlan: MealPlanPayload
     var ideas: [IdeaNote]
+    var healthSnapshots: [HealthSnapshot]
 
     init(
         schemaVersion: Int = 1,
@@ -25,7 +27,8 @@ struct SharedHouseholdPayload: Codable {
         shopping: ShoppingPayload = ShoppingPayload(shops: [], items: []),
         recurringTasks: [RecurringTask] = [],
         mealPlan: MealPlanPayload = MealPlanPayload(mealIdeas: [], plannedMeals: []),
-        ideas: [IdeaNote] = []
+        ideas: [IdeaNote] = [],
+        healthSnapshots: [HealthSnapshot] = []
     ) {
         self.schemaVersion = schemaVersion
         self.updatedAt = updatedAt
@@ -37,6 +40,7 @@ struct SharedHouseholdPayload: Codable {
         self.recurringTasks = recurringTasks
         self.mealPlan = mealPlan
         self.ideas = ideas
+        self.healthSnapshots = healthSnapshots
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -50,6 +54,7 @@ struct SharedHouseholdPayload: Codable {
         case recurringTasks
         case mealPlan
         case ideas
+        case healthSnapshots
     }
 
     init(from decoder: Decoder) throws {
@@ -64,6 +69,7 @@ struct SharedHouseholdPayload: Codable {
         recurringTasks = (try? container.decode([RecurringTask].self, forKey: .recurringTasks)) ?? []
         mealPlan = (try? container.decode(MealPlanPayload.self, forKey: .mealPlan)) ?? MealPlanPayload(mealIdeas: [], plannedMeals: [])
         ideas = (try? container.decode([IdeaNote].self, forKey: .ideas)) ?? []
+        healthSnapshots = (try? container.decode([HealthSnapshot].self, forKey: .healthSnapshots)) ?? []
     }
 }
 
@@ -489,7 +495,8 @@ final class SharedHouseholdStore: ObservableObject {
             shopping: organizerStore.exportShoppingPayload(),
             recurringTasks: organizerStore.recurringTasks,
             mealPlan: organizerStore.exportMealPlanPayload(),
-            ideas: organizerStore.exportIdeas()
+            ideas: organizerStore.exportIdeas(),
+            healthSnapshots: organizerStore.exportHealthSnapshots()
         )
     }
 
@@ -500,7 +507,8 @@ final class SharedHouseholdStore: ObservableObject {
             shopping: payload.shopping,
             recurringTasks: payload.recurringTasks,
             mealPlan: payload.mealPlan,
-            ideas: payload.ideas
+            ideas: payload.ideas,
+            healthSnapshots: payload.healthSnapshots
         )
     }
 
@@ -669,6 +677,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         UNUserNotificationCenter.current().delegate = self
+        HealthSyncCoordinator.shared.registerBackgroundRefresh()
+        HealthSyncCoordinator.shared.scheduleDailyRefresh()
         return true
     }
 
@@ -676,6 +686,10 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         Task { @MainActor in
             SharedHouseholdStore.shared.acceptShare(metadata: cloudKitShareMetadata)
         }
+    }
+
+    func applicationDidEnterBackground(_ application: UIApplication) {
+        HealthSyncCoordinator.shared.scheduleDailyRefresh()
     }
 
     func userNotificationCenter(

@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct HealthView: View {
+    @EnvironmentObject private var organizerStore: OrganizerStore
     @AppStorage("profile.email") private var profileEmail = ""
     @AppStorage("profile.initials") private var profileInitials = ""
     @StateObject private var healthService = HealthMetricsService()
@@ -19,7 +20,16 @@ struct HealthView: View {
                 }
 
                 Section("Family Comparison") {
-                    if healthService.isLoading {
+                    if !familySummaries.isEmpty {
+                        ForEach(familySummaries) { summary in
+                            HealthMemberMetricRow(
+                                initials: summary.initials,
+                                name: summary.memberEmail,
+                                steps: HealthMetricSummary.stepText(for: summary.steps),
+                                sleep: HealthMetricSummary.sleepText(for: summary.sleepSeconds)
+                            )
+                        }
+                    } else if healthService.isLoading {
                         ProgressView("Loading health data")
                     } else if let summary = selectedSummary {
                         HealthMemberMetricRow(
@@ -32,16 +42,27 @@ struct HealthView: View {
                         ContentUnavailableView(
                             "No Health Data",
                             systemImage: "heart.slash",
-                            description: Text("Allow Health access in View Settings to compare steps and sleep.")
+                            description: Text("Allow Health access and turn on Health sharing in View Settings.")
                         )
                     }
 
-                    Text("This view currently shows this device only. To compare 5 family members, each person needs to opt in and sync a small steps/sleep summary; then these rows and calendar cells can show each member by initials and color.")
+                    Text("Each family member must opt in on their own device. Shared Health keeps only daily steps and sleep summaries in your family iCloud data.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
 
-                if let summary = selectedSummary, !summary.points.isEmpty {
+                if !familyDailyGroups.isEmpty {
+                    Section(detailTitle) {
+                        switch selectedScope {
+                        case .day, .week:
+                            FamilyHealthDetailList(groups: familyDailyGroups)
+                        case .month:
+                            FamilyHealthCalendarGrid(groups: familyDailyGroups)
+                        case .year:
+                            FamilyHealthDetailList(groups: familyMonthlyGroups)
+                        }
+                    }
+                } else if let summary = selectedSummary, !summary.points.isEmpty {
                     Section(detailTitle) {
                         switch selectedScope {
                         case .day:
@@ -79,6 +100,68 @@ struct HealthView: View {
         healthService.summaries.first { $0.scope == selectedScope }
     }
 
+    private var familySnapshots: [HealthSnapshot] {
+        organizerStore.healthSnapshots(for: selectedScope)
+    }
+
+    private var familySummaries: [HealthSnapshotSummary] {
+        Dictionary(grouping: familySnapshots, by: \.memberEmail)
+            .map { email, snapshots in
+                HealthSnapshotSummary(
+                    memberEmail: email,
+                    initials: snapshots.last?.displayInitials ?? "ME",
+                    steps: snapshots.reduce(0) { $0 + $1.steps },
+                    sleepSeconds: snapshots.reduce(0) { $0 + $1.sleepSeconds }
+                )
+            }
+            .sorted { $0.initials.localizedCaseInsensitiveCompare($1.initials) == .orderedAscending }
+    }
+
+    private var familyDailyGroups: [FamilyHealthPeriodGroup] {
+        let formatter = DateFormatter()
+        formatter.dateFormat = selectedScope == .week ? "EEE M/d" : "d"
+        return Dictionary(grouping: familySnapshots, by: \.dayID)
+            .map { _, snapshots in
+                let date = snapshots.first?.date ?? Date()
+                return FamilyHealthPeriodGroup(
+                    id: snapshots.first?.dayID ?? UUID().uuidString,
+                    title: selectedScope == .day ? "Today" : formatter.string(from: date),
+                    date: date,
+                    snapshots: snapshots.sorted { $0.displayInitials < $1.displayInitials }
+                )
+            }
+            .sorted { $0.date < $1.date }
+    }
+
+    private var familyMonthlyGroups: [FamilyHealthPeriodGroup] {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM"
+        let grouped = Dictionary(grouping: familySnapshots) { snapshot in
+            Calendar.current.dateInterval(of: .month, for: snapshot.date)?.start ?? snapshot.date
+        }
+
+        return grouped.map { month, snapshots in
+            let monthlySnapshots = Dictionary(grouping: snapshots, by: \.memberEmail).map { email, memberSnapshots in
+                HealthSnapshot(
+                    memberEmail: email,
+                    memberInitials: memberSnapshots.last?.displayInitials ?? "",
+                    date: month,
+                    dayID: formatter.string(from: month),
+                    steps: memberSnapshots.reduce(0) { $0 + $1.steps },
+                    sleepSeconds: memberSnapshots.reduce(0) { $0 + $1.sleepSeconds },
+                    updatedAt: memberSnapshots.map(\.updatedAt).max() ?? Date()
+                )
+            }
+            return FamilyHealthPeriodGroup(
+                id: formatter.string(from: month),
+                title: formatter.string(from: month),
+                date: month,
+                snapshots: monthlySnapshots.sorted { $0.displayInitials < $1.displayInitials }
+            )
+        }
+        .sorted { $0.date < $1.date }
+    }
+
     private var detailTitle: String {
         switch selectedScope {
         case .day: "Today"
@@ -98,6 +181,93 @@ struct HealthView: View {
         let parts = localPart.split(whereSeparator: { $0 == "." || $0 == "_" || $0 == "-" || $0 == " " })
         let letters = parts.prefix(2).compactMap(\.first)
         return letters.isEmpty ? "ME" : String(letters).uppercased()
+    }
+}
+
+
+private struct HealthSnapshotSummary: Identifiable {
+    var id: String { memberEmail }
+    let memberEmail: String
+    let initials: String
+    let steps: Double
+    let sleepSeconds: TimeInterval
+}
+
+private struct FamilyHealthPeriodGroup: Identifiable {
+    let id: String
+    let title: String
+    let date: Date
+    let snapshots: [HealthSnapshot]
+}
+
+private struct FamilyHealthDetailList: View {
+    let groups: [FamilyHealthPeriodGroup]
+
+    var body: some View {
+        ForEach(groups) { group in
+            VStack(alignment: .leading, spacing: 8) {
+                Text(group.title)
+                    .font(.subheadline.weight(.semibold))
+                ForEach(group.snapshots) { snapshot in
+                    HealthSnapshotCompactRow(snapshot: snapshot)
+                }
+            }
+            .padding(.vertical, 4)
+        }
+    }
+}
+
+private struct FamilyHealthCalendarGrid: View {
+    let groups: [FamilyHealthPeriodGroup]
+
+    private var columns: [GridItem] {
+        Array(repeating: GridItem(.flexible(), spacing: 6), count: 7)
+    }
+
+    var body: some View {
+        LazyVGrid(columns: columns, spacing: 6) {
+            ForEach(groups) { group in
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(group.title)
+                        .font(.caption2.weight(.semibold))
+                    ForEach(group.snapshots.prefix(5)) { snapshot in
+                        HStack(spacing: 3) {
+                            Text(snapshot.displayInitials)
+                                .font(.caption2.weight(.bold))
+                                .foregroundStyle(AppTheme.primary)
+                            Text(HealthMetricSummary.stepText(for: snapshot.steps))
+                                .font(.caption2)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.6)
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity, minHeight: 74, alignment: .topLeading)
+                .padding(5)
+                .background(AppTheme.primarySoft, in: RoundedRectangle(cornerRadius: 8))
+            }
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+private struct HealthSnapshotCompactRow: View {
+    let snapshot: HealthSnapshot
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text(snapshot.displayInitials)
+                .font(.caption.weight(.bold))
+                .foregroundStyle(.white)
+                .frame(width: 30, height: 30)
+                .background(AppTheme.primary, in: Circle())
+            Text("\(HealthMetricSummary.stepText(for: snapshot.steps)) steps")
+                .font(.subheadline)
+            Spacer()
+            Text("\(HealthMetricSummary.sleepText(for: snapshot.sleepSeconds)) sleep")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
     }
 }
 
