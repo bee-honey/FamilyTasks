@@ -696,7 +696,19 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
-        []
+        let identifier = notification.request.identifier
+
+        if identifier.hasPrefix("familytasks.test.") || identifier.hasPrefix("familytasks.sharedTaskArrival.") {
+            return [.banner, .list, .sound, .badge]
+        }
+
+        if identifier.hasPrefix("familytasks.todayDigest.") ||
+            identifier.hasPrefix("familytasks.dueSoon.") ||
+            identifier.hasPrefix("familytasks.recurringDueSoon.") {
+            return [.list, .badge]
+        }
+
+        return [.banner, .list, .sound, .badge]
     }
 }
 
