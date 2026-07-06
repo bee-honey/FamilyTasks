@@ -133,10 +133,10 @@ private struct IdeaNoteRow: View {
                         ForEach(idea.displayTags, id: \.self) { tag in
                             Text(tag)
                                 .font(.caption2.weight(.semibold))
-                                .foregroundStyle(AppTheme.primary)
+                                .foregroundStyle(ideaTagColor(for: tag))
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
-                                .background(AppTheme.primarySoft, in: Capsule())
+                                .background(ideaTagColor(for: tag).opacity(0.16), in: Capsule())
                         }
                     }
                 }
@@ -253,10 +253,10 @@ private struct TagChipPicker: View {
                 } label: {
                     Text(tag)
                         .font(.caption.weight(.semibold))
-                        .foregroundStyle(selectedTags.contains(tag) ? .white : tagColor(for: tag))
+                        .foregroundStyle(selectedTags.contains(tag) ? .white : ideaTagColor(for: tag))
                         .padding(.horizontal, 11)
                         .padding(.vertical, 7)
-                        .background(selectedTags.contains(tag) ? tagColor(for: tag) : tagColor(for: tag).opacity(0.16), in: Capsule())
+                        .background(selectedTags.contains(tag) ? ideaTagColor(for: tag) : ideaTagColor(for: tag).opacity(0.16), in: Capsule())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(selectedTags.contains(tag) ? "Remove \(tag) tag" : "Add \(tag) tag")
@@ -283,11 +283,13 @@ private struct TagChipPicker: View {
         }
     }
 
-    private func tagColor(for tag: String) -> Color {
-        let palette = AppTheme.avatarPalette + [AppTheme.warning, AppTheme.success, AppTheme.taskSchedule]
-        let scalarTotal = tag.unicodeScalars.reduce(0) { $0 + Int($1.value) }
-        return palette[abs(scalarTotal) % palette.count]
-    }
+}
+
+
+private func ideaTagColor(for tag: String) -> Color {
+    let palette = AppTheme.avatarPalette + [AppTheme.warning, AppTheme.success, AppTheme.taskSchedule, AppTheme.taskDelegate, AppTheme.taskDo]
+    let scalarTotal = tag.unicodeScalars.reduce(0) { $0 + Int($1.value) }
+    return palette[abs(scalarTotal) % palette.count]
 }
 
 private struct FlowLayout: Layout {
