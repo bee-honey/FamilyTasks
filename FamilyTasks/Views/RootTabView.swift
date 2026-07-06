@@ -34,6 +34,11 @@ struct RootTabView: View {
                     }
                     .listRowBackground(AppTheme.surface)
 
+                    NavigationLink(value: AppSection.healthSettings) {
+                        Label(AppSection.healthSettings.title, systemImage: AppSection.healthSettings.systemImage)
+                    }
+                    .listRowBackground(AppTheme.surface)
+
                     NavigationLink(value: AppSection.viewSettings) {
                         Label(AppSection.viewSettings.title, systemImage: AppSection.viewSettings.systemImage)
                     }
@@ -84,6 +89,8 @@ struct RootTabView: View {
                 CalendarSettingsView()
             case .notificationSettings:
                 NotificationSettingsView()
+            case .healthSettings:
+                HealthSettingsView()
             case .viewSettings:
                 ViewSettingsView()
             case .profile:
@@ -130,6 +137,7 @@ private enum AppSection: String, CaseIterable, Identifiable {
     case syncSettings
     case calendarSettings
     case notificationSettings
+    case healthSettings
     case viewSettings
     case profile
 
@@ -150,7 +158,7 @@ private enum AppSection: String, CaseIterable, Identifiable {
         switch self {
         case .today, .matrix, .shopping, .mealPlan, .recurring, .ideas, .health:
             return true
-        case .syncSettings, .calendarSettings, .notificationSettings, .viewSettings, .profile:
+        case .syncSettings, .calendarSettings, .notificationSettings, .healthSettings, .viewSettings, .profile:
             return false
         }
     }
@@ -167,6 +175,7 @@ private enum AppSection: String, CaseIterable, Identifiable {
         case .syncSettings: "iCloud Settings"
         case .calendarSettings: "Calendar Settings"
         case .notificationSettings: "Notification Settings"
+        case .healthSettings: "Health Settings"
         case .viewSettings: "View Settings"
         case .profile: "Profile"
         }
@@ -184,6 +193,7 @@ private enum AppSection: String, CaseIterable, Identifiable {
         case .syncSettings: "icloud"
         case .calendarSettings: "calendar.badge.clock"
         case .notificationSettings: "bell.badge"
+        case .healthSettings: "heart"
         case .viewSettings: "slider.horizontal.3"
         case .profile: "person.crop.circle"
         }

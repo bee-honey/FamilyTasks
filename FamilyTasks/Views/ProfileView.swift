@@ -127,11 +127,7 @@ struct ProfileView: View {
 }
 
 struct ViewSettingsView: View {
-    @EnvironmentObject private var taskStore: TaskStore
-    @EnvironmentObject private var organizerStore: OrganizerStore
-    @EnvironmentObject private var sharedHouseholdStore: SharedHouseholdStore
     @EnvironmentObject private var calendarSync: CalendarSyncService
-    @StateObject private var healthService = HealthMetricsService()
     @AppStorage("schedule.showTaskTime") private var showTaskTime = false
     @AppStorage("schedule.defaultDisplayMode") private var defaultScheduleView = "week"
     @AppStorage("schedule.taskSortOrder") private var taskSortOrder = ScheduleTaskSortOrder.priority.rawValue
@@ -140,8 +136,6 @@ struct ViewSettingsView: View {
     @AppStorage("view.appearance") private var appearance = AppAppearance.system.rawValue
     @AppStorage("calendar.integration.enabled") private var calendarIntegrationEnabled = false
     @AppStorage("schedule.contentPriority") private var scheduleContentPriority = ScheduleContentPriority.tasksFirst.rawValue
-    @AppStorage("health.section.enabled") private var healthSectionEnabled = false
-    @AppStorage("health.share.enabled") private var healthSharingEnabled = false
 
     var body: some View {
         NavigationStack {
@@ -177,61 +171,6 @@ struct ViewSettingsView: View {
                     Toggle("Show Bucket Markers", isOn: $showTaskPriorityMarkers)
                 }
 
-                Section("Optional Sections") {
-                    Toggle("Show Health Section", isOn: $healthSectionEnabled)
-
-                    if healthSectionEnabled {
-                        Button {
-                            Task {
-                                await healthService.requestAccessAndRefresh()
-                            }
-                        } label: {
-                            Label("Allow Health Access", systemImage: "heart")
-                        }
-                        .disabled(!healthService.isHealthAvailable)
-
-                        Toggle("Share Steps and Sleep With Family", isOn: $healthSharingEnabled)
-                            .disabled(!healthService.isHealthAvailable)
-                            .onChange(of: healthSharingEnabled) { _, enabled in
-                                if enabled {
-                                    Task {
-                                        await healthService.requestAccessAndRefresh()
-                                        await HealthSyncCoordinator.shared.syncNow(
-                                            taskStore: taskStore,
-                                            organizerStore: organizerStore,
-                                            sharedHouseholdStore: sharedHouseholdStore
-                                        )
-                                    }
-                                } else {
-                                    HealthSyncCoordinator.shared.scheduleDailyRefresh()
-                                }
-                            }
-
-                        Button {
-                            Task {
-                                await HealthSyncCoordinator.shared.syncNow(
-                                    taskStore: taskStore,
-                                    organizerStore: organizerStore,
-                                    sharedHouseholdStore: sharedHouseholdStore
-                                )
-                            }
-                        } label: {
-                            Label("Sync Health Summary Now", systemImage: "arrow.triangle.2.circlepath")
-                        }
-                        .disabled(!healthSharingEnabled)
-
-                        Button {
-                            openAppSettings()
-                        } label: {
-                            Label("Manage or Revoke Health Access", systemImage: "gear")
-                        }
-
-                        Text(healthSharingEnabled ? "When enabled, this device shares one small daily steps and sleep summary with your family around 6 AM. Raw Health data stays on this device." : healthService.authorizationStatus)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
                 Section("Tasks and Calendars") {
                     Toggle("Show Calendar Events in Schedule", isOn: $calendarIntegrationEnabled)
                         .onChange(of: calendarIntegrationEnabled) { _, enabled in
@@ -262,6 +201,108 @@ struct ViewSettingsView: View {
             .navigationTitle("View Settings")
             .scrollContentBackground(.hidden)
             .background(AppTheme.background)
+        }
+    }
+
+}
+
+struct HealthSettingsView: View {
+    @EnvironmentObject private var taskStore: TaskStore
+    @EnvironmentObject private var organizerStore: OrganizerStore
+    @EnvironmentObject private var sharedHouseholdStore: SharedHouseholdStore
+    @StateObject private var healthService = HealthMetricsService()
+    @AppStorage("health.section.enabled") private var healthSectionEnabled = false
+    @AppStorage("health.share.enabled") private var healthSharingEnabled = false
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Health") {
+                    Toggle("Enable Health", isOn: $healthSectionEnabled)
+                        .disabled(!healthService.isHealthAvailable)
+                        .onChange(of: healthSectionEnabled) { _, enabled in
+                            if enabled {
+                                Task {
+                                    await healthService.requestAccessAndRefresh()
+                                    HealthSyncCoordinator.shared.scheduleDailyRefresh()
+                                }
+                            } else {
+                                healthSharingEnabled = false
+                            }
+                        }
+
+                    Text(healthSectionEnabled ? "Health appears in the Family Tasks menu. This device can read steps and sleep after Health permission is allowed." : "Enable Health to add it to the Family Tasks menu and request access to steps and sleep.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                if healthSectionEnabled {
+                    Section("Family Sharing") {
+                        Toggle("Share Steps and Sleep With Family", isOn: $healthSharingEnabled)
+                            .disabled(!healthService.isHealthAvailable)
+                            .onChange(of: healthSharingEnabled) { _, enabled in
+                                if enabled {
+                                    Task {
+                                        await healthService.requestAccessAndRefresh()
+                                        await HealthSyncCoordinator.shared.syncNow(
+                                            taskStore: taskStore,
+                                            organizerStore: organizerStore,
+                                            sharedHouseholdStore: sharedHouseholdStore
+                                        )
+                                    }
+                                } else {
+                                    HealthSyncCoordinator.shared.scheduleDailyRefresh()
+                                }
+                            }
+
+                        Button {
+                            Task {
+                                await HealthSyncCoordinator.shared.syncNow(
+                                    taskStore: taskStore,
+                                    organizerStore: organizerStore,
+                                    sharedHouseholdStore: sharedHouseholdStore
+                                )
+                            }
+                        } label: {
+                            Label("Sync Health Summary Now", systemImage: "arrow.triangle.2.circlepath")
+                        }
+                        .disabled(!healthSharingEnabled)
+
+                        Text("When sharing is enabled, this device sends one small daily steps and sleep summary to your family around 6 AM. Raw Health data stays on this device.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Section("Access") {
+                        Button {
+                            Task {
+                                await healthService.requestAccessAndRefresh()
+                            }
+                        } label: {
+                            Label("Refresh Health Access", systemImage: "heart")
+                        }
+                        .disabled(!healthService.isHealthAvailable)
+
+                        Button {
+                            openAppSettings()
+                        } label: {
+                            Label("Manage or Revoke Health Access", systemImage: "gear")
+                        }
+
+                        Text(healthService.authorizationStatus)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .navigationTitle("Health Settings")
+            .scrollContentBackground(.hidden)
+            .background(AppTheme.background)
+            .task {
+                if healthSectionEnabled {
+                    await healthService.refresh()
+                }
+            }
         }
     }
 
