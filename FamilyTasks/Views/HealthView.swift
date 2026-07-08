@@ -54,10 +54,8 @@ struct HealthView: View {
                 if !familyDailyGroups.isEmpty {
                     Section(detailTitle) {
                         switch selectedScope {
-                        case .day, .week:
+                        case .day, .week, .month:
                             FamilyHealthDetailList(groups: familyDailyGroups)
-                        case .month:
-                            FamilyHealthCalendarGrid(groups: familyDailyGroups)
                         case .year:
                             FamilyHealthDetailList(groups: familyMonthlyGroups)
                         }
@@ -119,7 +117,14 @@ struct HealthView: View {
 
     private var familyDailyGroups: [FamilyHealthPeriodGroup] {
         let formatter = DateFormatter()
-        formatter.dateFormat = selectedScope == .week ? "EEE M/d" : "d"
+        switch selectedScope {
+        case .week:
+            formatter.dateFormat = "EEE M/d"
+        case .month:
+            formatter.dateFormat = "MMM d"
+        default:
+            formatter.dateFormat = "d"
+        }
         return Dictionary(grouping: familySnapshots, by: \.dayID)
             .map { _, snapshots in
                 let date = snapshots.first?.date ?? Date()
@@ -166,7 +171,7 @@ struct HealthView: View {
         switch selectedScope {
         case .day: "Today"
         case .week: "Daily Breakdown"
-        case .month: "Month Calendar"
+        case .month: "Daily Breakdown"
         case .year: "Monthly Breakdown"
         }
     }
