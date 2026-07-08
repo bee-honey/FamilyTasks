@@ -111,8 +111,8 @@ final class NotificationScheduler: ObservableObject {
         center.removePendingNotificationRequests(withIdentifiers: pendingIdentifiers)
 
         guard let taskStore else { return }
-        let activeTasks = taskStore.exportTasks().filter { !$0.isDone }
-        let activeRecurringTasks = organizerStore?.exportRecurringTasks().filter(\.isActive) ?? []
+        let activeTasks = taskStore.exportVisibleTasks().filter { !$0.isDone }
+        let activeRecurringTasks = organizerStore?.exportVisibleRecurringTasks().filter(\.isActive) ?? []
 
         if defaults.bool(forKey: DefaultsKey.todayDigest) {
             scheduleTodayDigests(for: activeTasks)

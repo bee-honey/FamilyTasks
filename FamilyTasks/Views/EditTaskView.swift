@@ -19,20 +19,7 @@ struct EditTaskView: View {
                     TextField("Notes", text: $draft.notes, axis: .vertical)
                         .lineLimit(3...6)
 
-                    if taskStore.familyMembers.isEmpty {
-                        TextField("Assignee email", text: $draft.assignedTo)
-                            .keyboardType(.emailAddress)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
-                    } else {
-                        Picker("Assigned to", selection: $draft.assignedTo) {
-                            Text("Unassigned").tag("")
-                            Text("Everyone").tag(Assignee.everyone)
-                            ForEach(taskStore.familyMembers, id: \.self) { member in
-                                Text(member).tag(member)
-                            }
-                        }
-                    }
+                    TaskAssignmentEditor(draft: $draft, familyMembers: taskStore.familyMembers)
                 }
 
                 Section("Priority") {

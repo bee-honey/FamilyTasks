@@ -532,7 +532,9 @@ final class SharedHouseholdStore: ObservableObject {
         }
 
         let existingTaskIDs = Set(taskStore.exportTasks().map(\.id))
-        let newTasks = payload.tasks.filter { !existingTaskIDs.contains($0.id) }
+        let newTasks = payload.tasks.filter { task in
+            !existingTaskIDs.contains(task.id) && task.isVisible(to: currentEmail)
+        }
         guard !newTasks.isEmpty else { return nil }
 
         return (newTasks.count, newTasks.first?.title)

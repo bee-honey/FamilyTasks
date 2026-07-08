@@ -268,7 +268,7 @@ struct TodayTasksView: View {
         guard let monthInterval = calendar.dateInterval(of: .month, for: selectedDate) else { return [] }
         let pendingIDs = Set(taskStore.pendingTasks(before: Date()).map(\.id))
 
-        let grouped = Dictionary(grouping: taskStore.tasks) { task -> Date? in
+        let grouped = Dictionary(grouping: taskStore.visibleTasks) { task -> Date? in
             guard !pendingIDs.contains(task.id) else { return nil }
             guard let dueDate = task.dueDate, monthInterval.contains(dueDate) else { return nil }
             return calendar.startOfDay(for: dueDate)
@@ -734,7 +734,7 @@ private struct TodayTaskRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            AssigneeAvatarView(name: task.assignedTo)
+            AssigneeAvatarView(name: task.primaryAssigneeForAvatar)
 
             VStack(alignment: .leading, spacing: 5) {
                 HStack(spacing: 8) {

@@ -9,7 +9,7 @@ struct RecurringTasksView: View {
         NavigationStack {
             List {
                 Section {
-                    ForEach(organizerStore.recurringTasks.sorted(by: { $0.nextDueDate < $1.nextDueDate })) { task in
+                    ForEach(organizerStore.visibleRecurringTasks.sorted(by: { $0.nextDueDate < $1.nextDueDate })) { task in
                         RecurringTaskRow(task: task) {
                             editingTask = task
                         }
@@ -61,6 +61,10 @@ private struct RecurringTaskRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
+            AssigneeAvatarView(name: task.primaryAssigneeForAvatar)
+                .scaleEffect(0.76)
+                .frame(width: 32, height: 32)
+
             Button {
                 organizerStore.markRecurringDone(task)
             } label: {
@@ -147,13 +151,7 @@ private struct RecurringTaskEditorView: View {
 
                     DatePicker("Next due", selection: $draft.nextDueDate, displayedComponents: [.date])
 
-                    Picker("Assigned to", selection: $draft.assignedTo) {
-                        Text("Unassigned").tag("")
-                        Text("Everyone").tag(Assignee.everyone)
-                        ForEach(taskStore.familyMembers, id: \.self) { member in
-                            Text(member).tag(member)
-                        }
-                    }
+                    RecurringTaskAssignmentEditor(draft: $draft, familyMembers: taskStore.familyMembers)
                 }
 
                 Section("Notifications") {
@@ -182,19 +180,7 @@ private struct RecurringTaskEditorView: View {
                     .disabled(draft.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
-            .onAppear {
-                if task == nil {
-                    applyDefaultAssigneeIfNeeded()
-                }
-            }
         }
-    }
-
-    private func applyDefaultAssigneeIfNeeded() {
-        let email = profileEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        guard draft.assignedTo.isEmpty, TaskStore.isValidEmail(email) else { return }
-        taskStore.addFamilyMember(named: email)
-        draft.assignedTo = email
     }
 }
 
@@ -222,5 +208,150 @@ private struct NotificationPreferenceEditor: View {
                 preference.leadMinutes = normalized.first ?? 60
             }
         )
+    }
+}
+
+private struct RecurringTaskAssignmentEditor: View {
+    @Binding var draft: RecurringTaskDraft
+    let familyMembers: [String]
+    @AppStorage("profile.email") private var profileEmail = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Toggle("Everyone", isOn: everyoneBinding)
+
+            if !draft.assignsToEveryone {
+                if TaskStore.isValidEmail(creatorEmail) {
+                    Toggle(isOn: .constant(true)) {
+                        assigneeLabel(for: creatorEmail, suffix: "Creator")
+                    }
+                    .disabled(true)
+                }
+
+                if selectableMembers.isEmpty {
+                    TextField("Additional assignee emails", text: manualAssigneesBinding)
+                        .keyboardType(.emailAddress)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                } else {
+                    ForEach(selectableMembers, id: \.self) { member in
+                        Toggle(isOn: memberBinding(for: member)) {
+                            assigneeLabel(for: member)
+                        }
+                    }
+                }
+            }
+
+            Text(privacyNote)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var everyoneBinding: Binding<Bool> {
+        Binding(
+            get: { draft.assignsToEveryone },
+            set: { isOn in
+                draft.assignsToEveryone = isOn
+                if isOn {
+                    draft.assignedTo = Assignee.everyone
+                    draft.assignedToEmails = []
+                } else {
+                    ensureCreatorSelected()
+                    draft.assignedTo = draft.assignedToEmails.first ?? ""
+                }
+            }
+        )
+    }
+
+    private var manualAssigneesBinding: Binding<String> {
+        Binding(
+            get: {
+                draft.assignedToEmails
+                    .filter { $0.caseInsensitiveCompare(creatorEmail) != .orderedSame }
+                    .joined(separator: ", ")
+            },
+            set: { rawValue in
+                draft.assignsToEveryone = false
+                var emails = FamilyTask.normalizedAssigneeEmails([], legacyAssignedTo: rawValue)
+                if TaskStore.isValidEmail(creatorEmail), !emails.contains(where: { $0.caseInsensitiveCompare(creatorEmail) == .orderedSame }) {
+                    emails.append(creatorEmail)
+                    emails.sort()
+                }
+                draft.assignedToEmails = emails
+                draft.assignedTo = emails.first ?? ""
+            }
+        )
+    }
+
+    private func memberBinding(for member: String) -> Binding<Bool> {
+        let normalized = member.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return Binding(
+            get: { draft.assignedToEmails.contains { $0.caseInsensitiveCompare(normalized) == .orderedSame } },
+            set: { isSelected in
+                draft.assignsToEveryone = false
+                var assignees = Set(draft.assignedToEmails.map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() })
+                if isSelected {
+                    assignees.insert(normalized)
+                } else if normalized.caseInsensitiveCompare(creatorEmail) != .orderedSame {
+                    assignees.remove(normalized)
+                }
+                if TaskStore.isValidEmail(creatorEmail) {
+                    assignees.insert(creatorEmail)
+                }
+                draft.assignedToEmails = assignees.sorted()
+                draft.assignedTo = draft.assignedToEmails.first ?? ""
+            }
+        )
+    }
+
+    private var privacyNote: String {
+        if draft.assignsToEveryone {
+            return "Everyone in your family can see this recurring task."
+        }
+
+        switch draft.assignedToEmails.count {
+        case 0, 1:
+            return "Only you can see this recurring task."
+        case 2:
+            return "Only you and the selected assignee can see this recurring task."
+        default:
+            return "Only you and the selected assignees can see this recurring task."
+        }
+    }
+
+    private var creatorEmail: String {
+        profileEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+
+    private var selectableMembers: [String] {
+        familyMembers
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+            .filter { !$0.isEmpty && $0.caseInsensitiveCompare(creatorEmail) != .orderedSame }
+    }
+
+    private func ensureCreatorSelected() {
+        guard TaskStore.isValidEmail(creatorEmail) else { return }
+        if !draft.assignedToEmails.contains(where: { $0.caseInsensitiveCompare(creatorEmail) == .orderedSame }) {
+            draft.assignedToEmails.append(creatorEmail)
+            draft.assignedToEmails.sort()
+        }
+    }
+
+    private func assigneeLabel(for member: String, suffix: String? = nil) -> some View {
+        HStack(spacing: 10) {
+            AssigneeAvatarView(name: member)
+                .scaleEffect(0.72)
+                .frame(width: 28, height: 28)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(member)
+                    .lineLimit(1)
+                if let suffix {
+                    Text(suffix)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
     }
 }

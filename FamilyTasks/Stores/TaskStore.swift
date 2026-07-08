@@ -31,14 +31,18 @@ final class TaskStore: ObservableObject {
 
         if familyMembers.isEmpty {
             let taskAssignees = tasks
-                .map(\.assignedTo)
+                .flatMap(\.assigneeEmails)
                 .filter { Self.isValidEmail($0) }
             familyMembers = Array(Set(taskAssignees)).sorted()
         }
     }
 
+    var visibleTasks: [FamilyTask] {
+        tasks.filter { $0.isVisible(to: Self.currentProfileEmailValue()) }
+    }
+
     func tasks(in bucket: TaskBucket) -> [FamilyTask] {
-        tasks
+        visibleTasks
             .filter { $0.bucket == bucket }
             .sorted { lhs, rhs in
                 switch (lhs.dueDate, rhs.dueDate) {
@@ -59,7 +63,7 @@ final class TaskStore: ObservableObject {
     }
 
     func tasksScheduled(on date: Date, calendar: Calendar = .current) -> [FamilyTask] {
-        tasks
+        visibleTasks
             .filter { task in
                 guard let dueDate = task.dueDate else { return false }
                 return calendar.isDate(dueDate, inSameDayAs: date)
@@ -69,7 +73,7 @@ final class TaskStore: ObservableObject {
 
     func pendingTasks(before date: Date, calendar: Calendar = .current) -> [FamilyTask] {
         let startOfDay = calendar.startOfDay(for: date)
-        return tasks
+        return visibleTasks
             .filter { task in
                 guard let dueDate = task.dueDate else { return false }
                 return dueDate < startOfDay && !task.isDone
@@ -78,6 +82,7 @@ final class TaskStore: ObservableObject {
     }
 
     func add(_ draft: TaskDraft) {
+        let assignment = normalizedAssignment(from: draft)
         tasks.append(
             FamilyTask(
                 title: draft.title.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -85,7 +90,9 @@ final class TaskStore: ObservableObject {
                 dueDate: draft.includeDueDate ? draft.dueDate : nil,
                 isUrgent: draft.isUrgent,
                 isImportant: draft.isImportant,
-                assignedTo: draft.assignedTo.trimmingCharacters(in: .whitespacesAndNewlines),
+                assignedTo: assignment.primaryValue,
+                assignedToEmails: assignment.emails,
+                createdBy: Self.currentProfileEmailValue(),
                 notificationPreference: draft.notificationPreference
             )
         )
@@ -98,7 +105,12 @@ final class TaskStore: ObservableObject {
         changed.dueDate = draft.includeDueDate ? draft.dueDate : nil
         changed.isUrgent = draft.isUrgent
         changed.isImportant = draft.isImportant
-        changed.assignedTo = draft.assignedTo.trimmingCharacters(in: .whitespacesAndNewlines)
+        let assignment = normalizedAssignment(from: draft)
+        changed.assignedTo = assignment.primaryValue
+        changed.assignedToEmails = assignment.emails
+        if changed.createdBy.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            changed.createdBy = Self.currentProfileEmailValue()
+        }
         changed.notificationPreference = draft.notificationPreference
         update(changed)
     }
@@ -159,6 +171,7 @@ final class TaskStore: ObservableObject {
 
             var assigned = task
             assigned.assignedTo = trimmed
+            assigned.assignedToEmails = [trimmed]
             assigned.updatedAt = Date()
             changed = true
             return assigned
@@ -180,12 +193,15 @@ final class TaskStore: ObservableObject {
         guard !normalizedAssignee.isEmpty else { return }
 
         tasks = tasks.map { task in
-            guard task.assignedTo.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == normalizedAssignee else {
+            guard task.assigneeEmails.contains(where: { $0.caseInsensitiveCompare(normalizedAssignee) == .orderedSame }) else {
                 return task
             }
 
             var updated = task
-            updated.assignedTo = ""
+            updated.assignedToEmails.removeAll { $0.caseInsensitiveCompare(normalizedAssignee) == .orderedSame }
+            if updated.assignedTo.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare(normalizedAssignee) == .orderedSame {
+                updated.assignedTo = updated.assignedToEmails.first ?? ""
+            }
             updated.updatedAt = Date()
             return updated
         }
@@ -215,6 +231,10 @@ final class TaskStore: ObservableObject {
 
     func exportTasks() -> [FamilyTask] {
         tasks
+    }
+
+    func exportVisibleTasks() -> [FamilyTask] {
+        visibleTasks
     }
 
     func exportFamilyMembers() -> [String] {
@@ -254,6 +274,7 @@ final class TaskStore: ObservableObject {
 
             var cleaned = task
             cleaned.assignedTo = ""
+            cleaned.assignedToEmails = []
             cleaned.updatedAt = Date()
             changedTasks = true
             return cleaned
@@ -283,10 +304,28 @@ final class TaskStore: ObservableObject {
     }
 
     private static func currentProfileEmail() -> String? {
-        let email = UserDefaults.standard.string(forKey: "profile.email")?
+        let email = currentProfileEmailValue()
+        return Self.isValidEmail(email) ? email : nil
+    }
+
+    private static func currentProfileEmailValue() -> String {
+        UserDefaults.standard.string(forKey: "profile.email")?
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .lowercased() ?? ""
-        return Self.isValidEmail(email) ? email : nil
+    }
+
+    private func normalizedAssignment(from draft: TaskDraft) -> (primaryValue: String, emails: [String]) {
+        if draft.assignsToEveryone {
+            return (Assignee.everyone, [])
+        }
+
+        var emails = FamilyTask.normalizedAssigneeEmails(draft.assignedToEmails, legacyAssignedTo: draft.assignedTo)
+        let creator = Self.currentProfileEmailValue()
+        if Self.isValidEmail(creator), !emails.contains(where: { $0.caseInsensitiveCompare(creator) == .orderedSame }) {
+            emails.append(creator)
+            emails.sort()
+        }
+        return (emails.first ?? "", emails)
     }
 
     private func taskScheduleSort(_ lhs: FamilyTask, _ rhs: FamilyTask) -> Bool {
@@ -314,7 +353,9 @@ final class TaskStore: ObservableObject {
 struct TaskDraft {
     var title = ""
     var notes = ""
-    var assignedTo = ""
+    var assignedTo = Assignee.everyone
+    var assignedToEmails: [String] = []
+    var assignsToEveryone = true
     var includeDueDate = true
     var dueDate = Calendar.current.date(byAdding: .hour, value: 2, to: Date()) ?? Date()
     var isUrgent = true
@@ -327,6 +368,8 @@ struct TaskDraft {
         title = task.title
         notes = task.notes
         assignedTo = task.assignedTo
+        assignedToEmails = task.assigneeEmails
+        assignsToEveryone = task.isAssignedToEveryone
         includeDueDate = task.dueDate != nil
         dueDate = task.dueDate ?? Date()
         isUrgent = task.isUrgent

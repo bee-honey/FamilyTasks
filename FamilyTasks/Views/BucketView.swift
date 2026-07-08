@@ -147,7 +147,7 @@ private struct MatrixTaskRowView: View {
                 .multilineTextAlignment(.trailing)
                 .frame(width: 58, alignment: .trailing)
 
-            AssigneeAvatarView(name: task.assignedTo)
+            AssigneeAvatarView(name: task.primaryAssigneeForAvatar)
                 .scaleEffect(0.76)
                 .frame(width: 32, height: 32)
 

@@ -285,9 +285,14 @@ final class OrganizerStore: ObservableObject {
             }
     }
 
+    var visibleRecurringTasks: [RecurringTask] {
+        recurringTasks.filter { $0.isVisible(to: Self.currentProfileEmailValue()) }
+    }
+
     func addRecurringTask(_ draft: RecurringTaskDraft) {
         let title = draft.title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty else { return }
+        let assignment = normalizedRecurringAssignment(from: draft)
         recurringTasks.append(
             RecurringTask(
                 title: title,
@@ -295,7 +300,9 @@ final class OrganizerStore: ObservableObject {
                 amount: draft.amount.trimmingCharacters(in: .whitespacesAndNewlines),
                 frequency: draft.frequency,
                 nextDueDate: draft.nextDueDate,
-                assignedTo: draft.assignedTo.trimmingCharacters(in: .whitespacesAndNewlines),
+                assignedTo: assignment.primaryValue,
+                assignedToEmails: assignment.emails,
+                createdBy: Self.currentProfileEmailValue(),
                 notificationPreference: draft.notificationPreference
             )
         )
@@ -311,13 +318,18 @@ final class OrganizerStore: ObservableObject {
         recurringTasks[index].amount = draft.amount.trimmingCharacters(in: .whitespacesAndNewlines)
         recurringTasks[index].frequency = draft.frequency
         recurringTasks[index].nextDueDate = draft.nextDueDate
-        recurringTasks[index].assignedTo = draft.assignedTo.trimmingCharacters(in: .whitespacesAndNewlines)
+        let assignment = normalizedRecurringAssignment(from: draft)
+        recurringTasks[index].assignedTo = assignment.primaryValue
+        recurringTasks[index].assignedToEmails = assignment.emails
+        if recurringTasks[index].createdBy.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            recurringTasks[index].createdBy = Self.currentProfileEmailValue()
+        }
         recurringTasks[index].notificationPreference = draft.notificationPreference
         recurringTasks[index].updatedAt = Date()
     }
 
     func recurringTasks(on date: Date, calendar: Calendar = .current) -> [RecurringTask] {
-        recurringTasks
+        visibleRecurringTasks
             .filter { task in
                 guard task.isActive else { return false }
                 guard let occurrence = occurrence(for: task, on: date, calendar: calendar) else { return false }
@@ -356,12 +368,15 @@ final class OrganizerStore: ObservableObject {
         guard !normalizedAssignee.isEmpty else { return }
 
         recurringTasks = recurringTasks.map { task in
-            guard task.assignedTo.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == normalizedAssignee else {
+            guard task.assigneeEmails.contains(where: { $0.caseInsensitiveCompare(normalizedAssignee) == .orderedSame }) else {
                 return task
             }
 
             var updated = task
-            updated.assignedTo = ""
+            updated.assignedToEmails.removeAll { $0.caseInsensitiveCompare(normalizedAssignee) == .orderedSame }
+            if updated.assignedTo.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare(normalizedAssignee) == .orderedSame {
+                updated.assignedTo = updated.assignedToEmails.first ?? ""
+            }
             updated.updatedAt = Date()
             return updated
         }
@@ -462,6 +477,10 @@ final class OrganizerStore: ObservableObject {
         recurringTasks
     }
 
+    func exportVisibleRecurringTasks() -> [RecurringTask] {
+        visibleRecurringTasks
+    }
+
     func exportIdeas() -> [IdeaNote] {
         ideaNotes
     }
@@ -520,6 +539,26 @@ final class OrganizerStore: ObservableObject {
         }
     }
 
+    private static func currentProfileEmailValue() -> String {
+        UserDefaults.standard.string(forKey: "profile.email")?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased() ?? ""
+    }
+
+    private func normalizedRecurringAssignment(from draft: RecurringTaskDraft) -> (primaryValue: String, emails: [String]) {
+        if draft.assignsToEveryone {
+            return (Assignee.everyone, [])
+        }
+
+        var emails = FamilyTask.normalizedAssigneeEmails(draft.assignedToEmails, legacyAssignedTo: draft.assignedTo)
+        let creator = Self.currentProfileEmailValue()
+        if TaskStore.isValidEmail(creator), !emails.contains(where: { $0.caseInsensitiveCompare(creator) == .orderedSame }) {
+            emails.append(creator)
+            emails.sort()
+        }
+        return (emails.first ?? "", emails)
+    }
+
     private func occurrence(for task: RecurringTask, on date: Date, calendar: Calendar) -> Date? {
         let dayStart = calendar.startOfDay(for: date)
         let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart) ?? dayStart.addingTimeInterval(86_400)
@@ -555,7 +594,9 @@ struct RecurringTaskDraft {
     var amount = ""
     var frequency: RecurrenceFrequency = .monthly
     var nextDueDate = Date()
-    var assignedTo = ""
+    var assignedTo = Assignee.everyone
+    var assignedToEmails: [String] = []
+    var assignsToEveryone = true
     var notificationPreference = TaskNotificationPreference()
 
     init() {}
@@ -567,6 +608,8 @@ struct RecurringTaskDraft {
         frequency = task.frequency
         nextDueDate = task.nextDueDate
         assignedTo = task.assignedTo
+        assignedToEmails = task.assigneeEmails
+        assignsToEveryone = task.isAssignedToEveryone
         notificationPreference = task.notificationPreference ?? TaskNotificationPreference()
     }
 }

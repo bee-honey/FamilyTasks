@@ -22,7 +22,7 @@ struct TaskCardView: View {
                 .foregroundStyle(task.isDone ? AppTheme.success : .secondary)
                 .frame(width: 24, height: 24)
 
-                AssigneeAvatarView(name: task.assignedTo)
+                AssigneeAvatarView(name: task.primaryAssigneeForAvatar)
                     .scaleEffect(0.68)
                     .frame(width: 26, height: 26)
             }

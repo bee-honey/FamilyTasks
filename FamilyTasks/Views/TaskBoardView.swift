@@ -14,7 +14,7 @@ struct TaskBoardView: View {
                 LazyVStack(spacing: 14) {
                     TaskAnalyticsDashboard(
                         summary: TaskAnalyticsSummary(
-                            tasks: taskStore.tasks,
+                            tasks: taskStore.visibleTasks,
                             familyMembers: taskStore.familyMembers,
                             range: analyticsRange
                         ),
@@ -220,7 +220,7 @@ private struct TaskAnalyticsSummary {
 
         let assignees = Self.assignees(from: tasks, familyMembers: familyMembers)
         people = assignees.compactMap { assignee in
-            let assignedTasks = rangeTasks.filter { Self.matchesAssignee($0.assignedTo, assignee: assignee) }
+            let assignedTasks = rangeTasks.filter { Self.matchesAssignee($0, assignee: assignee) }
             guard !assignedTasks.isEmpty else { return nil }
 
             let completed = assignedTasks.filter(\.isDone).count
@@ -245,7 +245,7 @@ private struct TaskAnalyticsSummary {
     }
 
     private static func assignees(from tasks: [FamilyTask], familyMembers: [String]) -> [String] {
-        let taskAssignees = tasks.map(\.assignedTo)
+        let taskAssignees = tasks.flatMap(Self.analyticsAssignees)
         let combined = familyMembers + taskAssignees
         let normalized = combined
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -257,10 +257,16 @@ private struct TaskAnalyticsSummary {
             }
     }
 
-    private static func matchesAssignee(_ value: String, assignee: String) -> Bool {
-        let normalized = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        let candidate = normalized.isEmpty ? PersonTaskPerformance.unassigned : normalized
-        return candidate.caseInsensitiveCompare(assignee) == .orderedSame
+    private static func analyticsAssignees(for task: FamilyTask) -> [String] {
+        if task.isAssignedToEveryone {
+            return [Assignee.everyone]
+        }
+        let emails = task.assigneeEmails
+        return emails.isEmpty ? [PersonTaskPerformance.unassigned] : emails
+    }
+
+    private static func matchesAssignee(_ task: FamilyTask, assignee: String) -> Bool {
+        analyticsAssignees(for: task).contains { $0.caseInsensitiveCompare(assignee) == .orderedSame }
     }
 }
 
