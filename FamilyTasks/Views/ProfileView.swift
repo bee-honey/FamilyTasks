@@ -965,6 +965,56 @@ struct CalendarSettingsView: View {
                             .foregroundStyle(AppTheme.destructive)
                     }
                 }
+
+                if isCalendarConnected {
+                    Section {
+                        if calendarSync.availableCalendars.isEmpty {
+                            ContentUnavailableView(
+                                "No Calendars Found",
+                                systemImage: "calendar.badge.exclamationmark",
+                                description: Text("No readable calendars are available on this device.")
+                            )
+                        } else {
+                            Button {
+                                calendarSync.selectAllReadCalendars()
+                                refreshCalendarIfEnabled()
+                            } label: {
+                                Label("Select All Calendars", systemImage: "checklist.checked")
+                            }
+
+                            ForEach(calendarSync.availableCalendars) { option in
+                                Toggle(isOn: Binding(
+                                    get: { calendarSync.selectedReadCalendarIDs.contains(option.id) },
+                                    set: { isSelected in
+                                        calendarSync.setReadCalendar(option, isSelected: isSelected)
+                                        refreshCalendarIfEnabled()
+                                    }
+                                )) {
+                                    CalendarOptionLabel(option: option)
+                                }
+                            }
+                        }
+                    } header: {
+                        Text("Show Events From")
+                    } footer: {
+                        Text("iOS grants calendar permission to the app, but Family Tasks only loads events from the calendars selected here on this device.")
+                    }
+
+                    Section {
+                        Picker("Calendar", selection: writeCalendarSelection) {
+                            Text("Automatic").tag("")
+                            ForEach(calendarSync.availableCalendars.filter(\.allowsContentModifications)) { option in
+                                Text(option.displayTitle).tag(option.id)
+                            }
+                        }
+
+                        Text("Tasks synced from Family Tasks are added to this calendar. Choose a family-safe calendar if this device is shared with children.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } header: {
+                        Text("Sync Tasks To")
+                    }
+                }
             }
             .navigationTitle("Calendar Settings")
             .scrollContentBackground(.hidden)
@@ -976,7 +1026,7 @@ struct CalendarSettingsView: View {
         if calendarIntegrationEnabled {
             switch calendarSync.authorizationStatus {
             case .authorized, .fullAccess:
-                return "Calendar events are shown in Schedule and can be refreshed from this page."
+                return "Calendar access is connected. Choose below which calendars Family Tasks can show and where synced tasks are added."
             case .notDetermined:
                 return "Calendar is enabled, but access has not been requested yet."
             case .writeOnly:
@@ -990,7 +1040,7 @@ struct CalendarSettingsView: View {
             }
         }
 
-        return "Turn on calendar events in View Settings to show them inside Schedule."
+        return "Turn on calendar events in View Settings, then choose which calendars Family Tasks may show here."
     }
 
     private var isCalendarConnected: Bool {
@@ -1028,6 +1078,22 @@ struct CalendarSettingsView: View {
         UIApplication.shared.open(settingsURL)
     }
 
+
+    private var writeCalendarSelection: Binding<String> {
+        Binding(
+            get: { calendarSync.selectedWriteCalendarID ?? "" },
+            set: { selectedID in
+                let option = calendarSync.availableCalendars.first { $0.id == selectedID }
+                calendarSync.setWriteCalendar(option)
+            }
+        )
+    }
+
+    private func refreshCalendarIfEnabled() {
+        guard calendarIntegrationEnabled else { return }
+        refreshCalendar()
+    }
+
     private var calendarRefreshDetail: String {
         if let lastRefreshDate = calendarSync.lastRefreshDate {
             let eventCount = calendarSync.dayEvents.count
@@ -1035,7 +1101,7 @@ struct CalendarSettingsView: View {
             return "Last refreshed \(lastRefreshDate.formatted(date: .omitted, time: .shortened)); \(eventText) loaded for today."
         }
 
-        return "Pulls the latest events from Calendar for Schedule."
+        return "Pulls events only from the selected calendars for Schedule."
     }
 
     private func refreshCalendar() {
@@ -1048,6 +1114,20 @@ struct CalendarSettingsView: View {
             }
             try? await Task.sleep(for: .milliseconds(350))
             isRefreshingCalendar = false
+        }
+    }
+}
+
+
+private struct CalendarOptionLabel: View {
+    let option: CalendarSelectionOption
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(option.title)
+            Text(option.sourceTitle + (option.allowsContentModifications ? "" : " - read only"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
     }
 }
