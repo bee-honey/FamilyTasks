@@ -19,7 +19,7 @@ struct HealthView: View {
                     .pickerStyle(.segmented)
                 }
 
-                Section("Family Comparison") {
+                Section {
                     if !familySummaries.isEmpty {
                         ForEach(familySummaries) { summary in
                             HealthMemberMetricRow(
@@ -42,13 +42,13 @@ struct HealthView: View {
                         ContentUnavailableView(
                             "No Health Data",
                             systemImage: "heart.slash",
-                            description: Text("Allow Health access and turn on Health sharing in View Settings.")
+                            description: Text("Allow Health access and turn on Health sharing in Health Settings.")
                         )
                     }
-
-                    Text("Each family member must opt in on their own device. Shared Health keeps only daily steps and sleep summaries in your family iCloud data.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                } header: {
+                    Text("Family Summary")
+                } footer: {
+                    Text("Each member opts in on their own device. Shared Health keeps only daily steps and sleep summaries in family iCloud data.")
                 }
 
                 if !familyDailyGroups.isEmpty {
@@ -283,25 +283,33 @@ private struct HealthMemberMetricRow: View {
     let sleep: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 10) {
-                Text(initials)
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(.white)
-                    .frame(width: 34, height: 34)
-                    .background(AppTheme.primary, in: Circle())
-                Text(initials)
-                    .font(.headline)
-                    .lineLimit(1)
-                Spacer()
-            }
+        HStack(spacing: 10) {
+            Text(initials)
+                .font(.caption.weight(.bold))
+                .foregroundStyle(.white)
+                .frame(width: 34, height: 34)
+                .background(AppTheme.primary, in: Circle())
 
-            HStack(spacing: 12) {
-                HealthMetricPill(title: "Steps", value: steps, icon: "figure.walk")
-                HealthMetricPill(title: "Sleep", value: sleep, icon: "bed.double")
+            Text(initials)
+                .font(.headline)
+                .lineLimit(1)
+
+            Spacer(minLength: 8)
+
+            VStack(alignment: .trailing, spacing: 3) {
+                Label("\(steps) steps", systemImage: "figure.walk")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(AppTheme.ink)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                Label("\(sleep) sleep", systemImage: "bed.double")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
+            .labelStyle(.titleAndIcon)
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, 5)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(name), \(steps) steps, \(sleep) sleep")
     }
