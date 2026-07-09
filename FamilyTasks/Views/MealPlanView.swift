@@ -89,16 +89,18 @@ struct MealPlanView: View {
             } else {
                 dayPicker
 
-                ForEach(Array(daysToShow.enumerated()), id: \.element) { index, day in
-                    DayMealSection(day: day, meals: plannedMeals(on: day), accentColor: dayAccentColors[index % dayAccentColors.count]) { slot in
-                        planningDate = day
-                        planningSlot = slot
-                        selectedMealCategory = mealCategory(for: slot)
-                        selectedDay = day
-                        selectedTab = .meals
-                    } onDelete: { plannedMeal in
-                        organizerStore.deletePlannedMeal(plannedMeal)
-                    }
+                WeeklyMealPlanGrid(days: daysToShow) { day, slot in
+                    plannedMeals(on: day, slot: slot)
+                } mealForPlannedMeal: { plannedMeal in
+                    organizerStore.mealIdea(for: plannedMeal)
+                } onPlanSlot: { day, slot in
+                    planningDate = day
+                    planningSlot = slot
+                    selectedMealCategory = mealCategory(for: slot)
+                    selectedDay = day
+                    selectedTab = .meals
+                } onDelete: { plannedMeal in
+                    organizerStore.deletePlannedMeal(plannedMeal)
                 }
             }
         }
@@ -173,13 +175,10 @@ struct MealPlanView: View {
         return "\(first.formatted(.dateTime.month(.abbreviated).day())) - \(last.formatted(.dateTime.month(.abbreviated).day()))"
     }
 
-    private func plannedMeals(on day: Date) -> [PlannedMeal] {
+    private func plannedMeals(on day: Date, slot: MealSlot) -> [PlannedMeal] {
         organizerStore.plannedMeals
-            .filter { Calendar.current.isDate($0.date, inSameDayAs: day) }
-            .sorted { lhs, rhs in
-                guard lhs.slot != rhs.slot else { return lhs.date < rhs.date }
-                return MealSlot.allCases.firstIndex(of: lhs.slot) ?? 0 < MealSlot.allCases.firstIndex(of: rhs.slot) ?? 0
-            }
+            .filter { Calendar.current.isDate($0.date, inSameDayAs: day) && $0.slot == slot }
+            .sorted { $0.date < $1.date }
     }
 
     private var filteredMealIdeas: [MealIdea] {
@@ -192,10 +191,6 @@ struct MealPlanView: View {
                 || meal.ingredients.contains { $0.name.localizedCaseInsensitiveContains(query) }
             }
             .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-    }
-
-    private var dayAccentColors: [Color] {
-        Array(repeating: AppTheme.primary, count: 7)
     }
 
     private func mealCategory(for slot: MealSlot) -> MealCategory {
@@ -222,94 +217,136 @@ private enum MealPlanTab: String, CaseIterable, Identifiable {
     }
 }
 
-private struct DayMealSection: View {
-    @EnvironmentObject private var organizerStore: OrganizerStore
-    let day: Date
-    let meals: [PlannedMeal]
-    let accentColor: Color
-    let onPlanSlot: (MealSlot) -> Void
+private struct WeeklyMealPlanGrid: View {
+    let days: [Date]
+    let plannedMeals: (Date, MealSlot) -> [PlannedMeal]
+    let mealForPlannedMeal: (PlannedMeal) -> MealIdea?
+    let onPlanSlot: (Date, MealSlot) -> Void
     let onDelete: (PlannedMeal) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(day.formatted(date: .complete, time: .omitted))
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
+        VStack(spacing: 0) {
+            headerRow
 
-            VStack(spacing: 8) {
-                ForEach(MealSlot.allCases) { slot in
-                    MealSlotRow(slot: slot, plannedMeals: meals.filter { $0.slot == slot }, onPlan: { onPlanSlot(slot) }, onDelete: onDelete)
+            ForEach(days, id: \.self) { day in
+                Divider()
+                    .padding(.leading, 76)
+
+                HStack(alignment: .top, spacing: 0) {
+                    DayColumn(day: day)
+                        .frame(width: 76, alignment: .leading)
+
+                    ForEach(MealSlot.allCases) { slot in
+                        MealPlanGridCell(
+                            day: day,
+                            slot: slot,
+                            plannedMeals: plannedMeals(day, slot),
+                            mealForPlannedMeal: mealForPlannedMeal,
+                            onPlan: { onPlanSlot(day, slot) },
+                            onDelete: onDelete
+                        )
+                        .frame(maxWidth: .infinity, minHeight: 76, alignment: .topLeading)
+                    }
                 }
+                .padding(.vertical, 10)
             }
         }
         .padding(12)
-        .background {
-            RoundedRectangle(cornerRadius: 14)
-                .fill(AppTheme.surface)
-                .overlay {
-                    RoundedRectangle(cornerRadius: 14)
-                        .fill(accentColor.opacity(0.045))
-                }
-                .shadow(color: accentColor.opacity(0.13), radius: 16, x: 0, y: 8)
+        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    private var headerRow: some View {
+        HStack(spacing: 0) {
+            Text("Week")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .frame(width: 76, alignment: .leading)
+
+            ForEach(MealSlot.allCases) { slot in
+                Text(slot.title)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(AppTheme.primary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+            }
+        }
+        .padding(.bottom, 8)
+    }
+}
+
+private struct DayColumn: View {
+    let day: Date
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(day.formatted(.dateTime.weekday(.abbreviated)))
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(AppTheme.ink)
+            Text(day.formatted(.dateTime.month(.abbreviated).day()))
+                .font(.caption2)
+                .foregroundStyle(.secondary)
         }
     }
 }
 
-private struct MealSlotRow: View {
-    @EnvironmentObject private var organizerStore: OrganizerStore
+private struct MealPlanGridCell: View {
+    let day: Date
     let slot: MealSlot
     let plannedMeals: [PlannedMeal]
+    let mealForPlannedMeal: (PlannedMeal) -> MealIdea?
     let onPlan: () -> Void
     let onDelete: (PlannedMeal) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label(slot.title, systemImage: slot.systemImage)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(AppTheme.primary)
-
+        VStack(alignment: .center, spacing: 6) {
             if plannedMeals.isEmpty {
                 Button(action: onPlan) {
-                    Label("Add meal", systemImage: "plus.circle")
-                        .font(.caption.weight(.medium))
+                    Image(systemName: "plus.circle")
+                        .font(.title3)
                         .foregroundStyle(AppTheme.primary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(10)
-                        .background(AppTheme.surfaceMuted, in: RoundedRectangle(cornerRadius: 10))
+                        .frame(maxWidth: .infinity, minHeight: 48)
+                        .background(AppTheme.surfaceMuted.opacity(0.8), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Add meal for \(slot.title) on \(day.formatted(date: .abbreviated, time: .omitted))")
             } else {
                 ForEach(plannedMeals) { plannedMeal in
-                    if let meal = organizerStore.mealIdea(for: plannedMeal) {
-                        HStack(spacing: 10) {
-                            Text(meal.name)
-                                .font(.footnote)
-                                .lineLimit(2)
-                            Spacer()
+                    if let meal = mealForPlannedMeal(plannedMeal) {
+                        Menu {
+                            Button(action: onPlan) {
+                                Label("Add Another", systemImage: "plus.circle")
+                            }
                             Button(role: .destructive) {
                                 onDelete(plannedMeal)
                             } label: {
-                                Image(systemName: "trash")
+                                Label("Remove", systemImage: "trash")
                             }
-                            .buttonStyle(.plain)
+                        } label: {
+                            Text(meal.name)
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(AppTheme.ink)
+                                .multilineTextAlignment(.center)
+                                .lineLimit(3)
+                                .minimumScaleFactor(0.78)
+                                .frame(maxWidth: .infinity, minHeight: 48)
+                                .padding(.horizontal, 5)
+                                .background(AppTheme.primarySoft.opacity(0.8), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                         }
-                        .padding(10)
-                        .background(AppTheme.surfaceMuted, in: RoundedRectangle(cornerRadius: 10))
+                        .buttonStyle(.plain)
                     }
                 }
 
                 Button(action: onPlan) {
-                    Label("Add another meal", systemImage: "plus.circle")
-                        .font(.caption.weight(.medium))
+                    Image(systemName: "plus")
+                        .font(.caption.weight(.bold))
                         .foregroundStyle(AppTheme.primary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(10)
-                        .background(AppTheme.surfaceMuted, in: RoundedRectangle(cornerRadius: 10))
+                        .frame(width: 26, height: 26)
+                        .background(AppTheme.surfaceMuted, in: Circle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Add another meal for \(slot.title)")
             }
         }
+        .padding(.horizontal, 4)
     }
 }
 

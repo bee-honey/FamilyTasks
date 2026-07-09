@@ -252,18 +252,18 @@ enum TaskBucket: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .doNow: "Do"
-        case .schedule: "Schedule"
-        case .delegate: "Delegate"
-        case .delete: "Drop"
+        case .doNow: "Urgent + Important"
+        case .schedule: "Important Only"
+        case .delegate: "Urgent Only"
+        case .delete: "Not Urgent or Important"
         }
     }
 
     var subtitle: String {
         switch self {
-        case .doNow: "Urgent + important"
+        case .doNow: "Urgent and important"
         case .schedule: "Important, not urgent"
-        case .delegate: "Urgent, less important"
+        case .delegate: "Urgent, not important"
         case .delete: "Neither urgent nor important"
         }
     }

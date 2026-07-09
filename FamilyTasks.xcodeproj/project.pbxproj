@@ -402,7 +402,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = FamilyTasks/FamilyTasks.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 12;
+				CURRENT_PROJECT_VERSION = 13;
 				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = 2X5AKN2Y8P;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -414,7 +414,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.8;
+				MARKETING_VERSION = 2.9;
 				PRODUCT_BUNDLE_IDENTIFIER = com.naveenkeerthy.FamilyTasks;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -434,7 +434,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = FamilyTasks/FamilyTasks.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 12;
+				CURRENT_PROJECT_VERSION = 13;
 				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = 2X5AKN2Y8P;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -446,7 +446,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.8;
+				MARKETING_VERSION = 2.9;
 				PRODUCT_BUNDLE_IDENTIFIER = com.naveenkeerthy.FamilyTasks;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";

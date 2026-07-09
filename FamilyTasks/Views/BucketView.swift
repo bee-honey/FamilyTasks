@@ -69,16 +69,10 @@ private struct SectionHeaderView: View {
                 .fill(bucket.accentColor)
                 .frame(width: 4, height: 24)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(bucket.title)
-                    .font(.subheadline.weight(.semibold))
-                    .lineLimit(1)
-
-                Text(bucket.subtitle)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
+            Text(bucket.title)
+                .font(.subheadline.weight(.semibold))
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
 
             Spacer()
 

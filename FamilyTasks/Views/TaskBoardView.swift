@@ -14,7 +14,7 @@ struct TaskBoardView: View {
                 LazyVStack(spacing: 14) {
                     TaskAnalyticsDashboard(
                         summary: TaskAnalyticsSummary(
-                            tasks: taskStore.visibleTasks,
+                            tasks: taskStore.tasks,
                             familyMembers: taskStore.familyMembers,
                             range: analyticsRange
                         ),
