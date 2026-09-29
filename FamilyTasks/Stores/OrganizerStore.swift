@@ -213,7 +213,7 @@ final class OrganizerStore: ObservableObject {
 
     func addMealIngredientsToShopping(_ meal: MealIdea, overrides: [UUID: UUID]) {
         for ingredient in meal.ingredients {
-            guard let shopID = overrides[ingredient.id] ?? ingredient.defaultShopID,
+            guard let shopID = overrides[ingredient.id],
                   let shop = shops.first(where: { $0.id == shopID }) else { continue }
             addNeededItem(ingredient.name, to: shop)
         }
