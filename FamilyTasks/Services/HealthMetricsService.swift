@@ -287,30 +287,26 @@ final class HealthMetricsService: ObservableObject {
 
         let calendar = Calendar.current
         let now = Date()
-        var nextSummaries: [HealthMetricSummary] = []
+        let intervalsByScope = HealthMetricScope.allCases.map { scope in
+            (scope, detailIntervals(for: scope, now: now, calendar: calendar))
+        }
+        let earliest = intervalsByScope.flatMap(\.1).map(\.interval.start).min() ?? calendar.startOfDay(for: now)
+        let data = await fetchHealthData(stepType: stepType, sleepType: sleepType, from: earliest, now: now, calendar: calendar)
 
-        for scope in HealthMetricScope.allCases {
-            let intervals = detailIntervals(for: scope, now: now, calendar: calendar)
-            var points: [HealthMetricPoint] = []
-
-            for interval in intervals {
-                async let steps = stepCount(type: stepType, start: interval.interval.start, end: interval.interval.end)
-                async let sleep = sleepDuration(type: sleepType, start: interval.interval.start, end: interval.interval.end)
-                points.append(await HealthMetricPoint(
+        summaries = intervalsByScope.map { scope, intervals in
+            let points = intervals.map { interval in
+                HealthMetricPoint(
                     id: interval.id,
                     date: interval.interval.start,
                     title: interval.title,
-                    steps: steps,
-                    sleepSeconds: sleep
-                ))
+                    steps: data.steps(in: interval.interval, calendar: calendar),
+                    sleepSeconds: data.sleep(in: interval.interval, now: now)
+                )
             }
-
             let totalSteps = points.reduce(0) { $0 + $1.steps }
             let totalSleep = points.reduce(0) { $0 + $1.sleepSeconds }
-            nextSummaries.append(HealthMetricSummary(scope: scope, steps: totalSteps, sleepSeconds: totalSleep, points: points))
+            return HealthMetricSummary(scope: scope, steps: totalSteps, sleepSeconds: totalSleep, points: points)
         }
-
-        summaries = nextSummaries
     }
 
     func dailySnapshots(memberEmail: String, memberInitials: String, daysBack: Int = 370) async -> [HealthSnapshot] {
@@ -328,22 +324,18 @@ final class HealthMetricsService: ObservableObject {
         let today = calendar.startOfDay(for: now)
         let start = calendar.date(byAdding: .day, value: -max(daysBack, 0), to: today) ?? today
         let intervals = dayIntervals(from: start, through: now, calendar: calendar, style: .dayNumber)
+        let data = await fetchHealthData(stepType: stepType, sleepType: sleepType, from: start, now: now, calendar: calendar)
 
-        var snapshots: [HealthSnapshot] = []
-        for interval in intervals {
-            async let steps = stepCount(type: stepType, start: interval.interval.start, end: interval.interval.end)
-            async let sleep = sleepDuration(type: sleepType, start: interval.interval.start, end: interval.interval.end)
-            snapshots.append(await HealthSnapshot(
+        return intervals.map { interval in
+            HealthSnapshot(
                 memberEmail: trimmedEmail,
                 memberInitials: memberInitials,
                 date: interval.interval.start,
                 dayID: interval.id,
-                steps: steps,
-                sleepSeconds: sleep
-            ))
+                steps: data.steps(in: interval.interval, calendar: calendar),
+                sleepSeconds: data.sleep(in: interval.interval, now: now)
+            )
         }
-
-        return snapshots
     }
 
     private func detailIntervals(for scope: HealthMetricScope, now: Date, calendar: Calendar) -> [HealthDetailInterval] {
@@ -415,28 +407,65 @@ final class HealthMetricsService: ObservableObject {
         let title: String
         let interval: DateInterval
     }
-    private func stepCount(type: HKQuantityType, start: Date, end: Date) async -> Double {
+    /// Daily step totals plus merged sleep periods for the whole range, fetched with
+    /// two HealthKit queries; per-day/week/month numbers are then summed in memory.
+    private struct HealthRangeData {
+        let stepsByDay: [Date: Double]
+        let asleep: [DateInterval]
+
+        func steps(in interval: DateInterval, calendar: Calendar) -> Double {
+            stepsByDay.reduce(0) { total, entry in
+                entry.key >= interval.start && entry.key < interval.end ? total + entry.value : total
+            }
+        }
+
+        func sleep(in interval: DateInterval, now: Date) -> TimeInterval {
+            let window = HealthMetricsService.sleepWindow(start: interval.start, end: interval.end, now: now)
+            return HealthMetricsService.totalDuration(of: asleep, in: window)
+        }
+    }
+
+    private func fetchHealthData(
+        stepType: HKQuantityType,
+        sleepType: HKCategoryType,
+        from start: Date,
+        now: Date,
+        calendar: Calendar
+    ) async -> HealthRangeData {
+        let dayStart = calendar.startOfDay(for: start)
+        async let steps = dailyStepTotals(type: stepType, from: dayStart, to: now, calendar: calendar)
+        async let asleep = asleepIntervals(
+            type: sleepType,
+            overlapping: DateInterval(start: dayStart.addingTimeInterval(Self.sleepDayOffset), end: max(now, dayStart))
+        )
+        return await HealthRangeData(stepsByDay: steps, asleep: asleep)
+    }
+
+    private func dailyStepTotals(type: HKQuantityType, from start: Date, to end: Date, calendar: Calendar) async -> [Date: Double] {
         await withCheckedContinuation { continuation in
             let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
-            let query = HKStatisticsQuery(quantityType: type, quantitySamplePredicate: predicate, options: .cumulativeSum) { _, statistics, _ in
-                let value = statistics?.sumQuantity()?.doubleValue(for: .count()) ?? 0
-                continuation.resume(returning: value)
+            let query = HKStatisticsCollectionQuery(
+                quantityType: type,
+                quantitySamplePredicate: predicate,
+                options: .cumulativeSum,
+                anchorDate: start,
+                intervalComponents: DateComponents(day: 1)
+            )
+            query.initialResultsHandler = { _, collection, _ in
+                var totals: [Date: Double] = [:]
+                collection?.enumerateStatistics(from: start, to: end) { statistics, _ in
+                    let day = calendar.startOfDay(for: statistics.startDate)
+                    totals[day, default: 0] += statistics.sumQuantity()?.doubleValue(for: .count()) ?? 0
+                }
+                continuation.resume(returning: totals)
             }
             healthStore.execute(query)
         }
     }
 
-    /// Sleep for a day is the night that ends on it: the window runs from 6pm the
-    /// previous evening to 6pm on the day (or now, for an interval still in progress).
-    private func sleepDuration(type: HKCategoryType, start: Date, end: Date) async -> TimeInterval {
-        let window = Self.sleepWindow(start: start, end: end, now: Date())
-        let asleep = await asleepIntervals(type: type, overlapping: window)
-        return Self.totalDuration(of: asleep, in: window)
-    }
-
     private static let sleepDayOffset: TimeInterval = -6 * 3_600
 
-    private static func sleepWindow(start: Date, end: Date, now: Date) -> DateInterval {
+    nonisolated private static func sleepWindow(start: Date, end: Date, now: Date) -> DateInterval {
         let shiftedStart = start.addingTimeInterval(sleepDayOffset)
         let shiftedEnd = end >= now ? now : end.addingTimeInterval(sleepDayOffset)
         return DateInterval(start: shiftedStart, end: max(shiftedStart, shiftedEnd))
@@ -463,7 +492,7 @@ final class HealthMetricsService: ObservableObject {
         }
     }
 
-    private static func mergedIntervals(_ intervals: [DateInterval]) -> [DateInterval] {
+    nonisolated private static func mergedIntervals(_ intervals: [DateInterval]) -> [DateInterval] {
         var merged: [DateInterval] = []
         for interval in intervals.sorted(by: { $0.start < $1.start }) {
             if let last = merged.last, interval.start <= last.end {
@@ -475,7 +504,7 @@ final class HealthMetricsService: ObservableObject {
         return merged
     }
 
-    private static func totalDuration(of intervals: [DateInterval], in window: DateInterval) -> TimeInterval {
+    nonisolated private static func totalDuration(of intervals: [DateInterval], in window: DateInterval) -> TimeInterval {
         intervals.reduce(0) { total, interval in
             let start = max(interval.start, window.start)
             let end = min(interval.end, window.end)
