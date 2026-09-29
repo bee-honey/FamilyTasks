@@ -68,7 +68,7 @@ struct ProfileView: View {
             .onChange(of: selectedPhoto) { _, item in
                 Task {
                     if let data = try? await item?.loadTransferable(type: Data.self) {
-                        imageData = data
+                        imageData = SharedMemberProfile.compressedImageData(from: data) ?? data
                         syncProfileMember()
                     }
                 }

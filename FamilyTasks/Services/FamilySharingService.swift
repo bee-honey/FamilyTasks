@@ -285,7 +285,9 @@ struct SharedMemberProfile: Codable, Identifiable, Equatable {
         let initials = (defaults.string(forKey: "profile.initials") ?? "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .uppercased()
-        let imageData = compressedImageData(from: defaults.data(forKey: "profile.imageData") ?? Data())
+        let imageData = defaults.data(forKey: "profile.imageData").flatMap { data in
+            data.count <= maxStoredImageBytes ? data : compressedImageData(from: data)
+        }
 
         return SharedMemberProfile(
             email: email,
@@ -334,14 +336,30 @@ struct SharedMemberProfile: Codable, Identifiable, Equatable {
         }
     }
 
-    private static func compressedImageData(from data: Data) -> Data? {
+    /// Photos at or under this size have already been scaled down to avatar size.
+    static let maxStoredImageBytes = 64 * 1_024
+
+    /// Older versions stored the full-size picked photo in UserDefaults; scale it down once.
+    static func shrinkStoredProfileImageIfNeeded() {
+        let defaults = UserDefaults.standard
+        guard let data = defaults.data(forKey: "profile.imageData"),
+              data.count > maxStoredImageBytes,
+              let compressed = compressedImageData(from: data) else { return }
+        defaults.set(compressed, forKey: "profile.imageData")
+    }
+
+    /// Scales a photo down to avatar size (180pt longest side) as JPEG.
+    static func compressedImageData(from data: Data) -> Data? {
         guard !data.isEmpty, let image = UIImage(data: data) else { return nil }
 
         let maxSide: CGFloat = 180
         let largestSide = max(image.size.width, image.size.height)
         let scale = largestSide > 0 ? min(1, maxSide / largestSide) : 1
         let targetSize = CGSize(width: image.size.width * scale, height: image.size.height * scale)
-        let renderer = UIGraphicsImageRenderer(size: targetSize)
+        // Fixed 2x scale keeps the output small (~360px) regardless of the device's screen scale.
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 2
+        let renderer = UIGraphicsImageRenderer(size: targetSize, format: format)
         let resizedImage = renderer.image { _ in
             image.draw(in: CGRect(origin: .zero, size: targetSize))
         }
@@ -912,6 +930,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         UNUserNotificationCenter.current().delegate = self
+        SharedMemberProfile.shrinkStoredProfileImageIfNeeded()
         // Wire the shared stores up at launch (not on first view appearance) so
         // background launches, such as the daily Health refresh, can sync too.
         MainActor.assumeIsolated {
