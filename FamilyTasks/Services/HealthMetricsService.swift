@@ -426,27 +426,60 @@ final class HealthMetricsService: ObservableObject {
         }
     }
 
+    /// Sleep for a day is the night that ends on it: the window runs from 6pm the
+    /// previous evening to 6pm on the day (or now, for an interval still in progress).
     private func sleepDuration(type: HKCategoryType, start: Date, end: Date) async -> TimeInterval {
+        let window = Self.sleepWindow(start: start, end: end, now: Date())
+        let asleep = await asleepIntervals(type: type, overlapping: window)
+        return Self.totalDuration(of: asleep, in: window)
+    }
+
+    private static let sleepDayOffset: TimeInterval = -6 * 3_600
+
+    private static func sleepWindow(start: Date, end: Date, now: Date) -> DateInterval {
+        let shiftedStart = start.addingTimeInterval(sleepDayOffset)
+        let shiftedEnd = end >= now ? now : end.addingTimeInterval(sleepDayOffset)
+        return DateInterval(start: shiftedStart, end: max(shiftedStart, shiftedEnd))
+    }
+
+    /// Asleep periods overlapping the window, with overlaps from different sources
+    /// (Watch, iPhone, third-party apps) merged so time is only counted once.
+    private func asleepIntervals(type: HKCategoryType, overlapping window: DateInterval) async -> [DateInterval] {
         await withCheckedContinuation { continuation in
-            let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
+            let predicate = HKQuery.predicateForSamples(withStart: window.start, end: window.end, options: [])
             let query = HKSampleQuery(sampleType: type, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { _, samples, _ in
-                let sleepSamples = (samples as? [HKCategorySample]) ?? []
                 let asleepValues: Set<Int> = [
                     HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue,
                     HKCategoryValueSleepAnalysis.asleepCore.rawValue,
                     HKCategoryValueSleepAnalysis.asleepDeep.rawValue,
                     HKCategoryValueSleepAnalysis.asleepREM.rawValue
                 ]
-
-                let duration = sleepSamples.reduce(TimeInterval(0)) { total, sample in
-                    guard asleepValues.contains(sample.value) else { return total }
-                    let clippedStart = max(sample.startDate, start)
-                    let clippedEnd = min(sample.endDate, end)
-                    return total + max(0, clippedEnd.timeIntervalSince(clippedStart))
-                }
-                continuation.resume(returning: duration)
+                let intervals = ((samples as? [HKCategorySample]) ?? [])
+                    .filter { asleepValues.contains($0.value) && $0.endDate > $0.startDate }
+                    .map { DateInterval(start: $0.startDate, end: $0.endDate) }
+                continuation.resume(returning: Self.mergedIntervals(intervals))
             }
             healthStore.execute(query)
+        }
+    }
+
+    private static func mergedIntervals(_ intervals: [DateInterval]) -> [DateInterval] {
+        var merged: [DateInterval] = []
+        for interval in intervals.sorted(by: { $0.start < $1.start }) {
+            if let last = merged.last, interval.start <= last.end {
+                merged[merged.count - 1] = DateInterval(start: last.start, end: max(last.end, interval.end))
+            } else {
+                merged.append(interval)
+            }
+        }
+        return merged
+    }
+
+    private static func totalDuration(of intervals: [DateInterval], in window: DateInterval) -> TimeInterval {
+        intervals.reduce(0) { total, interval in
+            let start = max(interval.start, window.start)
+            let end = min(interval.end, window.end)
+            return total + max(0, end.timeIntervalSince(start))
         }
     }
 }
