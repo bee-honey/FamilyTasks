@@ -101,6 +101,7 @@ private struct MatrixTaskRowView: View {
     let onDelete: () -> Void
     let onSync: () -> Void
     let onEdit: () -> Void
+    @EnvironmentObject private var calendarSync: CalendarSyncService
     @AppStorage("tasks.showBucketColors") private var showTaskBucketColors = false
     @AppStorage("tasks.showPriorityMarkers") private var showTaskPriorityMarkers = false
 
@@ -149,7 +150,7 @@ private struct MatrixTaskRowView: View {
                 Button {
                     onSync()
                 } label: {
-                    Label(task.calendarEventIdentifier == nil ? "Sync to Calendar" : "Update Calendar", systemImage: "calendar.badge.plus")
+                    Label(calendarSync.hasCalendarEvent(for: task) ? "Update Calendar" : "Sync to Calendar", systemImage: "calendar.badge.plus")
                 }
 
                 Menu("Move To") {
@@ -197,7 +198,7 @@ private struct MatrixTaskRowView: View {
             Button {
                 onSync()
             } label: {
-                Label(task.calendarEventIdentifier == nil ? "Sync to Calendar" : "Update Calendar", systemImage: "calendar.badge.plus")
+                Label(calendarSync.hasCalendarEvent(for: task) ? "Update Calendar" : "Sync to Calendar", systemImage: "calendar.badge.plus")
             }
 
             Button(role: .destructive, action: onDelete) {

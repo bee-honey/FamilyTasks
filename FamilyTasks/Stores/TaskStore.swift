@@ -151,12 +151,6 @@ final class TaskStore: ObservableObject {
         tasks.removeAll { $0.id == task.id }
     }
 
-    func setCalendarEventIdentifier(_ identifier: String?, for task: FamilyTask) {
-        guard let index = tasks.firstIndex(where: { $0.id == task.id }) else { return }
-        tasks[index].calendarEventIdentifier = identifier
-        tasks[index].updatedAt = Date()
-    }
-
     func addFamilyMember(named name: String) {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard Self.isValidEmail(trimmed) else { return }

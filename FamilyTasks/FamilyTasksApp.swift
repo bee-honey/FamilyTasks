@@ -30,6 +30,7 @@ struct FamilyTasksApp: App {
             .environmentObject(notificationScheduler)
             .preferredColorScheme(selectedAppearance.colorScheme)
             .onAppear {
+                calendarSync.configure(taskStore: taskStore)
                 HealthSyncCoordinator.shared.scheduleDailyRefresh()
             }
             .onChange(of: healthSharingEnabled) { _, enabled in

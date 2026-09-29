@@ -8,6 +8,7 @@ struct TaskCardView: View {
     let onDone: () -> Void
     let onDelete: () -> Void
     let onSync: () -> Void
+    @EnvironmentObject private var calendarSync: CalendarSyncService
     @AppStorage("tasks.showBucketColors") private var showTaskBucketColors = false
     @AppStorage("tasks.showPriorityMarkers") private var showTaskPriorityMarkers = false
 
@@ -66,7 +67,7 @@ struct TaskCardView: View {
                             ProgressView()
                                 .controlSize(.small)
                         } else {
-                            Image(systemName: task.calendarEventIdentifier == nil ? "calendar.badge.plus" : "calendar.badge.checkmark")
+                            Image(systemName: calendarSync.hasCalendarEvent(for: task) ? "calendar.badge.checkmark" : "calendar.badge.plus")
                         }
                     }
                     .buttonStyle(.borderless)

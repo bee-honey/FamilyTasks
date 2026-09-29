@@ -72,8 +72,7 @@ struct TaskBoardView: View {
         syncingTaskID = task.id
         Task {
             do {
-                let identifier = try await calendarSync.sync(task)
-                taskStore.setCalendarEventIdentifier(identifier, for: task)
+                try await calendarSync.sync(task)
             } catch {
                 calendarSync.lastErrorMessage = error.localizedDescription
             }
