@@ -49,12 +49,15 @@ final class OrganizerStore: ObservableObject {
         mealPlanURL = documents.appendingPathComponent("family-meal-plan.json")
         ideasURL = documents.appendingPathComponent("family-ideas.json")
         healthSnapshotsURL = documents.appendingPathComponent("family-health-snapshots.json")
+        let fileManager = FileManager.default
+        let isFirstShoppingLaunch = !fileManager.fileExists(atPath: shoppingURL.path)
+        let isFirstRecurringLaunch = !fileManager.fileExists(atPath: recurringTasksURL.path)
         loadShopping()
         loadRecurringTasks()
         loadMealPlan()
         loadIdeas()
         loadHealthSnapshots()
-        seedDefaultsIfNeeded()
+        seedDefaults(shopping: isFirstShoppingLaunch, recurringTasks: isFirstRecurringLaunch)
     }
 
     func refreshShopping() {
@@ -390,8 +393,9 @@ final class OrganizerStore: ObservableObject {
         }
     }
 
-    private func seedDefaultsIfNeeded() {
-        if shops.isEmpty {
+    /// Only seeds examples on first launch; an empty list later means the user cleared it.
+    private func seedDefaults(shopping: Bool, recurringTasks seedRecurring: Bool) {
+        if shopping {
             let costco = Shop(name: "Costco", usualItems: ["Milk", "Eggs", "Paper towels"])
             let target = Shop(name: "Target", usualItems: ["Laundry detergent", "Toothpaste"])
             let grocery = Shop(name: "Grocery", usualItems: ["Bananas", "Bread", "Yogurt"])
@@ -402,7 +406,7 @@ final class OrganizerStore: ObservableObject {
             ]
         }
 
-        if recurringTasks.isEmpty {
+        if seedRecurring {
             recurringTasks = [
                 RecurringTask(title: "Pay gardener", amount: "$", frequency: .monthly, nextDueDate: Calendar.current.date(byAdding: .day, value: 3, to: Date()) ?? Date()),
                 RecurringTask(title: "Mortgage payment", frequency: .monthly, nextDueDate: Calendar.current.date(byAdding: .month, value: 1, to: Date()) ?? Date())
@@ -412,7 +416,10 @@ final class OrganizerStore: ObservableObject {
 
     private func loadShopping() {
         guard let data = try? Data(contentsOf: shoppingURL) else { return }
-        guard let payload = try? JSONDecoder().decode(ShoppingPayload.self, from: data) else { return }
+        guard let payload = try? JSONDecoder().decode(ShoppingPayload.self, from: data) else {
+            PersistenceBackup.preserveUnreadableFile(at: shoppingURL)
+            return
+        }
         shopOrderUpdatedAt = payload.orderUpdatedAt
         if shops != payload.shops {
             shops = payload.shops
@@ -431,7 +438,11 @@ final class OrganizerStore: ObservableObject {
 
     private func loadRecurringTasks() {
         guard let data = try? Data(contentsOf: recurringTasksURL) else { return }
-        recurringTasks = (try? JSONDecoder().decode([RecurringTask].self, from: data)) ?? []
+        do {
+            recurringTasks = try JSONDecoder().decode([RecurringTask].self, from: data)
+        } catch {
+            PersistenceBackup.preserveUnreadableFile(at: recurringTasksURL)
+        }
     }
 
     private func saveRecurringTasks() {
@@ -442,7 +453,10 @@ final class OrganizerStore: ObservableObject {
 
     private func loadMealPlan() {
         guard let data = try? Data(contentsOf: mealPlanURL) else { return }
-        guard let payload = try? JSONDecoder().decode(MealPlanPayload.self, from: data) else { return }
+        guard let payload = try? JSONDecoder().decode(MealPlanPayload.self, from: data) else {
+            PersistenceBackup.preserveUnreadableFile(at: mealPlanURL)
+            return
+        }
         mealIdeas = payload.mealIdeas
         plannedMeals = payload.plannedMeals
     }
@@ -455,8 +469,11 @@ final class OrganizerStore: ObservableObject {
     }
 
     private func loadIdeas() {
-        guard let data = try? Data(contentsOf: ideasURL),
-              let notes = try? JSONDecoder().decode([IdeaNote].self, from: data) else { return }
+        guard let data = try? Data(contentsOf: ideasURL) else { return }
+        guard let notes = try? JSONDecoder().decode([IdeaNote].self, from: data) else {
+            PersistenceBackup.preserveUnreadableFile(at: ideasURL)
+            return
+        }
         ideaNotes = notes
     }
 

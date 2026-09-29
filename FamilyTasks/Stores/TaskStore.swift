@@ -26,11 +26,13 @@ final class TaskStore: ObservableObject {
         let documents = URL.documentsDirectory
         self.storageURL = storageURL ?? documents.appendingPathComponent("family-tasks.json")
         self.familyMembersURL = documents.appendingPathComponent("family-members.json")
+        let isFirstLaunch = !FileManager.default.fileExists(atPath: self.storageURL.path)
         load()
         loadFamilyMembers()
         removeLegacyAssigneeNames()
 
-        if tasks.isEmpty {
+        // Only seed examples on first launch; an empty list later means the user cleared it.
+        if isFirstLaunch {
             tasks = [
                 FamilyTask(title: "Book pediatrician appointment", notes: "Add to shared calendar once a time is picked.", dueDate: Calendar.current.date(byAdding: .day, value: 1, to: Date()), isUrgent: true, isImportant: true),
                 FamilyTask(title: "Plan school lunch rotation", dueDate: Calendar.current.date(byAdding: .day, value: 4, to: Date()), isUrgent: false, isImportant: true),
@@ -220,7 +222,11 @@ final class TaskStore: ObservableObject {
 
     private func load() {
         guard let data = try? Data(contentsOf: storageURL) else { return }
-        tasks = (try? JSONDecoder().decode([FamilyTask].self, from: data)) ?? []
+        do {
+            tasks = try JSONDecoder().decode([FamilyTask].self, from: data)
+        } catch {
+            PersistenceBackup.preserveUnreadableFile(at: storageURL)
+        }
     }
 
     private func save() {
@@ -231,7 +237,11 @@ final class TaskStore: ObservableObject {
 
     private func loadFamilyMembers() {
         guard let data = try? Data(contentsOf: familyMembersURL) else { return }
-        familyMembers = (try? JSONDecoder().decode([String].self, from: data)) ?? []
+        do {
+            familyMembers = try JSONDecoder().decode([String].self, from: data)
+        } catch {
+            PersistenceBackup.preserveUnreadableFile(at: familyMembersURL)
+        }
     }
 
     private func saveFamilyMembers() {
@@ -358,6 +368,16 @@ final class TaskStore: ObservableObject {
         case (.none, .none):
             return lhs.updatedAt > rhs.updatedAt
         }
+    }
+}
+
+enum PersistenceBackup {
+    /// Keeps a copy of a data file that failed to decode before the app writes a
+    /// fresh one over it, so the user's data can still be recovered.
+    static func preserveUnreadableFile(at url: URL) {
+        let backupURL = url.deletingPathExtension()
+            .appendingPathExtension("unreadable-\(Int(Date().timeIntervalSince1970)).json")
+        try? FileManager.default.copyItem(at: url, to: backupURL)
     }
 }
 
