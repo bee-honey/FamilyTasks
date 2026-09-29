@@ -3,31 +3,31 @@ import Foundation
 @MainActor
 final class OrganizerStore: ObservableObject {
     @Published private(set) var shops: [Shop] = [] {
-        didSet { saveShopping() }
+        didSet { recordRemovals(from: oldValue, to: shops); saveShopping() }
     }
 
     @Published private(set) var shoppingItems: [ShoppingItem] = [] {
-        didSet { saveShopping() }
+        didSet { recordRemovals(from: oldValue, to: shoppingItems); saveShopping() }
     }
 
     @Published private(set) var recurringTasks: [RecurringTask] = [] {
-        didSet { saveRecurringTasks() }
+        didSet { recordRemovals(from: oldValue, to: recurringTasks); saveRecurringTasks() }
     }
 
     @Published private(set) var mealIdeas: [MealIdea] = [] {
-        didSet { saveMealPlan() }
+        didSet { recordRemovals(from: oldValue, to: mealIdeas); saveMealPlan() }
     }
 
     @Published private(set) var plannedMeals: [PlannedMeal] = [] {
-        didSet { saveMealPlan() }
+        didSet { recordRemovals(from: oldValue, to: plannedMeals); saveMealPlan() }
     }
 
     @Published private(set) var ideaNotes: [IdeaNote] = [] {
-        didSet { saveIdeas() }
+        didSet { recordRemovals(from: oldValue, to: ideaNotes); saveIdeas() }
     }
 
     @Published private(set) var healthSnapshots: [HealthSnapshot] = [] {
-        didSet { saveHealthSnapshots() }
+        didSet { recordRemovals(from: oldValue, to: healthSnapshots); saveHealthSnapshots() }
     }
 
     private let shoppingURL: URL
@@ -35,6 +35,7 @@ final class OrganizerStore: ObservableObject {
     private let mealPlanURL: URL
     private let ideasURL: URL
     private let healthSnapshotsURL: URL
+    private var shopOrderUpdatedAt: Date?
     private var isApplyingSharedData = false
 
     init(directory: URL? = nil) {
@@ -97,16 +98,19 @@ final class OrganizerStore: ObservableObject {
         let movingShop = shops.remove(at: sourceIndex)
         let adjustedTargetIndex = sourceIndex < targetIndex ? targetIndex - 1 : targetIndex
         shops.insert(movingShop, at: adjustedTargetIndex)
+        markShopOrderChanged()
     }
 
     func moveShopUp(_ shop: Shop) {
         guard let index = shops.firstIndex(where: { $0.id == shop.id }), index > 0 else { return }
         shops.swapAt(index, index - 1)
+        markShopOrderChanged()
     }
 
     func moveShopDown(_ shop: Shop) {
         guard let index = shops.firstIndex(where: { $0.id == shop.id }), index < shops.index(before: shops.endIndex) else { return }
         shops.swapAt(index, index + 1)
+        markShopOrderChanged()
     }
 
     func deleteShop(_ shop: Shop) {
@@ -405,12 +409,17 @@ final class OrganizerStore: ObservableObject {
     private func loadShopping() {
         guard let data = try? Data(contentsOf: shoppingURL) else { return }
         guard let payload = try? JSONDecoder().decode(ShoppingPayload.self, from: data) else { return }
-        shops = payload.shops
-        shoppingItems = payload.items
+        shopOrderUpdatedAt = payload.orderUpdatedAt
+        if shops != payload.shops {
+            shops = payload.shops
+        }
+        if shoppingItems != payload.items {
+            shoppingItems = payload.items
+        }
     }
 
     private func saveShopping() {
-        let payload = ShoppingPayload(shops: shops, items: shoppingItems)
+        let payload = ShoppingPayload(shops: shops, items: shoppingItems, orderUpdatedAt: shopOrderUpdatedAt)
         guard let data = try? JSONEncoder().encode(payload) else { return }
         try? data.write(to: shoppingURL, options: [.atomic])
         notifySharedDataChanged()
@@ -466,7 +475,7 @@ final class OrganizerStore: ObservableObject {
     }
 
     func exportShoppingPayload() -> ShoppingPayload {
-        ShoppingPayload(shops: shops, items: shoppingItems)
+        ShoppingPayload(shops: shops, items: shoppingItems, orderUpdatedAt: shopOrderUpdatedAt)
     }
 
     func exportMealPlanPayload() -> MealPlanPayload {
@@ -491,6 +500,7 @@ final class OrganizerStore: ObservableObject {
 
     func applySharedData(shopping: ShoppingPayload, recurringTasks: [RecurringTask], mealPlan: MealPlanPayload, ideas: [IdeaNote], healthSnapshots: [HealthSnapshot]) {
         isApplyingSharedData = true
+        shopOrderUpdatedAt = shopping.orderUpdatedAt
         shops = shopping.shops
         shoppingItems = shopping.items
         self.recurringTasks = recurringTasks
@@ -504,6 +514,16 @@ final class OrganizerStore: ObservableObject {
         saveIdeas()
         saveHealthSnapshots()
         isApplyingSharedData = false
+    }
+
+    private func markShopOrderChanged() {
+        shopOrderUpdatedAt = Date()
+        saveShopping()
+    }
+
+    private func recordRemovals<Item: SyncMergeable>(from oldItems: [Item], to newItems: [Item]) {
+        guard !isApplyingSharedData else { return }
+        SyncLedger.shared.recordRemovals(from: oldItems, to: newItems)
     }
 
     private func notifySharedDataChanged() {
@@ -581,6 +601,7 @@ final class OrganizerStore: ObservableObject {
 struct ShoppingPayload: Codable {
     var shops: [Shop]
     var items: [ShoppingItem]
+    var orderUpdatedAt: Date?
 }
 
 struct MealPlanPayload: Codable {

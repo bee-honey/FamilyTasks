@@ -3,7 +3,12 @@ import Foundation
 @MainActor
 final class TaskStore: ObservableObject {
     @Published private(set) var tasks: [FamilyTask] = [] {
-        didSet { save() }
+        didSet {
+            if !isApplyingSharedData {
+                SyncLedger.shared.recordRemovals(from: oldValue, to: tasks)
+            }
+            save()
+        }
     }
     @Published private(set) var familyMembers: [String] = [] {
         didSet { saveFamilyMembers() }
@@ -152,6 +157,7 @@ final class TaskStore: ObservableObject {
         guard !familyMembers.contains(where: { $0.caseInsensitiveCompare(trimmed) == .orderedSame }) else { return }
         familyMembers.append(trimmed)
         familyMembers.sort()
+        SyncLedger.shared.recordMemberAdded(trimmed)
     }
 
     func ensureProfileMember() {
@@ -185,6 +191,7 @@ final class TaskStore: ObservableObject {
     func deleteFamilyMember(at offsets: IndexSet) {
         let removedMembers = offsets.map { familyMembers[$0] }
         familyMembers.remove(atOffsets: offsets)
+        removedMembers.forEach(SyncLedger.shared.recordMemberRemoved)
         removedMembers.forEach(clearAssignee)
     }
 

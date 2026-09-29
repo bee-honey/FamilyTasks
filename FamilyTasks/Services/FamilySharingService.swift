@@ -5,6 +5,8 @@ import UIKit
 import UserNotifications
 
 struct SharedHouseholdPayload: Codable {
+    static let currentSchemaVersion = 2
+
     var schemaVersion: Int
     var updatedAt: Date
     var updatedBy: String
@@ -16,9 +18,11 @@ struct SharedHouseholdPayload: Codable {
     var mealPlan: MealPlanPayload
     var ideas: [IdeaNote]
     var healthSnapshots: [HealthSnapshot]
+    var deletions: [String: Date]
+    var memberAdditions: [String: Date]
 
     init(
-        schemaVersion: Int = 1,
+        schemaVersion: Int = SharedHouseholdPayload.currentSchemaVersion,
         updatedAt: Date = Date(),
         updatedBy: String = "",
         tasks: [FamilyTask] = [],
@@ -28,7 +32,9 @@ struct SharedHouseholdPayload: Codable {
         recurringTasks: [RecurringTask] = [],
         mealPlan: MealPlanPayload = MealPlanPayload(mealIdeas: [], plannedMeals: []),
         ideas: [IdeaNote] = [],
-        healthSnapshots: [HealthSnapshot] = []
+        healthSnapshots: [HealthSnapshot] = [],
+        deletions: [String: Date] = [:],
+        memberAdditions: [String: Date] = [:]
     ) {
         self.schemaVersion = schemaVersion
         self.updatedAt = updatedAt
@@ -41,6 +47,8 @@ struct SharedHouseholdPayload: Codable {
         self.mealPlan = mealPlan
         self.ideas = ideas
         self.healthSnapshots = healthSnapshots
+        self.deletions = deletions
+        self.memberAdditions = memberAdditions
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -55,6 +63,8 @@ struct SharedHouseholdPayload: Codable {
         case mealPlan
         case ideas
         case healthSnapshots
+        case deletions
+        case memberAdditions
     }
 
     init(from decoder: Decoder) throws {
@@ -70,6 +80,164 @@ struct SharedHouseholdPayload: Codable {
         mealPlan = (try? container.decode(MealPlanPayload.self, forKey: .mealPlan)) ?? MealPlanPayload(mealIdeas: [], plannedMeals: [])
         ideas = (try? container.decode([IdeaNote].self, forKey: .ideas)) ?? []
         healthSnapshots = (try? container.decode([HealthSnapshot].self, forKey: .healthSnapshots)) ?? []
+        deletions = (try? container.decode([String: Date].self, forKey: .deletions)) ?? [:]
+        memberAdditions = (try? container.decode([String: Date].self, forKey: .memberAdditions)) ?? [:]
+    }
+
+    /// Merges two copies of the household item by item: the newer `updatedAt` wins,
+    /// and anything deleted after its last edit stays deleted.
+    static func merged(local: SharedHouseholdPayload, remote: SharedHouseholdPayload) -> SharedHouseholdPayload {
+        let deletions = SyncLedger.union(local.deletions, remote.deletions)
+        let memberAdditions = SyncLedger.union(local.memberAdditions, remote.memberAdditions)
+
+        let localOrderDate = local.shopping.orderUpdatedAt ?? .distantPast
+        let remoteOrderDate = remote.shopping.orderUpdatedAt ?? .distantPast
+        let localShopOrderWins = localOrderDate > remoteOrderDate
+
+        return SharedHouseholdPayload(
+            updatedAt: Date(),
+            updatedBy: local.updatedBy,
+            tasks: mergeItems(local.tasks, remote.tasks, deletions: deletions),
+            familyMembers: mergeMembers(local.familyMembers, remote.familyMembers, deletions: deletions, additions: memberAdditions),
+            profiles: SharedMemberProfile.merge(existing: remote.profiles, incoming: local.profiles),
+            shopping: ShoppingPayload(
+                shops: mergeItems(local.shopping.shops, remote.shopping.shops, deletions: deletions, localOrderWins: localShopOrderWins),
+                items: mergeItems(local.shopping.items, remote.shopping.items, deletions: deletions),
+                orderUpdatedAt: max(localOrderDate, remoteOrderDate) == .distantPast ? nil : max(localOrderDate, remoteOrderDate)
+            ),
+            recurringTasks: mergeItems(local.recurringTasks, remote.recurringTasks, deletions: deletions),
+            mealPlan: MealPlanPayload(
+                mealIdeas: mergeItems(local.mealPlan.mealIdeas, remote.mealPlan.mealIdeas, deletions: deletions),
+                plannedMeals: mergeItems(local.mealPlan.plannedMeals, remote.mealPlan.plannedMeals, deletions: deletions)
+            ),
+            ideas: mergeItems(local.ideas, remote.ideas, deletions: deletions),
+            healthSnapshots: mergeItems(local.healthSnapshots, remote.healthSnapshots, deletions: deletions),
+            deletions: deletions,
+            memberAdditions: memberAdditions
+        )
+    }
+
+    private static func mergeItems<Item: SyncMergeable>(
+        _ local: [Item],
+        _ remote: [Item],
+        deletions: [String: Date],
+        localOrderWins: Bool = false
+    ) -> [Item] {
+        var winners: [String: Item] = [:]
+        for item in remote {
+            winners[item.syncID] = item
+        }
+        for item in local {
+            if let current = winners[item.syncID], current.updatedAt >= item.updatedAt {
+                continue
+            }
+            winners[item.syncID] = item
+        }
+
+        let orderedIDs = (localOrderWins ? local + remote : remote + local).map(\.syncID)
+        var seen = Set<String>()
+        return orderedIDs.compactMap { id in
+            guard seen.insert(id).inserted, let item = winners[id] else { return nil }
+            if let deletedAt = deletions[id], deletedAt >= item.updatedAt {
+                return nil
+            }
+            return item
+        }
+    }
+
+    private static func mergeMembers(
+        _ local: [String],
+        _ remote: [String],
+        deletions: [String: Date],
+        additions: [String: Date]
+    ) -> [String] {
+        let members = Set((local + remote).map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() })
+        return members
+            .filter { member in
+                guard let deletedAt = deletions[SyncLedger.memberKey(member)] else { return true }
+                guard let addedAt = additions[SyncLedger.memberKey(member)] else { return false }
+                return addedAt > deletedAt
+            }
+            .sorted()
+    }
+}
+
+protocol SyncMergeable {
+    var syncID: String { get }
+    var updatedAt: Date { get }
+}
+
+extension FamilyTask: SyncMergeable { var syncID: String { id.uuidString } }
+extension Shop: SyncMergeable { var syncID: String { id.uuidString } }
+extension ShoppingItem: SyncMergeable { var syncID: String { id.uuidString } }
+extension RecurringTask: SyncMergeable { var syncID: String { id.uuidString } }
+extension MealIdea: SyncMergeable { var syncID: String { id.uuidString } }
+extension PlannedMeal: SyncMergeable { var syncID: String { id.uuidString } }
+extension IdeaNote: SyncMergeable { var syncID: String { id.uuidString } }
+extension HealthSnapshot: SyncMergeable { var syncID: String { id } }
+
+/// Remembers what this device deleted (and which family members it re-added) so a
+/// merge with an older copy of the household does not bring removed items back.
+@MainActor
+final class SyncLedger {
+    static let shared = SyncLedger()
+
+    private(set) var deletions: [String: Date] = [:]
+    private(set) var memberAdditions: [String: Date] = [:]
+
+    private let storageURL = URL.documentsDirectory.appendingPathComponent("family-sync-ledger.json")
+    private static let retention: TimeInterval = 180 * 86_400
+
+    private struct Stored: Codable {
+        var deletions: [String: Date]
+        var memberAdditions: [String: Date]
+    }
+
+    private init() {
+        guard let data = try? Data(contentsOf: storageURL),
+              let stored = try? JSONDecoder().decode(Stored.self, from: data) else { return }
+        deletions = stored.deletions
+        memberAdditions = stored.memberAdditions
+    }
+
+    nonisolated static func memberKey(_ email: String) -> String {
+        "member:\(email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())"
+    }
+
+    nonisolated static func union(_ lhs: [String: Date], _ rhs: [String: Date]) -> [String: Date] {
+        let cutoff = Date().addingTimeInterval(-retention)
+        return lhs.merging(rhs, uniquingKeysWith: max).filter { $0.value >= cutoff }
+    }
+
+    func recordRemovals<Item: SyncMergeable>(from oldItems: [Item], to newItems: [Item]) {
+        let remaining = Set(newItems.map(\.syncID))
+        let removed = oldItems.map(\.syncID).filter { !remaining.contains($0) }
+        guard !removed.isEmpty else { return }
+        let now = Date()
+        removed.forEach { deletions[$0] = now }
+        save()
+    }
+
+    func recordMemberRemoved(_ email: String) {
+        deletions[Self.memberKey(email)] = Date()
+        save()
+    }
+
+    func recordMemberAdded(_ email: String) {
+        memberAdditions[Self.memberKey(email)] = Date()
+        save()
+    }
+
+    func apply(deletions incomingDeletions: [String: Date], memberAdditions incomingAdditions: [String: Date]) {
+        deletions = Self.union(deletions, incomingDeletions)
+        memberAdditions = Self.union(memberAdditions, incomingAdditions)
+        save()
+    }
+
+    private func save() {
+        let stored = Stored(deletions: deletions, memberAdditions: memberAdditions)
+        guard let data = try? JSONEncoder().encode(stored) else { return }
+        try? data.write(to: storageURL, options: [.atomic])
     }
 }
 
@@ -193,7 +361,9 @@ extension Notification.Name {
 }
 
 enum FamilySharingDefaults {
-    static let localIntentChangeFlagKey = "familySharing.hasLocalIntentChanges"
+    /// Set whenever this device has changes the shared record has not received yet
+    /// (including items added through Siri while the app was not running).
+    static let pendingLocalChangesKey = "familySharing.hasLocalIntentChanges"
 }
 
 struct PreparedCloudShare: Identifiable {
@@ -216,6 +386,8 @@ final class SharedHouseholdStore: ObservableObject {
     private var changeObserver: NSObjectProtocol?
     private var pendingUploadTask: Task<Void, Never>?
     private var suppressNextSharedTaskArrivalNotification = false
+    private var syncChain: Task<Void, Never>?
+    private var localChangeGeneration = 0
     private let defaults = UserDefaults.standard
 
     private enum DefaultsKey {
@@ -260,7 +432,7 @@ final class SharedHouseholdStore: ObservableObject {
                 queue: .main
             ) { [weak self] _ in
                 Task { @MainActor in
-                    self?.scheduleUpload()
+                    self?.noteLocalChange()
                 }
             }
         }
@@ -272,72 +444,128 @@ final class SharedHouseholdStore: ObservableObject {
         }
     }
 
+    /// Pulls the shared household, merges it with local changes, and uploads the
+    /// result if this device has anything the shared copy is missing.
     func refreshFromCloud() async {
-        guard let recordID = storedRootRecordID else {
-            statusMessage = "Not sharing yet"
-            return
-        }
-
-        isSyncing = true
-        lastErrorMessage = nil
-
-        do {
-            let record = try await database.record(for: recordID)
-            guard let payload = decodePayload(from: record) else {
-                statusMessage = "Shared list is empty"
-                isSyncing = false
-                return
-            }
-
-            let sharedTaskArrival = sharedTaskArrival(from: payload)
-            apply(payload)
-            postSharedTaskArrival(sharedTaskArrival)
-            taskStore?.ensureProfileMember()
-            statusMessage = "Updated \(payload.updatedAt.formatted(date: .abbreviated, time: .shortened))"
-        } catch {
-            lastErrorMessage = userFacingMessage(for: error)
-            statusMessage = "Could not refresh sharing"
-        }
-
-        isSyncing = false
+        await synchronize(mode: .mergeAndUploadIfNeeded)
     }
 
+    /// Merges with the shared household and always writes the result back.
     func uploadNow() async {
-        guard let recordID = storedRootRecordID else { return }
-        guard let payload = currentPayload() else { return }
-
-        isSyncing = true
-        lastErrorMessage = nil
-
-        do {
-            let record: CKRecord
-            do {
-                record = try await database.record(for: recordID)
-            } catch {
-                record = CKRecord(recordType: CloudKitKey.rootRecordType, recordID: recordID)
-            }
-
-            encode(payload, into: record)
-            _ = try await database.save(record)
-            statusMessage = "Shared \(payload.updatedAt.formatted(date: .abbreviated, time: .shortened))"
-        } catch {
-            lastErrorMessage = userFacingMessage(for: error)
-            statusMessage = "Could not update shared list"
-        }
-
-        isSyncing = false
+        await synchronize(mode: .mergeAndUpload)
     }
 
     func syncOnAppActivation() async {
         guard isSharingConfigured else { return }
+        await refreshFromCloud()
+    }
 
-        if defaults.bool(forKey: FamilySharingDefaults.localIntentChangeFlagKey) {
-            await uploadNow()
-            if lastErrorMessage == nil {
-                defaults.set(false, forKey: FamilySharingDefaults.localIntentChangeFlagKey)
+    private enum SyncMode {
+        case mergeAndUploadIfNeeded
+        case mergeAndUpload
+        /// Used right after joining a share: the family's data replaces this device's local data.
+        case adoptRemoteAndUpload
+    }
+
+    private var hasPendingLocalChanges: Bool {
+        get { defaults.bool(forKey: FamilySharingDefaults.pendingLocalChangesKey) }
+        set { defaults.set(newValue, forKey: FamilySharingDefaults.pendingLocalChangesKey) }
+    }
+
+    private func noteLocalChange() {
+        localChangeGeneration += 1
+        hasPendingLocalChanges = true
+        scheduleUpload()
+    }
+
+    /// Runs sync operations one at a time so overlapping triggers cannot interleave
+    /// their fetch/merge/save steps.
+    private func synchronize(mode: SyncMode) async {
+        let previous = syncChain
+        let operation = Task { @MainActor [weak self] in
+            await previous?.value
+            await self?.performSync(mode: mode)
+        }
+        syncChain = operation
+        await operation.value
+    }
+
+    private func performSync(mode: SyncMode) async {
+        guard let recordID = storedRootRecordID else {
+            statusMessage = "Not sharing yet"
+            return
+        }
+        guard taskStore != nil, organizerStore != nil else { return }
+
+        isSyncing = true
+        lastErrorMessage = nil
+        defer { isSyncing = false }
+
+        do {
+            for attempt in 1...3 {
+                let record = try await fetchRootRecord(recordID)
+                let remotePayload = record.flatMap(decodePayload(from:))
+                guard let localPayload = currentPayload() else { return }
+                let changeGeneration = localChangeGeneration
+
+                let merged: SharedHouseholdPayload
+                if let remotePayload {
+                    if case .adoptRemoteAndUpload = mode {
+                        merged = remotePayload
+                    } else {
+                        merged = SharedHouseholdPayload.merged(local: localPayload, remote: remotePayload)
+                    }
+                    let arrival = sharedTaskArrival(from: remotePayload)
+                    apply(merged)
+                    postSharedTaskArrival(arrival)
+                } else {
+                    merged = localPayload
+                }
+
+                let needsUpload: Bool
+                switch mode {
+                case .mergeAndUploadIfNeeded:
+                    needsUpload = remotePayload == nil || hasPendingLocalChanges
+                case .mergeAndUpload, .adoptRemoteAndUpload:
+                    needsUpload = true
+                }
+
+                guard needsUpload else {
+                    if let remotePayload {
+                        statusMessage = "Updated \(remotePayload.updatedAt.formatted(date: .abbreviated, time: .shortened))"
+                    }
+                    return
+                }
+
+                // Re-read after apply so the upload includes this device's profile and member entry.
+                guard var uploadPayload = currentPayload() else { return }
+                uploadPayload.updatedAt = Date()
+                let target = record ?? CKRecord(recordType: CloudKitKey.rootRecordType, recordID: recordID)
+                encode(uploadPayload, into: target)
+
+                do {
+                    _ = try await database.save(target)
+                    if changeGeneration == localChangeGeneration {
+                        hasPendingLocalChanges = false
+                    }
+                    statusMessage = "Shared \(uploadPayload.updatedAt.formatted(date: .abbreviated, time: .shortened))"
+                    return
+                } catch let error as CKError where error.code == .serverRecordChanged && attempt < 3 {
+                    // Someone else saved in between; fetch their version and merge again.
+                    continue
+                }
             }
-        } else {
-            await refreshFromCloud()
+        } catch {
+            lastErrorMessage = userFacingMessage(for: error)
+            statusMessage = "Could not sync family sharing"
+        }
+    }
+
+    private func fetchRootRecord(_ recordID: CKRecord.ID) async throws -> CKRecord? {
+        do {
+            return try await database.record(for: recordID)
+        } catch let error as CKError where error.code == .unknownItem && databaseScope == .private {
+            return nil
         }
     }
 
@@ -378,8 +606,7 @@ final class SharedHouseholdStore: ObservableObject {
                 store(recordID: metadata.rootRecordID, databaseScope: .shared)
                 statusMessage = "Joined shared family list"
                 suppressNextSharedTaskArrivalNotification = true
-                await refreshFromCloud()
-                await uploadNow()
+                await synchronize(mode: .adoptRemoteAndUpload)
             } catch {
                 lastErrorMessage = userFacingMessage(for: error)
                 statusMessage = "Could not join shared list"
@@ -407,8 +634,7 @@ final class SharedHouseholdStore: ObservableObject {
             store(recordID: metadata.rootRecordID, databaseScope: .shared)
             statusMessage = "Joined shared family list"
             suppressNextSharedTaskArrivalNotification = true
-            await refreshFromCloud()
-            await uploadNow()
+            await synchronize(mode: .adoptRemoteAndUpload)
         } catch {
             lastErrorMessage = userFacingMessage(for: error)
             statusMessage = "Could not join shared list"
@@ -462,7 +688,10 @@ final class SharedHouseholdStore: ObservableObject {
     private func rootRecordForSharing() async throws -> CKRecord {
         if let recordID = storedRootRecordID {
             let record = try await container.privateCloudDatabase.record(for: recordID)
-            if let payload = currentPayload() {
+            if let localPayload = currentPayload() {
+                let payload = decodePayload(from: record)
+                    .map { SharedHouseholdPayload.merged(local: localPayload, remote: $0) } ?? localPayload
+                apply(payload)
                 encode(payload, into: record)
             }
             return record
@@ -496,11 +725,14 @@ final class SharedHouseholdStore: ObservableObject {
             recurringTasks: organizerStore.recurringTasks,
             mealPlan: organizerStore.exportMealPlanPayload(),
             ideas: organizerStore.exportIdeas(),
-            healthSnapshots: organizerStore.exportHealthSnapshots()
+            healthSnapshots: organizerStore.exportHealthSnapshots(),
+            deletions: SyncLedger.shared.deletions,
+            memberAdditions: SyncLedger.shared.memberAdditions
         )
     }
 
     private func apply(_ payload: SharedHouseholdPayload) {
+        SyncLedger.shared.apply(deletions: payload.deletions, memberAdditions: payload.memberAdditions)
         SharedMemberProfile.mergeAndSave(payload.profiles)
         taskStore?.applySharedData(tasks: payload.tasks, familyMembers: payload.familyMembers)
         organizerStore?.applySharedData(
