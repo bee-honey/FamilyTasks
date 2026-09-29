@@ -160,8 +160,8 @@ final class HealthSyncCoordinator {
     private func handleBackgroundRefresh(task: BGAppRefreshTask?) async {
         scheduleDailyRefresh()
 
-        let taskStore = TaskStore()
-        let organizerStore = OrganizerStore()
+        let taskStore = TaskStore.shared
+        let organizerStore = OrganizerStore.shared
         let sharedHouseholdStore = SharedHouseholdStore.shared
         sharedHouseholdStore.configure(taskStore: taskStore, organizerStore: organizerStore)
 
@@ -200,7 +200,6 @@ final class HealthSyncCoordinator {
             return
         }
 
-        await sharedHouseholdStore.refreshFromCloud()
         organizerStore.upsertHealthSnapshots(snapshots)
         if sharedHouseholdStore.isSharingConfigured {
             await sharedHouseholdStore.uploadNow()

@@ -422,6 +422,7 @@ final class SharedHouseholdStore: ObservableObject {
     }
 
     func configure(taskStore: TaskStore, organizerStore: OrganizerStore) {
+        guard self.taskStore !== taskStore || self.organizerStore !== organizerStore else { return }
         self.taskStore = taskStore
         self.organizerStore = organizerStore
 
@@ -911,6 +912,12 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         UNUserNotificationCenter.current().delegate = self
+        // Wire the shared stores up at launch (not on first view appearance) so
+        // background launches, such as the daily Health refresh, can sync too.
+        MainActor.assumeIsolated {
+            SharedHouseholdStore.shared.configure(taskStore: .shared, organizerStore: .shared)
+            NotificationScheduler.shared.configure(taskStore: .shared, organizerStore: .shared)
+        }
         HealthSyncCoordinator.shared.registerBackgroundRefresh()
         HealthSyncCoordinator.shared.scheduleDailyRefresh()
         return true

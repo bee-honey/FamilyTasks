@@ -2,6 +2,10 @@ import Foundation
 
 @MainActor
 final class OrganizerStore: ObservableObject {
+    /// The app-wide store. Background work must use this instance too, so there is
+    /// only ever one in-memory copy writing the organizer files.
+    static let shared = OrganizerStore()
+
     @Published private(set) var shops: [Shop] = [] {
         didSet { recordRemovals(from: oldValue, to: shops); saveShopping() }
     }

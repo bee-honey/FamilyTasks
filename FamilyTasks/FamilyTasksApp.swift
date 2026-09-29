@@ -3,8 +3,8 @@ import SwiftUI
 @main
 struct FamilyTasksApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @StateObject private var taskStore = TaskStore()
-    @StateObject private var organizerStore = OrganizerStore()
+    @StateObject private var taskStore = TaskStore.shared
+    @StateObject private var organizerStore = OrganizerStore.shared
     @StateObject private var calendarSync = CalendarSyncService()
     @StateObject private var sharedHouseholdStore = SharedHouseholdStore.shared
     @StateObject private var notificationScheduler = NotificationScheduler.shared
@@ -30,8 +30,6 @@ struct FamilyTasksApp: App {
             .environmentObject(notificationScheduler)
             .preferredColorScheme(selectedAppearance.colorScheme)
             .onAppear {
-                sharedHouseholdStore.configure(taskStore: taskStore, organizerStore: organizerStore)
-                notificationScheduler.configure(taskStore: taskStore, organizerStore: organizerStore)
                 HealthSyncCoordinator.shared.scheduleDailyRefresh()
             }
             .onChange(of: healthSharingEnabled) { _, enabled in

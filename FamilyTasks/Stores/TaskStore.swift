@@ -2,6 +2,10 @@ import Foundation
 
 @MainActor
 final class TaskStore: ObservableObject {
+    /// The app-wide store. Background work must use this instance too, so there is
+    /// only ever one in-memory copy writing the task files.
+    static let shared = TaskStore()
+
     @Published private(set) var tasks: [FamilyTask] = [] {
         didSet {
             if !isApplyingSharedData {
