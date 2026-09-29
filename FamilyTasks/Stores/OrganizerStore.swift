@@ -545,11 +545,6 @@ final class OrganizerStore: ObservableObject {
         plannedMeals = mealPlan.plannedMeals
         ideaNotes = ideas
         self.healthSnapshots = mergedHealthSnapshots(existing: self.healthSnapshots, incoming: healthSnapshots)
-        saveShopping()
-        saveRecurringTasks()
-        saveMealPlan()
-        saveIdeas()
-        saveHealthSnapshots()
         isApplyingSharedData = false
     }
 

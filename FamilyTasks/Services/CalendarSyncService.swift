@@ -60,12 +60,7 @@ final class CalendarSyncService: ObservableObject {
             return true
         case .notDetermined:
             do {
-                let granted: Bool
-                if #available(iOS 17.0, *) {
-                    granted = try await eventStore.requestFullAccessToEvents()
-                } else {
-                    granted = try await eventStore.requestAccess(to: .event)
-                }
+                let granted = try await eventStore.requestFullAccessToEvents()
                 authorizationStatus = EKEventStore.authorizationStatus(for: .event)
                 refreshAvailableCalendars()
                 return granted
@@ -92,12 +87,7 @@ final class CalendarSyncService: ObservableObject {
             return true
         case .notDetermined:
             do {
-                let granted: Bool
-                if #available(iOS 17.0, *) {
-                    granted = try await eventStore.requestFullAccessToEvents()
-                } else {
-                    granted = try await eventStore.requestAccess(to: .event)
-                }
+                let granted = try await eventStore.requestFullAccessToEvents()
                 authorizationStatus = EKEventStore.authorizationStatus(for: .event)
                 refreshAvailableCalendars()
                 return granted

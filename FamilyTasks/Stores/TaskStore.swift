@@ -23,9 +23,9 @@ final class TaskStore: ObservableObject {
     private var isApplyingSharedData = false
 
     init(storageURL: URL? = nil) {
-        let documents = URL.documentsDirectory
-        self.storageURL = storageURL ?? documents.appendingPathComponent("family-tasks.json")
-        self.familyMembersURL = documents.appendingPathComponent("family-members.json")
+        let tasksURL = storageURL ?? URL.documentsDirectory.appendingPathComponent("family-tasks.json")
+        self.storageURL = tasksURL
+        self.familyMembersURL = tasksURL.deletingLastPathComponent().appendingPathComponent("family-members.json")
         let isFirstLaunch = !FileManager.default.fileExists(atPath: self.storageURL.path)
         load()
         loadFamilyMembers()
@@ -169,8 +169,7 @@ final class TaskStore: ObservableObject {
         let trimmed = assignee.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard Self.isValidEmail(trimmed) else { return }
 
-        var changed = false
-        tasks = tasks.map { task in
+        let assignedTasks = tasks.map { task in
             guard task.assignedTo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                 return task
             }
@@ -179,12 +178,11 @@ final class TaskStore: ObservableObject {
             assigned.assignedTo = trimmed
             assigned.assignedToEmails = [trimmed]
             assigned.updatedAt = Date()
-            changed = true
             return assigned
         }
 
-        if changed {
-            save()
+        if assignedTasks != tasks {
+            tasks = assignedTasks
         }
     }
 
@@ -260,8 +258,6 @@ final class TaskStore: ObservableObject {
         isApplyingSharedData = true
         self.tasks = tasks
         self.familyMembers = normalizedFamilyMembers(from: familyMembers)
-        save()
-        saveFamilyMembers()
         isApplyingSharedData = false
     }
 
@@ -279,8 +275,7 @@ final class TaskStore: ObservableObject {
             familyMembers = Array(Set(validMembers)).sorted()
         }
 
-        var changedTasks = false
-        tasks = tasks.map { task in
+        let cleanedTasks = tasks.map { task in
             guard !task.assignedTo.isEmpty,
                   !Assignee.isEveryone(task.assignedTo),
                   !Self.isValidEmail(task.assignedTo) else {
@@ -291,12 +286,11 @@ final class TaskStore: ObservableObject {
             cleaned.assignedTo = ""
             cleaned.assignedToEmails = []
             cleaned.updatedAt = Date()
-            changedTasks = true
             return cleaned
         }
 
-        if changedTasks {
-            save()
+        if cleanedTasks != tasks {
+            tasks = cleanedTasks
         }
     }
 
