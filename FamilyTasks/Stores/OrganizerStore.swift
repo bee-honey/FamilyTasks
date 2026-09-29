@@ -362,8 +362,24 @@ final class OrganizerStore: ObservableObject {
 
     func markRecurringDone(_ task: RecurringTask) {
         guard let index = recurringTasks.firstIndex(where: { $0.id == task.id }) else { return }
-        recurringTasks[index].nextDueDate = task.frequency.nextDate(after: max(task.nextDueDate, Date()))
+        recurringTasks[index].nextDueDate = nextOccurrence(afterCompleting: task)
         recurringTasks[index].updatedAt = Date()
+    }
+
+    /// Advances along the task's own schedule (keeping its day and time) to the first
+    /// occurrence after now, rather than restarting the schedule from the moment it was
+    /// marked done.
+    private func nextOccurrence(afterCompleting task: RecurringTask, calendar: Calendar = .current) -> Date {
+        let now = Date()
+        var next = task.frequency.nextDate(after: task.nextDueDate, calendar: calendar)
+        var safetyLimit = 1_000
+        while next <= now && safetyLimit > 0 {
+            let candidate = task.frequency.nextDate(after: next, calendar: calendar)
+            guard candidate > next else { break }
+            next = candidate
+            safetyLimit -= 1
+        }
+        return next
     }
 
     func deleteRecurringTask(at offsets: IndexSet) {
