@@ -186,7 +186,7 @@ final class SyncLedger {
     private(set) var memberAdditions: [String: Date] = [:]
 
     private let storageURL = URL.documentsDirectory.appendingPathComponent("family-sync-ledger.json")
-    private static let retention: TimeInterval = 180 * 86_400
+    private nonisolated static let retention: TimeInterval = 180 * 86_400
 
     private struct Stored: Codable {
         var deletions: [String: Date]
@@ -429,12 +429,6 @@ final class SharedHouseholdStore: ObservableObject {
     }
 
     private init() {}
-
-    deinit {
-        if let changeObserver {
-            NotificationCenter.default.removeObserver(changeObserver)
-        }
-    }
 
     var isSharingConfigured: Bool {
         storedRootRecordID != nil
@@ -953,7 +947,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         HealthSyncCoordinator.shared.scheduleDailyRefresh()
     }
 
-    func userNotificationCenter(
+    nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {

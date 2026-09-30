@@ -118,7 +118,7 @@ final class HealthSyncCoordinator {
     }
 
     func registerBackgroundRefresh() {
-        BGTaskScheduler.shared.register(forTaskWithIdentifier: Self.backgroundTaskIdentifier, using: nil) { task in
+        BGTaskScheduler.shared.register(forTaskWithIdentifier: Self.backgroundTaskIdentifier, using: .main) { task in
             Task { @MainActor in
                 await self.handleBackgroundRefresh(task: task as? BGAppRefreshTask)
             }
@@ -463,7 +463,7 @@ final class HealthMetricsService: ObservableObject {
         }
     }
 
-    private static let sleepDayOffset: TimeInterval = -6 * 3_600
+    private nonisolated static let sleepDayOffset: TimeInterval = -6 * 3_600
 
     nonisolated static func sleepWindow(start: Date, end: Date, now: Date) -> DateInterval {
         let shiftedStart = start.addingTimeInterval(sleepDayOffset)

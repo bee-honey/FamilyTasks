@@ -2,9 +2,9 @@ import AppIntents
 import Foundation
 
 struct AddShoppingItemIntent: AppIntent {
-    static var title: LocalizedStringResource = "Add Shopping Item"
-    static var description = IntentDescription("Adds an item to the Family Tasks shopping list.")
-    static var openAppWhenRun = false
+    static let title: LocalizedStringResource = "Add Shopping Item"
+    static let description = IntentDescription("Adds an item to the Family Tasks shopping list.")
+    static let openAppWhenRun = false
 
     @Parameter(title: "Item")
     var itemName: String

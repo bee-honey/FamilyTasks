@@ -41,15 +41,6 @@ final class NotificationScheduler: ObservableObject {
         registerDefaults()
     }
 
-    deinit {
-        if let changeObserver {
-            NotificationCenter.default.removeObserver(changeObserver)
-        }
-        if let sharedTaskObserver {
-            NotificationCenter.default.removeObserver(sharedTaskObserver)
-        }
-    }
-
     func configure(taskStore: TaskStore, organizerStore: OrganizerStore) {
         self.taskStore = taskStore
         self.organizerStore = organizerStore
