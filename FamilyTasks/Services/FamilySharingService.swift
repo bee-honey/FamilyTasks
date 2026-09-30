@@ -398,7 +398,8 @@ final class SharedHouseholdStore: ObservableObject {
     @Published private(set) var statusMessage = "Not sharing yet"
     @Published private(set) var lastErrorMessage: String?
 
-    private let container = CKContainer.default()
+    // Created on first use so launching (and unit tests, which run unsigned) does not require CloudKit.
+    private lazy var container = CKContainer.default()
     private weak var taskStore: TaskStore?
     private weak var organizerStore: OrganizerStore?
     private var changeObserver: NSObjectProtocol?
