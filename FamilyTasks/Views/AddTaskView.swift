@@ -212,15 +212,15 @@ struct TaskAssignmentEditor: View {
             return "Everyone in your family can see this task."
         }
 
+        // Tasks still sync to every device in the family share; other members' apps just
+        // don't list them, so describe it as "shown to" rather than "can see".
         switch draft.assignedToEmails.count {
-        case 0:
-            return "Only you can see this task."
-        case 1:
-            return "Only you can see this task."
+        case 0, 1:
+            return "Shown only to you in Family Tasks."
         case 2:
-            return "Only you and the selected assignee can see this task."
+            return "Shown only to you and the selected assignee in Family Tasks."
         default:
-            return "Only you and the selected assignees can see this task."
+            return "Shown only to you and the selected assignees in Family Tasks."
         }
     }
 

@@ -2,8 +2,17 @@ import Foundation
 
 @MainActor
 final class TaskStore: ObservableObject {
+    /// The app-wide store. Background work must use this instance too, so there is
+    /// only ever one in-memory copy writing the task files.
+    static let shared = TaskStore()
+
     @Published private(set) var tasks: [FamilyTask] = [] {
-        didSet { save() }
+        didSet {
+            if !isApplyingSharedData {
+                SyncLedger.shared.recordRemovals(from: oldValue, to: tasks)
+            }
+            save()
+        }
     }
     @Published private(set) var familyMembers: [String] = [] {
         didSet { saveFamilyMembers() }
@@ -14,14 +23,16 @@ final class TaskStore: ObservableObject {
     private var isApplyingSharedData = false
 
     init(storageURL: URL? = nil) {
-        let documents = URL.documentsDirectory
-        self.storageURL = storageURL ?? documents.appendingPathComponent("family-tasks.json")
-        self.familyMembersURL = documents.appendingPathComponent("family-members.json")
+        let tasksURL = storageURL ?? URL.documentsDirectory.appendingPathComponent("family-tasks.json")
+        self.storageURL = tasksURL
+        self.familyMembersURL = tasksURL.deletingLastPathComponent().appendingPathComponent("family-members.json")
+        let isFirstLaunch = !FileManager.default.fileExists(atPath: self.storageURL.path)
         load()
         loadFamilyMembers()
         removeLegacyAssigneeNames()
 
-        if tasks.isEmpty {
+        // Only seed examples on first launch; an empty list later means the user cleared it.
+        if isFirstLaunch {
             tasks = [
                 FamilyTask(title: "Book pediatrician appointment", notes: "Add to shared calendar once a time is picked.", dueDate: Calendar.current.date(byAdding: .day, value: 1, to: Date()), isUrgent: true, isImportant: true),
                 FamilyTask(title: "Plan school lunch rotation", dueDate: Calendar.current.date(byAdding: .day, value: 4, to: Date()), isUrgent: false, isImportant: true),
@@ -140,18 +151,13 @@ final class TaskStore: ObservableObject {
         tasks.removeAll { $0.id == task.id }
     }
 
-    func setCalendarEventIdentifier(_ identifier: String?, for task: FamilyTask) {
-        guard let index = tasks.firstIndex(where: { $0.id == task.id }) else { return }
-        tasks[index].calendarEventIdentifier = identifier
-        tasks[index].updatedAt = Date()
-    }
-
     func addFamilyMember(named name: String) {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard Self.isValidEmail(trimmed) else { return }
         guard !familyMembers.contains(where: { $0.caseInsensitiveCompare(trimmed) == .orderedSame }) else { return }
         familyMembers.append(trimmed)
         familyMembers.sort()
+        SyncLedger.shared.recordMemberAdded(trimmed)
     }
 
     func ensureProfileMember() {
@@ -163,8 +169,7 @@ final class TaskStore: ObservableObject {
         let trimmed = assignee.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard Self.isValidEmail(trimmed) else { return }
 
-        var changed = false
-        tasks = tasks.map { task in
+        let assignedTasks = tasks.map { task in
             guard task.assignedTo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                 return task
             }
@@ -173,18 +178,18 @@ final class TaskStore: ObservableObject {
             assigned.assignedTo = trimmed
             assigned.assignedToEmails = [trimmed]
             assigned.updatedAt = Date()
-            changed = true
             return assigned
         }
 
-        if changed {
-            save()
+        if assignedTasks != tasks {
+            tasks = assignedTasks
         }
     }
 
     func deleteFamilyMember(at offsets: IndexSet) {
         let removedMembers = offsets.map { familyMembers[$0] }
         familyMembers.remove(atOffsets: offsets)
+        removedMembers.forEach(SyncLedger.shared.recordMemberRemoved)
         removedMembers.forEach(clearAssignee)
     }
 
@@ -209,7 +214,11 @@ final class TaskStore: ObservableObject {
 
     private func load() {
         guard let data = try? Data(contentsOf: storageURL) else { return }
-        tasks = (try? JSONDecoder().decode([FamilyTask].self, from: data)) ?? []
+        do {
+            tasks = try JSONDecoder().decode([FamilyTask].self, from: data)
+        } catch {
+            PersistenceBackup.preserveUnreadableFile(at: storageURL)
+        }
     }
 
     private func save() {
@@ -220,7 +229,11 @@ final class TaskStore: ObservableObject {
 
     private func loadFamilyMembers() {
         guard let data = try? Data(contentsOf: familyMembersURL) else { return }
-        familyMembers = (try? JSONDecoder().decode([String].self, from: data)) ?? []
+        do {
+            familyMembers = try JSONDecoder().decode([String].self, from: data)
+        } catch {
+            PersistenceBackup.preserveUnreadableFile(at: familyMembersURL)
+        }
     }
 
     private func saveFamilyMembers() {
@@ -245,8 +258,6 @@ final class TaskStore: ObservableObject {
         isApplyingSharedData = true
         self.tasks = tasks
         self.familyMembers = normalizedFamilyMembers(from: familyMembers)
-        save()
-        saveFamilyMembers()
         isApplyingSharedData = false
     }
 
@@ -264,8 +275,7 @@ final class TaskStore: ObservableObject {
             familyMembers = Array(Set(validMembers)).sorted()
         }
 
-        var changedTasks = false
-        tasks = tasks.map { task in
+        let cleanedTasks = tasks.map { task in
             guard !task.assignedTo.isEmpty,
                   !Assignee.isEveryone(task.assignedTo),
                   !Self.isValidEmail(task.assignedTo) else {
@@ -276,12 +286,11 @@ final class TaskStore: ObservableObject {
             cleaned.assignedTo = ""
             cleaned.assignedToEmails = []
             cleaned.updatedAt = Date()
-            changedTasks = true
             return cleaned
         }
 
-        if changedTasks {
-            save()
+        if cleanedTasks != tasks {
+            tasks = cleanedTasks
         }
     }
 
@@ -347,6 +356,16 @@ final class TaskStore: ObservableObject {
         case (.none, .none):
             return lhs.updatedAt > rhs.updatedAt
         }
+    }
+}
+
+enum PersistenceBackup {
+    /// Keeps a copy of a data file that failed to decode before the app writes a
+    /// fresh one over it, so the user's data can still be recovered.
+    static func preserveUnreadableFile(at url: URL) {
+        let backupURL = url.deletingPathExtension()
+            .appendingPathExtension("unreadable-\(Int(Date().timeIntervalSince1970)).json")
+        try? FileManager.default.copyItem(at: url, to: backupURL)
     }
 }
 

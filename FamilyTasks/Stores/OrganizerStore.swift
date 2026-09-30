@@ -2,32 +2,36 @@ import Foundation
 
 @MainActor
 final class OrganizerStore: ObservableObject {
+    /// The app-wide store. Background work must use this instance too, so there is
+    /// only ever one in-memory copy writing the organizer files.
+    static let shared = OrganizerStore()
+
     @Published private(set) var shops: [Shop] = [] {
-        didSet { saveShopping() }
+        didSet { recordRemovals(from: oldValue, to: shops); saveShopping() }
     }
 
     @Published private(set) var shoppingItems: [ShoppingItem] = [] {
-        didSet { saveShopping() }
+        didSet { recordRemovals(from: oldValue, to: shoppingItems); saveShopping() }
     }
 
     @Published private(set) var recurringTasks: [RecurringTask] = [] {
-        didSet { saveRecurringTasks() }
+        didSet { recordRemovals(from: oldValue, to: recurringTasks); saveRecurringTasks() }
     }
 
     @Published private(set) var mealIdeas: [MealIdea] = [] {
-        didSet { saveMealPlan() }
+        didSet { recordRemovals(from: oldValue, to: mealIdeas); saveMealPlan() }
     }
 
     @Published private(set) var plannedMeals: [PlannedMeal] = [] {
-        didSet { saveMealPlan() }
+        didSet { recordRemovals(from: oldValue, to: plannedMeals); saveMealPlan() }
     }
 
     @Published private(set) var ideaNotes: [IdeaNote] = [] {
-        didSet { saveIdeas() }
+        didSet { recordRemovals(from: oldValue, to: ideaNotes); saveIdeas() }
     }
 
     @Published private(set) var healthSnapshots: [HealthSnapshot] = [] {
-        didSet { saveHealthSnapshots() }
+        didSet { recordRemovals(from: oldValue, to: healthSnapshots); saveHealthSnapshots() }
     }
 
     private let shoppingURL: URL
@@ -35,6 +39,7 @@ final class OrganizerStore: ObservableObject {
     private let mealPlanURL: URL
     private let ideasURL: URL
     private let healthSnapshotsURL: URL
+    private var shopOrderUpdatedAt: Date?
     private var isApplyingSharedData = false
 
     init(directory: URL? = nil) {
@@ -44,12 +49,15 @@ final class OrganizerStore: ObservableObject {
         mealPlanURL = documents.appendingPathComponent("family-meal-plan.json")
         ideasURL = documents.appendingPathComponent("family-ideas.json")
         healthSnapshotsURL = documents.appendingPathComponent("family-health-snapshots.json")
+        let fileManager = FileManager.default
+        let isFirstShoppingLaunch = !fileManager.fileExists(atPath: shoppingURL.path)
+        let isFirstRecurringLaunch = !fileManager.fileExists(atPath: recurringTasksURL.path)
         loadShopping()
         loadRecurringTasks()
         loadMealPlan()
         loadIdeas()
         loadHealthSnapshots()
-        seedDefaultsIfNeeded()
+        seedDefaults(shopping: isFirstShoppingLaunch, recurringTasks: isFirstRecurringLaunch)
     }
 
     func refreshShopping() {
@@ -97,16 +105,19 @@ final class OrganizerStore: ObservableObject {
         let movingShop = shops.remove(at: sourceIndex)
         let adjustedTargetIndex = sourceIndex < targetIndex ? targetIndex - 1 : targetIndex
         shops.insert(movingShop, at: adjustedTargetIndex)
+        markShopOrderChanged()
     }
 
     func moveShopUp(_ shop: Shop) {
         guard let index = shops.firstIndex(where: { $0.id == shop.id }), index > 0 else { return }
         shops.swapAt(index, index - 1)
+        markShopOrderChanged()
     }
 
     func moveShopDown(_ shop: Shop) {
         guard let index = shops.firstIndex(where: { $0.id == shop.id }), index < shops.index(before: shops.endIndex) else { return }
         shops.swapAt(index, index + 1)
+        markShopOrderChanged()
     }
 
     func deleteShop(_ shop: Shop) {
@@ -213,7 +224,7 @@ final class OrganizerStore: ObservableObject {
 
     func addMealIngredientsToShopping(_ meal: MealIdea, overrides: [UUID: UUID]) {
         for ingredient in meal.ingredients {
-            guard let shopID = overrides[ingredient.id] ?? ingredient.defaultShopID,
+            guard let shopID = overrides[ingredient.id],
                   let shop = shops.first(where: { $0.id == shopID }) else { continue }
             addNeededItem(ingredient.name, to: shop)
         }
@@ -351,8 +362,24 @@ final class OrganizerStore: ObservableObject {
 
     func markRecurringDone(_ task: RecurringTask) {
         guard let index = recurringTasks.firstIndex(where: { $0.id == task.id }) else { return }
-        recurringTasks[index].nextDueDate = task.frequency.nextDate(after: max(task.nextDueDate, Date()))
+        recurringTasks[index].nextDueDate = nextOccurrence(afterCompleting: task)
         recurringTasks[index].updatedAt = Date()
+    }
+
+    /// Advances along the task's own schedule (keeping its day and time) to the first
+    /// occurrence after now, rather than restarting the schedule from the moment it was
+    /// marked done.
+    private func nextOccurrence(afterCompleting task: RecurringTask, calendar: Calendar = .current) -> Date {
+        let now = Date()
+        var next = task.frequency.nextDate(after: task.nextDueDate, calendar: calendar)
+        var safetyLimit = 1_000
+        while next <= now && safetyLimit > 0 {
+            let candidate = task.frequency.nextDate(after: next, calendar: calendar)
+            guard candidate > next else { break }
+            next = candidate
+            safetyLimit -= 1
+        }
+        return next
     }
 
     func deleteRecurringTask(at offsets: IndexSet) {
@@ -382,8 +409,9 @@ final class OrganizerStore: ObservableObject {
         }
     }
 
-    private func seedDefaultsIfNeeded() {
-        if shops.isEmpty {
+    /// Only seeds examples on first launch; an empty list later means the user cleared it.
+    private func seedDefaults(shopping: Bool, recurringTasks seedRecurring: Bool) {
+        if shopping {
             let costco = Shop(name: "Costco", usualItems: ["Milk", "Eggs", "Paper towels"])
             let target = Shop(name: "Target", usualItems: ["Laundry detergent", "Toothpaste"])
             let grocery = Shop(name: "Grocery", usualItems: ["Bananas", "Bread", "Yogurt"])
@@ -394,7 +422,7 @@ final class OrganizerStore: ObservableObject {
             ]
         }
 
-        if recurringTasks.isEmpty {
+        if seedRecurring {
             recurringTasks = [
                 RecurringTask(title: "Pay gardener", amount: "$", frequency: .monthly, nextDueDate: Calendar.current.date(byAdding: .day, value: 3, to: Date()) ?? Date()),
                 RecurringTask(title: "Mortgage payment", frequency: .monthly, nextDueDate: Calendar.current.date(byAdding: .month, value: 1, to: Date()) ?? Date())
@@ -404,13 +432,21 @@ final class OrganizerStore: ObservableObject {
 
     private func loadShopping() {
         guard let data = try? Data(contentsOf: shoppingURL) else { return }
-        guard let payload = try? JSONDecoder().decode(ShoppingPayload.self, from: data) else { return }
-        shops = payload.shops
-        shoppingItems = payload.items
+        guard let payload = try? JSONDecoder().decode(ShoppingPayload.self, from: data) else {
+            PersistenceBackup.preserveUnreadableFile(at: shoppingURL)
+            return
+        }
+        shopOrderUpdatedAt = payload.orderUpdatedAt
+        if shops != payload.shops {
+            shops = payload.shops
+        }
+        if shoppingItems != payload.items {
+            shoppingItems = payload.items
+        }
     }
 
     private func saveShopping() {
-        let payload = ShoppingPayload(shops: shops, items: shoppingItems)
+        let payload = ShoppingPayload(shops: shops, items: shoppingItems, orderUpdatedAt: shopOrderUpdatedAt)
         guard let data = try? JSONEncoder().encode(payload) else { return }
         try? data.write(to: shoppingURL, options: [.atomic])
         notifySharedDataChanged()
@@ -418,7 +454,11 @@ final class OrganizerStore: ObservableObject {
 
     private func loadRecurringTasks() {
         guard let data = try? Data(contentsOf: recurringTasksURL) else { return }
-        recurringTasks = (try? JSONDecoder().decode([RecurringTask].self, from: data)) ?? []
+        do {
+            recurringTasks = try JSONDecoder().decode([RecurringTask].self, from: data)
+        } catch {
+            PersistenceBackup.preserveUnreadableFile(at: recurringTasksURL)
+        }
     }
 
     private func saveRecurringTasks() {
@@ -429,7 +469,10 @@ final class OrganizerStore: ObservableObject {
 
     private func loadMealPlan() {
         guard let data = try? Data(contentsOf: mealPlanURL) else { return }
-        guard let payload = try? JSONDecoder().decode(MealPlanPayload.self, from: data) else { return }
+        guard let payload = try? JSONDecoder().decode(MealPlanPayload.self, from: data) else {
+            PersistenceBackup.preserveUnreadableFile(at: mealPlanURL)
+            return
+        }
         mealIdeas = payload.mealIdeas
         plannedMeals = payload.plannedMeals
     }
@@ -442,8 +485,11 @@ final class OrganizerStore: ObservableObject {
     }
 
     private func loadIdeas() {
-        guard let data = try? Data(contentsOf: ideasURL),
-              let notes = try? JSONDecoder().decode([IdeaNote].self, from: data) else { return }
+        guard let data = try? Data(contentsOf: ideasURL) else { return }
+        guard let notes = try? JSONDecoder().decode([IdeaNote].self, from: data) else {
+            PersistenceBackup.preserveUnreadableFile(at: ideasURL)
+            return
+        }
         ideaNotes = notes
     }
 
@@ -466,7 +512,7 @@ final class OrganizerStore: ObservableObject {
     }
 
     func exportShoppingPayload() -> ShoppingPayload {
-        ShoppingPayload(shops: shops, items: shoppingItems)
+        ShoppingPayload(shops: shops, items: shoppingItems, orderUpdatedAt: shopOrderUpdatedAt)
     }
 
     func exportMealPlanPayload() -> MealPlanPayload {
@@ -491,6 +537,7 @@ final class OrganizerStore: ObservableObject {
 
     func applySharedData(shopping: ShoppingPayload, recurringTasks: [RecurringTask], mealPlan: MealPlanPayload, ideas: [IdeaNote], healthSnapshots: [HealthSnapshot]) {
         isApplyingSharedData = true
+        shopOrderUpdatedAt = shopping.orderUpdatedAt
         shops = shopping.shops
         shoppingItems = shopping.items
         self.recurringTasks = recurringTasks
@@ -498,12 +545,17 @@ final class OrganizerStore: ObservableObject {
         plannedMeals = mealPlan.plannedMeals
         ideaNotes = ideas
         self.healthSnapshots = mergedHealthSnapshots(existing: self.healthSnapshots, incoming: healthSnapshots)
-        saveShopping()
-        saveRecurringTasks()
-        saveMealPlan()
-        saveIdeas()
-        saveHealthSnapshots()
         isApplyingSharedData = false
+    }
+
+    private func markShopOrderChanged() {
+        shopOrderUpdatedAt = Date()
+        saveShopping()
+    }
+
+    private func recordRemovals<Item: SyncMergeable>(from oldItems: [Item], to newItems: [Item]) {
+        guard !isApplyingSharedData else { return }
+        SyncLedger.shared.recordRemovals(from: oldItems, to: newItems)
     }
 
     private func notifySharedDataChanged() {
@@ -581,6 +633,7 @@ final class OrganizerStore: ObservableObject {
 struct ShoppingPayload: Codable {
     var shops: [Shop]
     var items: [ShoppingItem]
+    var orderUpdatedAt: Date?
 }
 
 struct MealPlanPayload: Codable {

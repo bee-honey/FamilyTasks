@@ -23,7 +23,12 @@ final class NotificationScheduler: ObservableObject {
         static let todayDigestMinute = "notifications.todayDigestMinute"
         static let dueSoonLeadMinutes = "notifications.dueSoonLeadMinutes"
         static let dueSoonLeadMinutesList = "notifications.dueSoonLeadMinutesList"
+        static let digestCatchupDay = "notifications.digestCatchupDay"
     }
+
+    /// iOS keeps at most 64 pending local notifications per app; leave room for
+    /// test and shared-task alerts.
+    private static let maxScheduledAlerts = 58
 
     private enum IdentifierPrefix {
         static let todayDigest = "familytasks.todayDigest."
@@ -107,19 +112,25 @@ final class NotificationScheduler: ObservableObject {
             return
         }
 
+        // A catch-up digest is a one-off for the day; leave it alone if it is still pending.
         let pendingIdentifiers = await pendingFamilyTaskIdentifiers()
+            .filter { !$0.hasSuffix(".catchup") }
         center.removePendingNotificationRequests(withIdentifiers: pendingIdentifiers)
 
         guard let taskStore else { return }
         let activeTasks = taskStore.exportVisibleTasks().filter { !$0.isDone }
         let activeRecurringTasks = organizerStore?.exportVisibleRecurringTasks().filter(\.isActive) ?? []
 
+        var alerts: [ScheduledAlert] = []
         if defaults.bool(forKey: DefaultsKey.todayDigest) {
-            scheduleTodayDigests(for: activeTasks)
+            alerts += todayDigestAlerts(for: activeTasks)
         }
+        alerts += dueSoonAlerts(for: activeTasks)
+        alerts += recurringDueSoonAlerts(for: activeRecurringTasks)
 
-        scheduleDueSoonAlerts(for: activeTasks)
-        scheduleRecurringDueSoonAlerts(for: activeRecurringTasks)
+        for alert in alerts.sorted(by: { $0.fireDate < $1.fireDate }).prefix(Self.maxScheduledAlerts) {
+            try? await center.add(alert.request)
+        }
 
         await refreshStatus(settings: settings)
     }
@@ -205,11 +216,17 @@ final class NotificationScheduler: ObservableObject {
         }
     }
 
-    private func scheduleTodayDigests(for tasks: [FamilyTask]) {
+    private struct ScheduledAlert {
+        let fireDate: Date
+        let request: UNNotificationRequest
+    }
+
+    private func todayDigestAlerts(for tasks: [FamilyTask]) -> [ScheduledAlert] {
         let calendar = Calendar.current
         let now = Date()
         let hour = defaults.integer(forKey: DefaultsKey.todayDigestHour)
         let minute = defaults.integer(forKey: DefaultsKey.todayDigestMinute)
+        var alerts: [ScheduledAlert] = []
 
         for dayOffset in 0..<14 {
             guard let day = calendar.date(byAdding: .day, value: dayOffset, to: now),
@@ -224,14 +241,18 @@ final class NotificationScheduler: ObservableObject {
 
             let dayTasks = tasksForDigest(on: day, from: tasks, calendar: calendar)
             guard !dayTasks.isEmpty else { continue }
+            let daySuffix = digestIdentifierSuffix(for: day, calendar: calendar)
 
             if triggerDate > now {
-                scheduleDigest(for: dayTasks, on: triggerDate, identifierSuffix: digestIdentifierSuffix(for: day, calendar: calendar))
-            } else if dayOffset == 0 {
-                let catchupDate = now.addingTimeInterval(10)
-                scheduleDigest(for: dayTasks, on: catchupDate, identifierSuffix: "\(digestIdentifierSuffix(for: day, calendar: calendar)).catchup")
+                alerts.append(digestAlert(for: dayTasks, on: triggerDate, identifierSuffix: daySuffix))
+            } else if dayOffset == 0, defaults.string(forKey: DefaultsKey.digestCatchupDay) != daySuffix {
+                // Today's digest time already passed (e.g. first launch after it): send it once.
+                defaults.set(daySuffix, forKey: DefaultsKey.digestCatchupDay)
+                alerts.append(digestAlert(for: dayTasks, on: now.addingTimeInterval(10), identifierSuffix: "\(daySuffix).catchup"))
             }
         }
+
+        return alerts
     }
 
     private func tasksForDigest(on day: Date, from tasks: [FamilyTask], calendar: Calendar) -> [FamilyTask] {
@@ -254,7 +275,7 @@ final class NotificationScheduler: ObservableObject {
             }
     }
 
-    private func scheduleDigest(for tasks: [FamilyTask], on triggerDate: Date, identifierSuffix: String) {
+    private func digestAlert(for tasks: [FamilyTask], on triggerDate: Date, identifierSuffix: String) -> ScheduledAlert {
         let calendar = Calendar.current
         let content = UNMutableNotificationContent()
         content.title = "Today's Family Tasks"
@@ -268,7 +289,7 @@ final class NotificationScheduler: ObservableObject {
             content: content,
             trigger: trigger
         )
-        center.add(request)
+        return ScheduledAlert(fireDate: triggerDate, request: request)
     }
 
     private func digestIdentifierSuffix(for date: Date, calendar: Calendar) -> String {
@@ -276,64 +297,62 @@ final class NotificationScheduler: ObservableObject {
         return String(format: "%04d-%02d-%02d", components.year ?? 0, components.month ?? 0, components.day ?? 0)
     }
 
-    private func scheduleDueSoonAlerts(for tasks: [FamilyTask]) {
-        let now = Date()
-
-        for task in tasks {
-            guard let dueDate = task.dueDate else { continue }
-            guard dueDate > now else { continue }
-            let leadMinuteValues = leadMinutes(for: task.notificationPreference)
-
-            for leadMinutes in leadMinuteValues {
-                let triggerDate = dueDate.addingTimeInterval(TimeInterval(-leadMinutes * 60))
-                let effectiveTriggerDate = max(triggerDate, now.addingTimeInterval(3))
-
-                let content = UNMutableNotificationContent()
-                content.title = leadMinutes == 0 ? "Task Due Now" : "Task Due Soon"
-                content.body = dueSoonBody(for: task, leadMinutes: leadMinutes)
-                content.sound = .default
-
-                let trigger = UNTimeIntervalNotificationTrigger(
-                    timeInterval: max(1, effectiveTriggerDate.timeIntervalSince(now)),
-                    repeats: false
-                )
-                let request = UNNotificationRequest(
-                    identifier: "\(IdentifierPrefix.dueSoon)\(task.id.uuidString).\(leadMinutes)",
-                    content: content,
-                    trigger: trigger
-                )
-                center.add(request)
-            }
+    private func dueSoonAlerts(for tasks: [FamilyTask]) -> [ScheduledAlert] {
+        tasks.flatMap { task -> [ScheduledAlert] in
+            guard let dueDate = task.dueDate else { return [] }
+            return leadTimeAlerts(
+                identifierBase: "\(IdentifierPrefix.dueSoon)\(task.id.uuidString)",
+                title: task.title,
+                dueDate: dueDate,
+                leadMinuteValues: leadMinutes(for: task.notificationPreference),
+                titles: (now: "Task Due Now", soon: "Task Due Soon")
+            )
         }
     }
 
-    private func scheduleRecurringDueSoonAlerts(for recurringTasks: [RecurringTask]) {
+    private func recurringDueSoonAlerts(for recurringTasks: [RecurringTask]) -> [ScheduledAlert] {
+        recurringTasks.flatMap { task in
+            leadTimeAlerts(
+                identifierBase: "\(IdentifierPrefix.recurringDueSoon)\(task.id.uuidString)",
+                title: task.title,
+                dueDate: task.nextDueDate,
+                leadMinuteValues: leadMinutes(for: task.notificationPreference),
+                titles: (now: "Recurring Task Due Now", soon: "Recurring Task Due Soon")
+            )
+        }
+    }
+
+    /// Builds one alert per lead time that is still in the future. Lead times that have
+    /// already passed are skipped (rescheduling happens on every change, so firing them
+    /// "now" would repeat them); if none remain, a single alert fires at the due time.
+    private func leadTimeAlerts(
+        identifierBase: String,
+        title: String,
+        dueDate: Date,
+        leadMinuteValues: [Int],
+        titles: (now: String, soon: String)
+    ) -> [ScheduledAlert] {
         let now = Date()
+        guard dueDate > now, !leadMinuteValues.isEmpty else { return [] }
 
-        for task in recurringTasks {
-            guard task.nextDueDate > now else { continue }
-            let leadMinuteValues = leadMinutes(for: task.notificationPreference)
+        var upcoming = leadMinuteValues.filter { dueDate.addingTimeInterval(TimeInterval(-$0 * 60)) > now }
+        if upcoming.isEmpty {
+            upcoming = [0]
+        }
 
-            for leadMinutes in leadMinuteValues {
-                let triggerDate = task.nextDueDate.addingTimeInterval(TimeInterval(-leadMinutes * 60))
-                let effectiveTriggerDate = max(triggerDate, now.addingTimeInterval(3))
+        return upcoming.map { leadMinutes in
+            let triggerDate = dueDate.addingTimeInterval(TimeInterval(-leadMinutes * 60))
+            let content = UNMutableNotificationContent()
+            content.title = leadMinutes == 0 ? titles.now : titles.soon
+            content.body = dueSoonBody(title: title, dueDate: dueDate, leadMinutes: leadMinutes)
+            content.sound = .default
 
-                let content = UNMutableNotificationContent()
-                content.title = leadMinutes == 0 ? "Recurring Task Due Now" : "Recurring Task Due Soon"
-                content.body = dueSoonBody(title: task.title, dueDate: task.nextDueDate, leadMinutes: leadMinutes)
-                content.sound = .default
-
-                let trigger = UNTimeIntervalNotificationTrigger(
-                    timeInterval: max(1, effectiveTriggerDate.timeIntervalSince(now)),
-                    repeats: false
-                )
-                let request = UNNotificationRequest(
-                    identifier: "\(IdentifierPrefix.recurringDueSoon)\(task.id.uuidString).\(leadMinutes)",
-                    content: content,
-                    trigger: trigger
-                )
-                center.add(request)
-            }
+            let request = UNNotificationRequest(
+                identifier: "\(identifierBase).\(leadMinutes)",
+                content: content,
+                trigger: UNTimeIntervalNotificationTrigger(timeInterval: max(1, triggerDate.timeIntervalSince(now)), repeats: false)
+            )
+            return ScheduledAlert(fireDate: triggerDate, request: request)
         }
     }
 
@@ -410,10 +429,6 @@ final class NotificationScheduler: ObservableObject {
         }
 
         return "\(countText) scheduled: \(titles)."
-    }
-
-    private func dueSoonBody(for task: FamilyTask, leadMinutes: Int) -> String {
-        dueSoonBody(title: task.title, dueDate: task.dueDate, leadMinutes: leadMinutes)
     }
 
     private func dueSoonBody(title: String, dueDate: Date?, leadMinutes: Int) -> String {

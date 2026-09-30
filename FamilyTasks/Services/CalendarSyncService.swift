@@ -1,3 +1,4 @@
+import Combine
 import EventKit
 import Foundation
 
@@ -9,19 +10,45 @@ final class CalendarSyncService: ObservableObject {
     @Published private(set) var lastRefreshDate: Date?
     @Published private(set) var availableCalendars: [CalendarSelectionOption] = []
     @Published var lastErrorMessage: String?
+    /// Task ID -> event identifier. Event identifiers only mean something in this
+    /// device's calendar database, so they are kept locally and never shared.
+    @Published private(set) var taskEventIdentifiers: [UUID: String] = [:]
 
     private let eventStore = EKEventStore()
     private let defaults = UserDefaults.standard
+    private var taskObservation: AnyCancellable?
 
     private enum DefaultsKey {
         static let selectedReadCalendarIDs = "calendar.selectedReadCalendarIDs"
         static let readCalendarSelectionConfigured = "calendar.readCalendarSelectionConfigured"
         static let selectedWriteCalendarID = "calendar.selectedWriteCalendarID"
+        static let taskEventIdentifiers = "calendar.taskEventIdentifiers"
     }
 
     init() {
         authorizationStatus = EKEventStore.authorizationStatus(for: .event)
+        let stored = defaults.dictionary(forKey: DefaultsKey.taskEventIdentifiers) as? [String: String] ?? [:]
+        taskEventIdentifiers = Dictionary(uniqueKeysWithValues: stored.compactMap { key, value in
+            UUID(uuidString: key).map { ($0, value) }
+        })
         refreshAvailableCalendars()
+    }
+
+    /// Removes calendar events for tasks that no longer exist, whether they were
+    /// deleted here or on another family member's device.
+    func configure(taskStore: TaskStore) {
+        guard taskObservation == nil else { return }
+        adoptLegacyEventIdentifiers(from: taskStore.tasks)
+        taskObservation = taskStore.$tasks
+            .map { Set($0.map(\.id)) }
+            .removeDuplicates()
+            .sink { [weak self] taskIDs in
+                self?.removeEvents(forTasksNotIn: taskIDs)
+            }
+    }
+
+    func hasCalendarEvent(for task: FamilyTask) -> Bool {
+        taskEventIdentifiers[task.id] != nil
     }
 
     func requestAccessIfNeeded() async -> Bool {
@@ -33,12 +60,7 @@ final class CalendarSyncService: ObservableObject {
             return true
         case .notDetermined:
             do {
-                let granted: Bool
-                if #available(iOS 17.0, *) {
-                    granted = try await eventStore.requestFullAccessToEvents()
-                } else {
-                    granted = try await eventStore.requestAccess(to: .event)
-                }
+                let granted = try await eventStore.requestFullAccessToEvents()
                 authorizationStatus = EKEventStore.authorizationStatus(for: .event)
                 refreshAvailableCalendars()
                 return granted
@@ -65,12 +87,7 @@ final class CalendarSyncService: ObservableObject {
             return true
         case .notDetermined:
             do {
-                let granted: Bool
-                if #available(iOS 17.0, *) {
-                    granted = try await eventStore.requestFullAccessToEvents()
-                } else {
-                    granted = try await eventStore.requestAccess(to: .event)
-                }
+                let granted = try await eventStore.requestFullAccessToEvents()
                 authorizationStatus = EKEventStore.authorizationStatus(for: .event)
                 refreshAvailableCalendars()
                 return granted
@@ -182,18 +199,22 @@ final class CalendarSyncService: ObservableObject {
         objectWillChange.send()
     }
 
-    func sync(_ task: FamilyTask) async throws -> String {
+    func sync(_ task: FamilyTask) async throws {
         guard await requestAccessIfNeeded() else {
             throw CalendarSyncError.accessDenied
         }
 
-        let event = task.calendarEventIdentifier
+        // Fall back to the identifier older versions stored on the shared task; it only
+        // resolves if that event was created on this device.
+        let existingEvent = (taskEventIdentifiers[task.id] ?? task.calendarEventIdentifier)
             .flatMap { eventStore.event(withIdentifier: $0) }
-            ?? EKEvent(eventStore: eventStore)
+        let event = existingEvent ?? EKEvent(eventStore: eventStore)
 
         event.title = task.title
         event.notes = task.notes.isEmpty ? nil : task.notes
-        event.calendar = bestCalendar()
+        if existingEvent == nil {
+            event.calendar = bestCalendar()
+        }
 
         let start = task.dueDate ?? Date()
         event.startDate = start
@@ -201,7 +222,43 @@ final class CalendarSyncService: ObservableObject {
         event.availability = .busy
 
         try eventStore.save(event, span: .thisEvent, commit: true)
-        return event.eventIdentifier
+        setEventIdentifier(event.eventIdentifier, for: task.id)
+    }
+
+    /// Older versions stored the event identifier on the shared task. Keep the ones
+    /// that resolve to an event on this device.
+    private func adoptLegacyEventIdentifiers(from tasks: [FamilyTask]) {
+        let status = EKEventStore.authorizationStatus(for: .event)
+        guard status == .fullAccess || status == .authorized else { return }
+
+        for task in tasks where taskEventIdentifiers[task.id] == nil {
+            guard let identifier = task.calendarEventIdentifier,
+                  eventStore.event(withIdentifier: identifier) != nil else { continue }
+            setEventIdentifier(identifier, for: task.id)
+        }
+    }
+
+    private func removeEvents(forTasksNotIn taskIDs: Set<UUID>) {
+        let orphaned = taskEventIdentifiers.filter { !taskIDs.contains($0.key) }
+        guard !orphaned.isEmpty else { return }
+
+        let status = EKEventStore.authorizationStatus(for: .event)
+        // Without read access we cannot look the events up; keep the mapping for later.
+        guard status == .fullAccess || status == .authorized else { return }
+
+        for (taskID, identifier) in orphaned {
+            if let event = eventStore.event(withIdentifier: identifier) {
+                try? eventStore.remove(event, span: .thisEvent, commit: false)
+            }
+            setEventIdentifier(nil, for: taskID)
+        }
+        try? eventStore.commit()
+    }
+
+    private func setEventIdentifier(_ identifier: String?, for taskID: UUID) {
+        taskEventIdentifiers[taskID] = identifier
+        let stored = Dictionary(uniqueKeysWithValues: taskEventIdentifiers.map { ($0.key.uuidString, $0.value) })
+        defaults.set(stored, forKey: DefaultsKey.taskEventIdentifiers)
     }
 
     private func bestCalendar() -> EKCalendar? {
