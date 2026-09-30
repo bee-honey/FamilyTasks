@@ -333,15 +333,7 @@ final class NotificationScheduler: ObservableObject {
         titles: (now: String, soon: String)
     ) -> [ScheduledAlert] {
         let now = Date()
-        guard dueDate > now, !leadMinuteValues.isEmpty else { return [] }
-
-        var upcoming = leadMinuteValues.filter { dueDate.addingTimeInterval(TimeInterval(-$0 * 60)) > now }
-        if upcoming.isEmpty {
-            upcoming = [0]
-        }
-
-        return upcoming.map { leadMinutes in
-            let triggerDate = dueDate.addingTimeInterval(TimeInterval(-leadMinutes * 60))
+        return Self.leadTimeFireDates(dueDate: dueDate, leadMinuteValues: leadMinuteValues, now: now).map { leadMinutes, triggerDate in
             let content = UNMutableNotificationContent()
             content.title = leadMinutes == 0 ? titles.now : titles.soon
             content.body = dueSoonBody(title: title, dueDate: dueDate, leadMinutes: leadMinutes)
@@ -354,6 +346,23 @@ final class NotificationScheduler: ObservableObject {
             )
             return ScheduledAlert(fireDate: triggerDate, request: request)
         }
+    }
+
+    /// Which lead-time alerts to schedule and when. Lead times that have already passed
+    /// are dropped; if none remain but the task is still upcoming, one alert fires at the
+    /// due time.
+    nonisolated static func leadTimeFireDates(
+        dueDate: Date,
+        leadMinuteValues: [Int],
+        now: Date
+    ) -> [(leadMinutes: Int, fireDate: Date)] {
+        guard dueDate > now, !leadMinuteValues.isEmpty else { return [] }
+
+        var upcoming = leadMinuteValues.filter { dueDate.addingTimeInterval(TimeInterval(-$0 * 60)) > now }
+        if upcoming.isEmpty {
+            upcoming = [0]
+        }
+        return upcoming.map { ($0, dueDate.addingTimeInterval(TimeInterval(-$0 * 60))) }
     }
 
     private func leadMinutes(for preference: TaskNotificationPreference?) -> [Int] {

@@ -409,7 +409,7 @@ final class HealthMetricsService: ObservableObject {
     }
     /// Daily step totals plus merged sleep periods for the whole range, fetched with
     /// two HealthKit queries; per-day/week/month numbers are then summed in memory.
-    private struct HealthRangeData {
+    struct HealthRangeData {
         let stepsByDay: [Date: Double]
         let asleep: [DateInterval]
 
@@ -465,7 +465,7 @@ final class HealthMetricsService: ObservableObject {
 
     private static let sleepDayOffset: TimeInterval = -6 * 3_600
 
-    nonisolated private static func sleepWindow(start: Date, end: Date, now: Date) -> DateInterval {
+    nonisolated static func sleepWindow(start: Date, end: Date, now: Date) -> DateInterval {
         let shiftedStart = start.addingTimeInterval(sleepDayOffset)
         let shiftedEnd = end >= now ? now : end.addingTimeInterval(sleepDayOffset)
         return DateInterval(start: shiftedStart, end: max(shiftedStart, shiftedEnd))
@@ -492,7 +492,7 @@ final class HealthMetricsService: ObservableObject {
         }
     }
 
-    nonisolated private static func mergedIntervals(_ intervals: [DateInterval]) -> [DateInterval] {
+    nonisolated static func mergedIntervals(_ intervals: [DateInterval]) -> [DateInterval] {
         var merged: [DateInterval] = []
         for interval in intervals.sorted(by: { $0.start < $1.start }) {
             if let last = merged.last, interval.start <= last.end {
@@ -504,7 +504,7 @@ final class HealthMetricsService: ObservableObject {
         return merged
     }
 
-    nonisolated private static func totalDuration(of intervals: [DateInterval], in window: DateInterval) -> TimeInterval {
+    nonisolated static func totalDuration(of intervals: [DateInterval], in window: DateInterval) -> TimeInterval {
         intervals.reduce(0) { total, interval in
             let start = max(interval.start, window.start)
             let end = min(interval.end, window.end)
