@@ -184,12 +184,8 @@ struct MealPlanView: View {
         return (0..<7).compactMap { Calendar.current.date(byAdding: .day, value: $0, to: start) }
     }
 
-    /// The rest of the shown week: meals already eaten earlier this week are left out.
     private var shoppingRange: Range<Date>? {
-        guard let first = daysToShow.first, let last = daysToShow.last,
-              let end = Calendar.current.date(byAdding: .day, value: 1, to: last) else { return nil }
-        let start = max(first, Calendar.current.startOfDay(for: Date()))
-        return start < end ? start..<end : nil
+        WeeklyIngredient.weekRange(containing: selectedDay)
     }
 
     private var shopForWeekTitle: String {
@@ -708,12 +704,8 @@ private struct WeeklyShoppingView: View {
         NavigationStack {
             List {
                 if ingredients.isEmpty {
-                    ContentUnavailableView(
-                        "Nothing to Buy",
-                        systemImage: "fork.knife",
-                        description: Text("Plan meals that have ingredients for this week, and they'll show up here.")
-                    )
-                    .listRowBackground(Color.clear)
+                    ContentUnavailableView("Nothing to Buy", systemImage: "fork.knife", description: Text(emptyMessage))
+                        .listRowBackground(Color.clear)
                 } else if organizerStore.shops.isEmpty {
                     ContentUnavailableView("No Shops Yet", systemImage: "cart", description: Text("Add a shop in Shopping first."))
                         .listRowBackground(Color.clear)
@@ -755,6 +747,14 @@ private struct WeeklyShoppingView: View {
             }
             .onAppear(perform: load)
         }
+    }
+
+    private var emptyMessage: String {
+        guard let range else { return "" }
+        let plannedThisWeek = organizerStore.plannedMeals.contains { range.contains($0.date) }
+        return plannedThisWeek
+            ? "The meals planned for this week don't have ingredients yet. Add them to the meals in the Meals tab."
+            : "No meals are planned for this week yet."
     }
 
     private var toBuy: [WeeklyIngredient] {
@@ -800,7 +800,7 @@ private struct WeeklyShoppingView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(ingredient.name)
                             .foregroundStyle(.primary)
-                        Text(ingredient.mealNames.joined(separator: ", "))
+                        Text(ingredient.meals.joined(separator: ", "))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)

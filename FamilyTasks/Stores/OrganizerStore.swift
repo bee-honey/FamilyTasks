@@ -298,10 +298,12 @@ final class OrganizerStore: ObservableObject {
                     .compactMap { $0 }
                     .first { shopIDs.contains($0) }
 
+                let use = "\(meal.name) (\(planned.date.formatted(.dateTime.weekday(.abbreviated))))"
+
                 if var existing = ingredientsByKey[key] {
                     existing.shopID = existing.shopID ?? shopID
-                    if !existing.mealNames.contains(meal.name) {
-                        existing.mealNames.append(meal.name)
+                    if !existing.meals.contains(use) {
+                        existing.meals.append(use)
                     }
                     ingredientsByKey[key] = existing
                 } else {
@@ -309,7 +311,7 @@ final class OrganizerStore: ObservableObject {
                         id: key,
                         name: ingredient.name.trimmingCharacters(in: .whitespacesAndNewlines),
                         shopID: shopID,
-                        mealNames: [meal.name],
+                        meals: [use],
                         isAlreadyNeeded: alreadyNeeded.contains(key)
                     )
                     order.append(key)
@@ -732,9 +734,16 @@ struct WeeklyIngredient: Identifiable, Equatable {
     var id: String
     var name: String
     var shopID: UUID?
-    /// The meals that use it, in the order they are planned.
-    var mealNames: [String]
+    /// The meals that use it with their day, such as "Curry (Mon)", in the order they are planned.
+    var meals: [String]
     var isAlreadyNeeded: Bool
+
+    /// The whole calendar week containing `date`, including days already past, since
+    /// "Shop for This Week" covers every meal shown for the week.
+    static func weekRange(containing date: Date, calendar: Calendar = .current) -> Range<Date>? {
+        guard let week = calendar.dateInterval(of: .weekOfYear, for: date) else { return nil }
+        return week.start..<week.end
+    }
 
     static func key(for name: String) -> String {
         name.trimmingCharacters(in: .whitespacesAndNewlines)

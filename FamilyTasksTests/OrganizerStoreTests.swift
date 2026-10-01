@@ -181,7 +181,8 @@ final class OrganizerStoreTests: XCTestCase {
         )
 
         XCTAssertEqual(ingredients.map(\.name), ["Onions", "Chicken", "Tortillas"])
-        XCTAssertEqual(ingredients[0].mealNames, ["Curry", "Tacos"])
+        let weekday = { (date: Date) in date.formatted(.dateTime.weekday(.abbreviated)) }
+        XCTAssertEqual(ingredients[0].meals, ["Curry (\(weekday(monday)))", "Tacos (\(weekday(monday.addingTimeInterval(2 * 86_400))))"])
         XCTAssertEqual(ingredients.map(\.shopID), [grocer.id, butcher.id, nil])
     }
 
@@ -229,5 +230,18 @@ final class OrganizerStoreTests: XCTestCase {
         XCTAssertEqual(store.shoppingItems.count, countBefore + 1)
         XCTAssertTrue(store.shoppingItems.contains { $0.name == "Onions" && $0.shopID == shop.id && $0.isNeeded })
         XCTAssertTrue(try XCTUnwrap(store.shops.first { $0.id == shop.id }).usualItems.contains("Onions"))
+    }
+
+    func testThisWeekIncludesDaysAlreadyPast() throws {
+        let week = try XCTUnwrap(calendar.dateInterval(of: .weekOfYear, for: Date()))
+        let range = try XCTUnwrap(WeeklyIngredient.weekRange(containing: Date()))
+
+        // Planned meals on any day of the shown week count, including ones before today.
+        for offset in 0..<7 {
+            let evening = calendar.date(byAdding: .hour, value: offset * 24 + 19, to: week.start)!
+            XCTAssertTrue(range.contains(evening), "Day \(offset) of the week was left out")
+        }
+        XCTAssertFalse(range.contains(week.end))
+        XCTAssertFalse(range.contains(week.start.addingTimeInterval(-1)))
     }
 }
