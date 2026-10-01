@@ -87,4 +87,22 @@ final class TaskStoreTests: XCTestCase {
 
         XCTAssertEqual(store.visibleTasks.map(\.title), ["Mine"])
     }
+
+    func testApplyingUnchangedSharedDataLeavesTheStoreAlone() {
+        let store = TaskStore(storageURL: tasksURL)
+        let tasks = store.exportTasks()
+        let members = store.exportFamilyMembers()
+        // The first apply stores the normalized member list (sorted, including this device's profile).
+        store.applySharedData(tasks: tasks, familyMembers: members)
+        var changes = 0
+        let observation = store.objectWillChange.sink { changes += 1 }
+
+        store.applySharedData(tasks: tasks, familyMembers: members)
+        XCTAssertEqual(changes, 0)
+
+        store.applySharedData(tasks: tasks + [FamilyTask(title: "From the other phone")], familyMembers: members)
+        XCTAssertEqual(changes, 1)
+        XCTAssertTrue(TaskStore(storageURL: tasksURL).exportTasks().contains { $0.title == "From the other phone" })
+        observation.cancel()
+    }
 }

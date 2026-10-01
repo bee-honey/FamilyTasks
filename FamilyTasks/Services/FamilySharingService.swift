@@ -233,8 +233,11 @@ final class SyncLedger {
     }
 
     func apply(deletions incomingDeletions: [String: Date], memberAdditions incomingAdditions: [String: Date]) {
-        deletions = Self.union(deletions, incomingDeletions)
-        memberAdditions = Self.union(memberAdditions, incomingAdditions)
+        let mergedDeletions = Self.union(deletions, incomingDeletions)
+        let mergedAdditions = Self.union(memberAdditions, incomingAdditions)
+        guard mergedDeletions != deletions || mergedAdditions != memberAdditions else { return }
+        deletions = mergedDeletions
+        memberAdditions = mergedAdditions
         save()
     }
 
@@ -310,14 +313,19 @@ struct SharedMemberProfile: Codable, Identifiable, Equatable {
                stored.imageData == currentProfile.imageData {
                 currentProfile.updatedAt = stored.updatedAt
             }
-            profiles = merge(existing: profiles, incoming: [currentProfile])
-            saveProfiles(profiles)
+            let merged = merge(existing: profiles, incoming: [currentProfile])
+            if merged != profiles {
+                saveProfiles(merged)
+            }
+            profiles = merged
         }
         return profiles
     }
 
     static func mergeAndSave(_ incoming: [SharedMemberProfile]) {
-        let merged = merge(existing: loadProfiles(), incoming: incoming)
+        let existing = loadProfiles()
+        let merged = merge(existing: existing, incoming: incoming)
+        guard merged != existing else { return }
         saveProfiles(merged)
     }
 

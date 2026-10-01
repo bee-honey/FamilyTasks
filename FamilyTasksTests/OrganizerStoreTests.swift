@@ -132,4 +132,26 @@ final class OrganizerStoreTests: XCTestCase {
         store.addRecurringTask(draft)
         return store.recurringTasks.last!
     }
+
+    func testApplyingUnchangedSharedDataLeavesTheStoreAlone() {
+        let store = OrganizerStore(directory: directory)
+        let snapshot = (
+            shopping: store.exportShoppingPayload(),
+            recurring: store.exportRecurringTasks(),
+            mealPlan: store.exportMealPlanPayload(),
+            ideas: store.exportIdeas(),
+            health: store.exportHealthSnapshots()
+        )
+        var changes = 0
+        let observation = store.objectWillChange.sink { changes += 1 }
+
+        store.applySharedData(shopping: snapshot.shopping, recurringTasks: snapshot.recurring, mealPlan: snapshot.mealPlan, ideas: snapshot.ideas, healthSnapshots: snapshot.health)
+        XCTAssertEqual(changes, 0)
+
+        let renamed = snapshot.ideas + [IdeaNote(title: "From the other phone")]
+        store.applySharedData(shopping: snapshot.shopping, recurringTasks: snapshot.recurring, mealPlan: snapshot.mealPlan, ideas: renamed, healthSnapshots: snapshot.health)
+        XCTAssertEqual(changes, 1)
+        XCTAssertEqual(OrganizerStore(directory: directory).exportIdeas().map(\.title), renamed.map(\.title))
+        observation.cancel()
+    }
 }

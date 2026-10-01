@@ -254,10 +254,16 @@ final class TaskStore: ObservableObject {
         normalizedFamilyMembers(from: familyMembers)
     }
 
+    /// Only assigns what changed, so a sync with nothing new does not rewrite files or redraw views.
     func applySharedData(tasks: [FamilyTask], familyMembers: [String]) {
         isApplyingSharedData = true
-        self.tasks = tasks
-        self.familyMembers = normalizedFamilyMembers(from: familyMembers)
+        if self.tasks != tasks {
+            self.tasks = tasks
+        }
+        let members = normalizedFamilyMembers(from: familyMembers)
+        if self.familyMembers != members {
+            self.familyMembers = members
+        }
         isApplyingSharedData = false
     }
 

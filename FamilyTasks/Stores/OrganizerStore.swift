@@ -535,16 +535,22 @@ final class OrganizerStore: ObservableObject {
         healthSnapshots
     }
 
+    /// Only assigns what changed, so a sync with nothing new does not rewrite files or redraw views.
     func applySharedData(shopping: ShoppingPayload, recurringTasks: [RecurringTask], mealPlan: MealPlanPayload, ideas: [IdeaNote], healthSnapshots: [HealthSnapshot]) {
         isApplyingSharedData = true
-        shopOrderUpdatedAt = shopping.orderUpdatedAt
-        shops = shopping.shops
-        shoppingItems = shopping.items
-        self.recurringTasks = recurringTasks
-        mealIdeas = mealPlan.mealIdeas
-        plannedMeals = mealPlan.plannedMeals
-        ideaNotes = ideas
-        self.healthSnapshots = mergedHealthSnapshots(existing: self.healthSnapshots, incoming: healthSnapshots)
+        let shoppingChanged = shops != shopping.shops || shoppingItems != shopping.items
+        if shopOrderUpdatedAt != shopping.orderUpdatedAt {
+            shopOrderUpdatedAt = shopping.orderUpdatedAt
+            if !shoppingChanged { saveShopping() }
+        }
+        if shops != shopping.shops { shops = shopping.shops }
+        if shoppingItems != shopping.items { shoppingItems = shopping.items }
+        if self.recurringTasks != recurringTasks { self.recurringTasks = recurringTasks }
+        if mealIdeas != mealPlan.mealIdeas { mealIdeas = mealPlan.mealIdeas }
+        if plannedMeals != mealPlan.plannedMeals { plannedMeals = mealPlan.plannedMeals }
+        if ideaNotes != ideas { ideaNotes = ideas }
+        let snapshots = mergedHealthSnapshots(existing: self.healthSnapshots, incoming: healthSnapshots)
+        if self.healthSnapshots != snapshots { self.healthSnapshots = snapshots }
         isApplyingSharedData = false
     }
 
