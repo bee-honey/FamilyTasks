@@ -147,6 +147,33 @@ final class OrganizerStore: ObservableObject {
         addUsualItem(trimmed, to: shop)
     }
 
+    /// Adds several items at once (one save and one sync), skipping any already needed
+    /// at the same shop.
+    func addNeededItems(_ items: [(name: String, shopID: UUID)]) {
+        var updatedItems = shoppingItems
+        var updatedShops = shops
+        let now = Date()
+
+        for (name, shopID) in items {
+            let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty, let shopIndex = updatedShops.firstIndex(where: { $0.id == shopID }) else { continue }
+            let alreadyNeeded = updatedItems.contains { item in
+                item.shopID == shopID && item.isNeeded && !item.isPurchased && item.name.caseInsensitiveCompare(trimmed) == .orderedSame
+            }
+            guard !alreadyNeeded else { continue }
+
+            updatedItems.append(ShoppingItem(name: trimmed, shopID: shopID, createdAt: now, updatedAt: now))
+            if !updatedShops[shopIndex].usualItems.contains(where: { $0.caseInsensitiveCompare(trimmed) == .orderedSame }) {
+                updatedShops[shopIndex].usualItems.append(trimmed)
+                updatedShops[shopIndex].usualItems.sort()
+                updatedShops[shopIndex].updatedAt = now
+            }
+        }
+
+        if updatedShops != shops { shops = updatedShops }
+        if updatedItems != shoppingItems { shoppingItems = updatedItems }
+    }
+
     func toggleNeeded(_ item: ShoppingItem) {
         guard let index = shoppingItems.firstIndex(where: { $0.id == item.id }) else { return }
         shoppingItems[index].isNeeded.toggle()
@@ -239,6 +266,58 @@ final class OrganizerStore: ObservableObject {
                   let shop = shops.first(where: { $0.id == shopID }) else { continue }
             addNeededItem(ingredient.name, to: shop)
         }
+    }
+
+    /// Every ingredient of the meals planned between `start` and `end`, combined.
+    func weeklyIngredients(from start: Date, to end: Date) -> [WeeklyIngredient] {
+        Self.weeklyIngredients(plannedMeals: plannedMeals, mealIdeas: mealIdeas, shops: shops, shoppingItems: shoppingItems, from: start, to: end)
+    }
+
+    /// Combines the ingredients of the planned meals in a date range, once per ingredient
+    /// name, with the shop chosen when the meal was planned, else the ingredient's default
+    /// shop. Ingredients already on the shopping list are marked so they are not added twice.
+    static func weeklyIngredients(
+        plannedMeals: [PlannedMeal],
+        mealIdeas: [MealIdea],
+        shops: [Shop],
+        shoppingItems: [ShoppingItem],
+        from start: Date,
+        to end: Date
+    ) -> [WeeklyIngredient] {
+        let shopIDs = Set(shops.map(\.id))
+        let alreadyNeeded = Set(shoppingItems.filter { $0.isNeeded && !$0.isPurchased }.map { WeeklyIngredient.key(for: $0.name) })
+        var ingredientsByKey: [String: WeeklyIngredient] = [:]
+        var order: [String] = []
+
+        for planned in plannedMeals.filter({ $0.date >= start && $0.date < end }).sorted(by: { $0.date < $1.date }) {
+            guard let meal = mealIdeas.first(where: { $0.id == planned.mealID }) else { continue }
+            for ingredient in meal.ingredients {
+                let key = WeeklyIngredient.key(for: ingredient.name)
+                guard !key.isEmpty else { continue }
+                let shopID = [planned.ingredientShopOverrides[ingredient.id], ingredient.defaultShopID]
+                    .compactMap { $0 }
+                    .first { shopIDs.contains($0) }
+
+                if var existing = ingredientsByKey[key] {
+                    existing.shopID = existing.shopID ?? shopID
+                    if !existing.mealNames.contains(meal.name) {
+                        existing.mealNames.append(meal.name)
+                    }
+                    ingredientsByKey[key] = existing
+                } else {
+                    ingredientsByKey[key] = WeeklyIngredient(
+                        id: key,
+                        name: ingredient.name.trimmingCharacters(in: .whitespacesAndNewlines),
+                        shopID: shopID,
+                        mealNames: [meal.name],
+                        isAlreadyNeeded: alreadyNeeded.contains(key)
+                    )
+                    order.append(key)
+                }
+            }
+        }
+
+        return order.compactMap { ingredientsByKey[$0] }
     }
 
     func ideas(tag: String? = nil) -> [IdeaNote] {
@@ -644,6 +723,22 @@ final class OrganizerStore: ObservableObject {
         }
 
         return occurrence
+    }
+}
+
+/// One ingredient on the "Shop for This Week" list.
+struct WeeklyIngredient: Identifiable, Equatable {
+    /// The ingredient name ignoring case, accents and surrounding spaces, so "Onions" and "onions " combine.
+    var id: String
+    var name: String
+    var shopID: UUID?
+    /// The meals that use it, in the order they are planned.
+    var mealNames: [String]
+    var isAlreadyNeeded: Bool
+
+    static func key(for name: String) -> String {
+        name.trimmingCharacters(in: .whitespacesAndNewlines)
+            .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
     }
 }
 

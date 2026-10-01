@@ -11,6 +11,7 @@ struct MealPlanView: View {
     @State private var editingMeal: MealIdea?
     @State private var planningDate = Date()
     @State private var planningSlot: MealSlot = .dinner
+    @State private var isShoppingForWeek = false
 
     var body: some View {
         NavigationStack {
@@ -78,6 +79,9 @@ struct MealPlanView: View {
             .sheet(item: $planningMeal) { meal in
                 PlanMealView(meal: meal, initialDate: planningDate, initialSlot: planningSlot)
             }
+            .sheet(isPresented: $isShoppingForWeek) {
+                WeeklyShoppingView(title: shopForWeekTitle, range: shoppingRange)
+            }
         }
     }
 
@@ -88,6 +92,16 @@ struct MealPlanView: View {
                     .padding(.top, 80)
             } else {
                 dayPicker
+
+                Button {
+                    isShoppingForWeek = true
+                } label: {
+                    Label(shopForWeekTitle, systemImage: "cart.badge.plus")
+                        .font(.footnote.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .disabled(shoppingRange == nil)
 
                 WeeklyMealPlanGrid(days: daysToShow) { day, slot in
                     plannedMeals(on: day, slot: slot)
@@ -168,6 +182,23 @@ struct MealPlanView: View {
         let interval = Calendar.current.dateInterval(of: .weekOfYear, for: selectedDay)
         let start = interval?.start ?? Calendar.current.startOfDay(for: selectedDay)
         return (0..<7).compactMap { Calendar.current.date(byAdding: .day, value: $0, to: start) }
+    }
+
+    /// The rest of the shown week: meals already eaten earlier this week are left out.
+    private var shoppingRange: Range<Date>? {
+        guard let first = daysToShow.first, let last = daysToShow.last,
+              let end = Calendar.current.date(byAdding: .day, value: 1, to: last) else { return nil }
+        let start = max(first, Calendar.current.startOfDay(for: Date()))
+        return start < end ? start..<end : nil
+    }
+
+    private var shopForWeekTitle: String {
+        guard let first = daysToShow.first, let last = daysToShow.last else { return "Shop for This Week" }
+        let today = Date()
+        if today >= first && today < (Calendar.current.date(byAdding: .day, value: 1, to: last) ?? last) {
+            return "Shop for This Week"
+        }
+        return "Shop for Week of \(first.formatted(.dateTime.month(.abbreviated).day()))"
     }
 
     private var weekTitle: String {
@@ -658,5 +689,145 @@ private struct PlanMealView: View {
                 }
             }
         )
+    }
+}
+
+/// Every ingredient for the week's planned meals, combined and grouped by shop, to add
+/// to the shopping list in one go.
+private struct WeeklyShoppingView: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var organizerStore: OrganizerStore
+    let title: String
+    let range: Range<Date>?
+
+    @State private var ingredients: [WeeklyIngredient] = []
+    @State private var selectedIDs: Set<String> = []
+    @State private var shopIDs: [String: UUID] = [:]
+
+    var body: some View {
+        NavigationStack {
+            List {
+                if ingredients.isEmpty {
+                    ContentUnavailableView(
+                        "Nothing to Buy",
+                        systemImage: "fork.knife",
+                        description: Text("Plan meals that have ingredients for this week, and they'll show up here.")
+                    )
+                    .listRowBackground(Color.clear)
+                } else if organizerStore.shops.isEmpty {
+                    ContentUnavailableView("No Shops Yet", systemImage: "cart", description: Text("Add a shop in Shopping first."))
+                        .listRowBackground(Color.clear)
+                }
+
+                ForEach(organizerStore.shops) { shop in
+                    let rows = toBuy.filter { shopIDs[$0.id] == shop.id }
+                    if !rows.isEmpty {
+                        Section(shop.name) {
+                            ForEach(rows) { ingredientRow($0) }
+                        }
+                    }
+                }
+
+                let onList = ingredients.filter(\.isAlreadyNeeded)
+                if !onList.isEmpty {
+                    Section {
+                        ForEach(onList) { ingredientRow($0) }
+                    } header: {
+                        Text("Already on Your List")
+                    } footer: {
+                        Text("Tick any you need more of.")
+                    }
+                }
+            }
+            .navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(addTitle) {
+                        organizerStore.addNeededItems(itemsToAdd)
+                        dismiss()
+                    }
+                    .disabled(itemsToAdd.isEmpty)
+                }
+            }
+            .onAppear(perform: load)
+        }
+    }
+
+    private var toBuy: [WeeklyIngredient] {
+        ingredients.filter { !$0.isAlreadyNeeded }
+    }
+
+    private var itemsToAdd: [(name: String, shopID: UUID)] {
+        ingredients.compactMap { ingredient in
+            guard selectedIDs.contains(ingredient.id), let shopID = shopIDs[ingredient.id] else { return nil }
+            return (ingredient.name, shopID)
+        }
+    }
+
+    private var addTitle: String {
+        itemsToAdd.isEmpty ? "Add" : "Add \(itemsToAdd.count)"
+    }
+
+    private func load() {
+        guard let range else { return }
+        ingredients = organizerStore.weeklyIngredients(from: range.lowerBound, to: range.upperBound)
+        let fallbackShopID = organizerStore.shops.first?.id
+        for ingredient in ingredients {
+            shopIDs[ingredient.id] = ingredient.shopID ?? fallbackShopID
+            if !ingredient.isAlreadyNeeded {
+                selectedIDs.insert(ingredient.id)
+            }
+        }
+    }
+
+    private func ingredientRow(_ ingredient: WeeklyIngredient) -> some View {
+        let isSelected = selectedIDs.contains(ingredient.id)
+        return HStack(spacing: 10) {
+            Button {
+                if isSelected {
+                    selectedIDs.remove(ingredient.id)
+                } else {
+                    selectedIDs.insert(ingredient.id)
+                }
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                        .foregroundStyle(isSelected ? AppTheme.success : .secondary)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(ingredient.name)
+                            .foregroundStyle(.primary)
+                        Text(ingredient.mealNames.joined(separator: ", "))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+            .accessibilityAddTraits(isSelected ? .isSelected : [])
+
+            Spacer(minLength: 8)
+
+            Menu {
+                ForEach(organizerStore.shops) { shop in
+                    Button(shop.name) {
+                        shopIDs[ingredient.id] = shop.id
+                        selectedIDs.insert(ingredient.id)
+                    }
+                }
+            } label: {
+                Text(shopName(for: ingredient))
+                    .font(.caption)
+                    .lineLimit(1)
+            }
+        }
+    }
+
+    private func shopName(for ingredient: WeeklyIngredient) -> String {
+        organizerStore.shops.first { $0.id == shopIDs[ingredient.id] }?.name ?? "Choose Shop"
     }
 }

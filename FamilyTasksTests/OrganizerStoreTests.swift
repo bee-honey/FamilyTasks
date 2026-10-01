@@ -154,4 +154,80 @@ final class OrganizerStoreTests: XCTestCase {
         XCTAssertEqual(OrganizerStore(directory: directory).exportIdeas().map(\.title), renamed.map(\.title))
         observation.cancel()
     }
+
+    // MARK: Shop for this week
+
+    func testWeeklyIngredientsCombineAcrossMealsAndSkipOtherWeeks() {
+        let grocer = Shop(name: "Grocer")
+        let butcher = Shop(name: "Butcher")
+        let onion = MealIngredient(name: "Onions", defaultShopID: grocer.id)
+        let curry = MealIdea(name: "Curry", ingredients: [onion, MealIngredient(name: "Chicken", defaultShopID: butcher.id)])
+        let tacos = MealIdea(name: "Tacos", ingredients: [MealIngredient(name: " onions "), MealIngredient(name: "Tortillas")])
+        let soup = MealIdea(name: "Soup", ingredients: [MealIngredient(name: "Leeks")])
+        let monday = calendar.startOfDay(for: Date())
+        let plan = [
+            PlannedMeal(mealID: curry.id, date: monday),
+            PlannedMeal(mealID: tacos.id, date: monday.addingTimeInterval(2 * 86_400)),
+            PlannedMeal(mealID: soup.id, date: monday.addingTimeInterval(9 * 86_400))
+        ]
+
+        let ingredients = OrganizerStore.weeklyIngredients(
+            plannedMeals: plan,
+            mealIdeas: [curry, tacos, soup],
+            shops: [grocer, butcher],
+            shoppingItems: [],
+            from: monday,
+            to: monday.addingTimeInterval(7 * 86_400)
+        )
+
+        XCTAssertEqual(ingredients.map(\.name), ["Onions", "Chicken", "Tortillas"])
+        XCTAssertEqual(ingredients[0].mealNames, ["Curry", "Tacos"])
+        XCTAssertEqual(ingredients.map(\.shopID), [grocer.id, butcher.id, nil])
+    }
+
+    func testShopChosenWhenPlanningWinsOverTheDefaultShop() {
+        let grocer = Shop(name: "Grocer")
+        let market = Shop(name: "Market")
+        let deletedShopID = UUID()
+        let tomatoes = MealIngredient(name: "Tomatoes", defaultShopID: grocer.id)
+        let basil = MealIngredient(name: "Basil", defaultShopID: grocer.id)
+        let pasta = MealIdea(name: "Pasta", ingredients: [tomatoes, basil])
+        let planned = PlannedMeal(mealID: pasta.id, date: Date(), ingredientShopOverrides: [tomatoes.id: market.id, basil.id: deletedShopID])
+
+        let ingredients = OrganizerStore.weeklyIngredients(
+            plannedMeals: [planned], mealIdeas: [pasta], shops: [grocer, market], shoppingItems: [],
+            from: Date().addingTimeInterval(-60), to: Date().addingTimeInterval(86_400)
+        )
+
+        XCTAssertEqual(ingredients.map(\.shopID), [market.id, grocer.id])
+    }
+
+    func testIngredientsAlreadyOnTheListAreMarked() {
+        let grocer = Shop(name: "Grocer")
+        let meal = MealIdea(name: "Breakfast", ingredients: [MealIngredient(name: "Milk"), MealIngredient(name: "Eggs"), MealIngredient(name: "Bread")])
+        let items = [
+            ShoppingItem(name: "milk", shopID: grocer.id),
+            ShoppingItem(name: "Eggs", shopID: grocer.id, isNeeded: false, isPurchased: true)
+        ]
+
+        let ingredients = OrganizerStore.weeklyIngredients(
+            plannedMeals: [PlannedMeal(mealID: meal.id, date: Date())], mealIdeas: [meal], shops: [grocer], shoppingItems: items,
+            from: Date().addingTimeInterval(-60), to: Date().addingTimeInterval(86_400)
+        )
+
+        XCTAssertEqual(ingredients.filter(\.isAlreadyNeeded).map(\.name), ["Milk"])
+    }
+
+    func testAddingSeveralItemsSkipsOnesAlreadyNeededAndRemembersUsualItems() throws {
+        let store = OrganizerStore(directory: directory)
+        let shop = try XCTUnwrap(store.shops.first)
+        store.addNeededItem("Milk", to: shop)
+        let countBefore = store.shoppingItems.count
+
+        store.addNeededItems([(name: "milk", shopID: shop.id), (name: "Onions", shopID: shop.id), (name: "Onions", shopID: shop.id), (name: "Ghost", shopID: UUID())])
+
+        XCTAssertEqual(store.shoppingItems.count, countBefore + 1)
+        XCTAssertTrue(store.shoppingItems.contains { $0.name == "Onions" && $0.shopID == shop.id && $0.isNeeded })
+        XCTAssertTrue(try XCTUnwrap(store.shops.first { $0.id == shop.id }).usualItems.contains("Onions"))
+    }
 }
