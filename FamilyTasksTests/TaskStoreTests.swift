@@ -105,4 +105,32 @@ final class TaskStoreTests: XCTestCase {
         XCTAssertTrue(TaskStore(storageURL: tasksURL).exportTasks().contains { $0.title == "From the other phone" })
         observation.cancel()
     }
+
+    func testMarkingDoneRecordsWhoAndWhenAndUndoingClearsIt() throws {
+        let store = TaskStore(storageURL: tasksURL)
+        let task = try XCTUnwrap(store.tasks.first { !$0.isDone })
+
+        store.markDone(task)
+        let done = try XCTUnwrap(store.tasks.first { $0.id == task.id })
+        XCTAssertEqual(done.completedBy, "parent@example.com")
+        XCTAssertNotNil(done.completedAt)
+
+        store.markDone(done)
+        let reopened = try XCTUnwrap(store.tasks.first { $0.id == task.id })
+        XCTAssertFalse(reopened.isDone)
+        XCTAssertNil(reopened.completedBy)
+        XCTAssertNil(reopened.completedAt)
+    }
+
+    func testWidgetCheckOffRecordsWhoAndTheTapTime() throws {
+        let store = TaskStore(storageURL: tasksURL)
+        let task = try XCTUnwrap(store.tasks.first { !$0.isDone })
+        let tappedAt = Date().addingTimeInterval(1)
+
+        store.markDone(taskID: task.id, at: tappedAt)
+
+        let done = try XCTUnwrap(store.tasks.first { $0.id == task.id })
+        XCTAssertEqual(done.completedBy, "parent@example.com")
+        XCTAssertEqual(done.completedAt, tappedAt)
+    }
 }

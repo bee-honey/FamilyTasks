@@ -11,6 +11,7 @@ struct TaskCardView: View {
     @EnvironmentObject private var calendarSync: CalendarSyncService
     @AppStorage("tasks.showBucketColors") private var showTaskBucketColors = false
     @AppStorage("tasks.showPriorityMarkers") private var showTaskPriorityMarkers = false
+    @AppStorage("profile.email") private var profileEmail = ""
 
     var body: some View {
         HStack(alignment: .top, spacing: 7) {
@@ -42,6 +43,13 @@ struct TaskCardView: View {
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                             .lineLimit(2)
+                    }
+
+                    if let completion = task.completionSummary(viewerEmail: profileEmail) {
+                        Text(completion)
+                            .font(.caption2)
+                            .foregroundStyle(AppTheme.success)
+                            .lineLimit(1)
                     }
                 }
 

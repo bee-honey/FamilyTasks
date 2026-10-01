@@ -731,6 +731,7 @@ private struct TodayTaskRow: View {
     let showPriorityMarkers: Bool
     let onDone: () -> Void
     let onEdit: () -> Void
+    @AppStorage("profile.email") private var profileEmail = ""
 
     var body: some View {
         HStack(spacing: 12) {
@@ -743,6 +744,12 @@ private struct TodayTaskRow: View {
                         .lineLimit(2)
                         .strikethrough(task.isDone)
                         .foregroundStyle(task.isDone ? .secondary : .primary)
+                }
+
+                if let completion = task.completionSummary(viewerEmail: profileEmail) {
+                    Label(completion, systemImage: "checkmark")
+                        .font(.caption2)
+                        .foregroundStyle(AppTheme.success)
                 }
 
                 if showTime || showPriorityMarkers {

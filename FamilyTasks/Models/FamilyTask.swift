@@ -10,6 +10,16 @@ enum Assignee {
     static func displayName(for value: String) -> String {
         isEveryone(value) ? "Everyone" : value
     }
+
+    /// How to refer to a member stored by email: "sam.smith@example.com" → "Sam Smith".
+    static func memberName(for email: String) -> String {
+        let localPart = email.split(separator: "@").first.map(String.init) ?? email
+        let name = localPart
+            .split(whereSeparator: { ".-_+".contains($0) || $0.isNumber })
+            .map { $0.capitalized }
+            .joined(separator: " ")
+        return name.isEmpty ? email : name
+    }
 }
 
 struct FamilyTask: Identifiable, Codable, Equatable {
@@ -25,6 +35,9 @@ struct FamilyTask: Identifiable, Codable, Equatable {
     var createdBy: String
     var calendarEventIdentifier: String?
     var notificationPreference: TaskNotificationPreference?
+    /// Email of the family member who marked the task done, and when.
+    var completedBy: String?
+    var completedAt: Date?
     var createdAt: Date
     var updatedAt: Date
 
@@ -41,6 +54,8 @@ struct FamilyTask: Identifiable, Codable, Equatable {
         createdBy: String = "",
         calendarEventIdentifier: String? = nil,
         notificationPreference: TaskNotificationPreference? = nil,
+        completedBy: String? = nil,
+        completedAt: Date? = nil,
         createdAt: Date = Date(),
         updatedAt: Date = Date()
     ) {
@@ -56,6 +71,8 @@ struct FamilyTask: Identifiable, Codable, Equatable {
         self.createdBy = createdBy.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         self.calendarEventIdentifier = calendarEventIdentifier
         self.notificationPreference = notificationPreference
+        self.completedBy = completedBy
+        self.completedAt = completedAt
         self.createdAt = createdAt
         self.updatedAt = updatedAt
     }
@@ -73,6 +90,8 @@ struct FamilyTask: Identifiable, Codable, Equatable {
         case createdBy
         case calendarEventIdentifier
         case notificationPreference
+        case completedBy
+        case completedAt
         case createdAt
         case updatedAt
     }
@@ -94,6 +113,8 @@ struct FamilyTask: Identifiable, Codable, Equatable {
             .lowercased()
         calendarEventIdentifier = try? container.decodeIfPresent(String.self, forKey: .calendarEventIdentifier)
         notificationPreference = try? container.decodeIfPresent(TaskNotificationPreference.self, forKey: .notificationPreference)
+        completedBy = try? container.decodeIfPresent(String.self, forKey: .completedBy)
+        completedAt = try? container.decodeIfPresent(Date.self, forKey: .completedAt)
         createdAt = (try? container.decode(Date.self, forKey: .createdAt)) ?? Date()
         updatedAt = (try? container.decode(Date.self, forKey: .updatedAt)) ?? createdAt
     }
@@ -112,6 +133,8 @@ struct FamilyTask: Identifiable, Codable, Equatable {
         try container.encode(createdBy, forKey: .createdBy)
         try container.encodeIfPresent(calendarEventIdentifier, forKey: .calendarEventIdentifier)
         try container.encodeIfPresent(notificationPreference, forKey: .notificationPreference)
+        try container.encodeIfPresent(completedBy, forKey: .completedBy)
+        try container.encodeIfPresent(completedAt, forKey: .completedAt)
         try container.encode(createdAt, forKey: .createdAt)
         try container.encode(updatedAt, forKey: .updatedAt)
     }
@@ -284,5 +307,62 @@ enum TaskBucket: String, CaseIterable, Identifiable {
         case .delegate: 2
         case .delete: 3
         }
+    }
+}
+
+extension FamilyTask {
+    /// "Done by Sam · 3:40 PM", "Done by you · Sep 30", or nil while the task is open.
+    func completionSummary(viewerEmail: String, now: Date = Date(), calendar: Calendar = .current) -> String? {
+        guard isDone, let completedBy, !completedBy.isEmpty else { return nil }
+        let who = completedBy.caseInsensitiveCompare(viewerEmail.trimmingCharacters(in: .whitespacesAndNewlines)) == .orderedSame
+            ? "you"
+            : Assignee.memberName(for: completedBy)
+        guard let completedAt else { return "Done by \(who)" }
+        let when = calendar.isDate(completedAt, inSameDayAs: now)
+            ? completedAt.formatted(date: .omitted, time: .shortened)
+            : completedAt.formatted(.dateTime.month(.abbreviated).day())
+        return "Done by \(who) · \(when)"
+    }
+}
+
+/// A task another family member finished, for the "Sam finished Take out bins" notification.
+struct TaskCompletion: Equatable {
+    var who: String
+    var title: String
+
+    /// Tasks that were open here and that someone else has since finished, recently
+    /// enough to be news. Tasks this device never saw open (for example when first
+    /// joining a share) are left out.
+    static func newlyCompleted(before: [FamilyTask], after: [FamilyTask], viewerEmail: String, now: Date = Date()) -> [TaskCompletion] {
+        let viewer = viewerEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let wasOpen = Set(before.filter { !$0.isDone }.map(\.id))
+        let recent = now.addingTimeInterval(-86_400)
+
+        return after.compactMap { task in
+            guard task.isDone,
+                  wasOpen.contains(task.id),
+                  let completedBy = task.completedBy?.lowercased(), !completedBy.isEmpty, completedBy != viewer,
+                  let completedAt = task.completedAt, completedAt >= recent,
+                  task.isVisible(to: viewer) else { return nil }
+            return TaskCompletion(who: Assignee.memberName(for: completedBy), title: task.title)
+        }
+    }
+
+    /// One notification for everything finished in a sync.
+    static func notificationBody(for completions: [TaskCompletion]) -> String {
+        let people = completions.reduce(into: [String]()) { names, completion in
+            if !names.contains(completion.who) { names.append(completion.who) }
+        }
+        let titles = completions.map(\.title)
+        let tasks = switch titles.count {
+        case 1: titles[0]
+        case 2: "\(titles[0]) and \(titles[1])"
+        default: "\(titles[0]), \(titles[1]) and \(titles.count - 2) more"
+        }
+
+        if people.count == 1 {
+            return "\(people[0]) finished \(tasks)."
+        }
+        return "\(ListFormatter.localizedString(byJoining: people)) finished \(tasks)."
     }
 }

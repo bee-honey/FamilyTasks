@@ -13,6 +13,7 @@ final class NotificationScheduler: ObservableObject {
     private weak var organizerStore: OrganizerStore?
     private var changeObserver: NSObjectProtocol?
     private var sharedTaskObserver: NSObjectProtocol?
+    private var completionObserver: NSObjectProtocol?
     private let defaults = UserDefaults.standard
 
     private enum DefaultsKey {
@@ -24,6 +25,7 @@ final class NotificationScheduler: ObservableObject {
         static let dueSoonLeadMinutes = "notifications.dueSoonLeadMinutes"
         static let dueSoonLeadMinutesList = "notifications.dueSoonLeadMinutesList"
         static let digestCatchupDay = "notifications.digestCatchupDay"
+        static let familyCompletions = "notifications.familyCompletions"
     }
 
     /// iOS keeps at most 64 pending local notifications per app; leave room for
@@ -35,6 +37,7 @@ final class NotificationScheduler: ObservableObject {
         static let dueSoon = "familytasks.dueSoon."
         static let recurringDueSoon = "familytasks.recurringDueSoon."
         static let sharedTaskArrival = "familytasks.sharedTaskArrival."
+        static let sharedTaskCompletion = "familytasks.sharedTaskCompletion."
     }
 
     private init() {
@@ -67,6 +70,19 @@ final class NotificationScheduler: ObservableObject {
                 let title = notification.userInfo?["title"] as? String
                 Task { @MainActor in
                     await self?.scheduleSharedTaskArrival(count: count, title: title)
+                }
+            }
+        }
+
+        if completionObserver == nil {
+            completionObserver = NotificationCenter.default.addObserver(
+                forName: .sharedTasksWereCompleted,
+                object: nil,
+                queue: .main
+            ) { [weak self] notification in
+                let completions = notification.userInfo?["completions"] as? [TaskCompletion] ?? []
+                Task { @MainActor in
+                    await self?.scheduleSharedTaskCompletion(completions)
                 }
             }
         }
@@ -166,6 +182,7 @@ final class NotificationScheduler: ObservableObject {
         defaults.register(defaults: [
             DefaultsKey.todayDigest: true,
             DefaultsKey.dueSoon: true,
+            DefaultsKey.familyCompletions: true,
             DefaultsKey.todayDigestHour: 8,
             DefaultsKey.todayDigestMinute: 0,
             DefaultsKey.dueSoonLeadMinutes: 60,
@@ -180,7 +197,8 @@ final class NotificationScheduler: ObservableObject {
                 $0.hasPrefix(IdentifierPrefix.todayDigest) ||
                 $0.hasPrefix(IdentifierPrefix.dueSoon) ||
                 $0.hasPrefix(IdentifierPrefix.recurringDueSoon) ||
-                $0.hasPrefix(IdentifierPrefix.sharedTaskArrival)
+                $0.hasPrefix(IdentifierPrefix.sharedTaskArrival) ||
+                $0.hasPrefix(IdentifierPrefix.sharedTaskCompletion)
             }
     }
 
@@ -418,6 +436,28 @@ final class NotificationScheduler: ObservableObject {
         } catch {
             statusMessage = "Could not schedule shared task notification: \(error.localizedDescription)"
         }
+    }
+
+    /// "Sam finished Take out bins." when another family member completes a task.
+    private func scheduleSharedTaskCompletion(_ completions: [TaskCompletion]) async {
+        guard !completions.isEmpty,
+              defaults.bool(forKey: DefaultsKey.enabled),
+              defaults.bool(forKey: DefaultsKey.familyCompletions) else { return }
+
+        let settings = await center.notificationSettings()
+        guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else { return }
+
+        let content = UNMutableNotificationContent()
+        content.title = completions.count == 1 ? "Task Done" : "Tasks Done"
+        content.body = TaskCompletion.notificationBody(for: completions)
+        content.sound = .default
+
+        let request = UNNotificationRequest(
+            identifier: "\(IdentifierPrefix.sharedTaskCompletion)\(UUID().uuidString)",
+            content: content,
+            trigger: UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        )
+        try? await center.add(request)
     }
 
     private func digestBody(for tasks: [FamilyTask]) -> String {

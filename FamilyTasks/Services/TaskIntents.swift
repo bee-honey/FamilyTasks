@@ -17,11 +17,7 @@ struct FamilyMemberEntity: AppEntity {
 
     /// "sam.smith@example.com" → "Sam Smith"
     static func spokenName(for email: String) -> String {
-        let localPart = email.split(separator: "@").first.map(String.init) ?? email
-        return localPart
-            .split(whereSeparator: { ".-_+".contains($0) || $0.isNumber })
-            .map { $0.capitalized }
-            .joined(separator: " ")
+        Assignee.memberName(for: email)
     }
 
     static func matches(_ email: String, query: String) -> Bool {

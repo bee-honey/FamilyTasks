@@ -394,6 +394,8 @@ struct SharedMemberProfile: Codable, Identifiable, Equatable {
 extension Notification.Name {
     static let familyDataDidChange = Notification.Name("FamilyDataDidChange")
     static let sharedTasksDidArrive = Notification.Name("SharedTasksDidArrive")
+    /// userInfo["completions"] holds the [TaskCompletion] another family member finished.
+    static let sharedTasksWereCompleted = Notification.Name("SharedTasksWereCompleted")
 }
 
 struct PreparedCloudShare: Identifiable {
@@ -776,6 +778,11 @@ final class SharedHouseholdStore: ObservableObject, HouseholdDataSource {
 
     func apply(_ payload: SharedHouseholdPayload, changedRecords: [SyncRecord]) {
         let arrival = sharedTaskArrival(from: changedRecords)
+        let completions = TaskCompletion.newlyCompleted(
+            before: taskStore?.exportTasks() ?? [],
+            after: payload.tasks,
+            viewerEmail: defaults.string(forKey: "profile.email") ?? ""
+        )
         SyncLedger.shared.apply(deletions: payload.deletions, memberAdditions: payload.memberAdditions)
         SharedMemberProfile.mergeAndSave(payload.profiles)
         taskStore?.applySharedData(tasks: payload.tasks, familyMembers: payload.familyMembers)
@@ -787,6 +794,9 @@ final class SharedHouseholdStore: ObservableObject, HouseholdDataSource {
             healthSnapshots: payload.healthSnapshots
         )
         postSharedTaskArrival(arrival)
+        if !completions.isEmpty {
+            NotificationCenter.default.post(name: .sharedTasksWereCompleted, object: self, userInfo: ["completions": completions])
+        }
     }
 
     /// New tasks for this member that someone else added since the last sync.
@@ -1171,7 +1181,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
     ) async -> UNNotificationPresentationOptions {
         let identifier = notification.request.identifier
 
-        if identifier.hasPrefix("familytasks.test.") || identifier.hasPrefix("familytasks.sharedTaskArrival.") {
+        if identifier.hasPrefix("familytasks.test.") ||
+            identifier.hasPrefix("familytasks.sharedTaskArrival.") ||
+            identifier.hasPrefix("familytasks.sharedTaskCompletion.") {
             return [.banner, .list, .sound, .badge]
         }
 

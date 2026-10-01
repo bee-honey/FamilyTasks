@@ -144,6 +144,8 @@ final class TaskStore: ObservableObject {
     func markDone(_ task: FamilyTask) {
         var changed = task
         changed.isDone.toggle()
+        changed.completedBy = changed.isDone ? Self.currentProfileEmailValue() : nil
+        changed.completedAt = changed.isDone ? Date() : nil
         update(changed)
     }
 
@@ -153,8 +155,12 @@ final class TaskStore: ObservableObject {
         guard let index = tasks.firstIndex(where: { $0.id == taskID }),
               !tasks[index].isDone,
               tasks[index].updatedAt <= date else { return }
-        tasks[index].isDone = true
-        tasks[index].updatedAt = date
+        var task = tasks[index]
+        task.isDone = true
+        task.completedBy = Self.currentProfileEmailValue()
+        task.completedAt = date
+        task.updatedAt = date
+        tasks[index] = task
     }
 
     func delete(_ task: FamilyTask) {

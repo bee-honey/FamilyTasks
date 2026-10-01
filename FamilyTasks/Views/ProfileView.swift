@@ -317,6 +317,7 @@ struct NotificationSettingsView: View {
     @AppStorage("notifications.enabled") private var notificationsEnabled = false
     @AppStorage("notifications.todayDigest") private var todayDigestEnabled = true
     @AppStorage("notifications.dueSoon") private var dueSoonEnabled = true
+    @AppStorage("notifications.familyCompletions") private var familyCompletionsEnabled = true
     @AppStorage("notifications.todayDigestHour") private var todayDigestHour = 8
     @AppStorage("notifications.todayDigestMinute") private var todayDigestMinute = 0
     @AppStorage("notifications.dueSoonLeadMinutes") private var dueSoonLeadMinutes = 60
@@ -369,6 +370,9 @@ struct NotificationSettingsView: View {
                                 rescheduleNotifications()
                             }
                     }
+
+                    Toggle("When Family Finishes a Task", isOn: $familyCompletionsEnabled)
+                        .disabled(!notificationsEnabled)
 
                     Text(notificationDetail)
                         .font(.caption)
