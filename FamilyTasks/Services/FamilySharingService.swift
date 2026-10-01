@@ -402,6 +402,17 @@ struct PreparedCloudShare: Identifiable {
     let container: CKContainer
 }
 
+/// Resumes a continuation once, whichever of two tasks finishes first.
+@MainActor
+private final class FirstOfTwo {
+    var continuation: CheckedContinuation<Void, Never>?
+
+    func finish() {
+        continuation?.resume()
+        continuation = nil
+    }
+}
+
 @MainActor
 final class SharedHouseholdStore: ObservableObject, HouseholdDataSource {
     static let shared = SharedHouseholdStore()
@@ -476,6 +487,25 @@ final class SharedHouseholdStore: ObservableObject, HouseholdDataSource {
 
     func uploadNow() async {
         await synchronize(mode: .merge)
+    }
+
+    /// Uploads, but returns after `timeout` even if the upload is still running (for Siri,
+    /// which gives an action only a few seconds). An unfinished upload carries on, and any
+    /// change it misses goes out with the next sync.
+    func uploadNow(waitingAtMost timeout: Duration) async {
+        guard isSharingConfigured else { return }
+        let waiter = FirstOfTwo()
+        await withCheckedContinuation { continuation in
+            waiter.continuation = continuation
+            Task {
+                await uploadNow()
+                waiter.finish()
+            }
+            Task {
+                try? await Task.sleep(for: timeout)
+                waiter.finish()
+            }
+        }
     }
 
     func syncOnAppActivation() async {
@@ -1103,6 +1133,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
             NotificationScheduler.shared.configure(taskStore: .shared, organizerStore: .shared)
             WidgetBridge.shared.configure(taskStore: .shared, organizerStore: .shared)
         }
+        FamilyTasksShortcuts.updateAppShortcutParameters()
         HealthSyncCoordinator.shared.registerBackgroundRefresh()
         HealthSyncCoordinator.shared.scheduleDailyRefresh()
         // CloudKit sends a silent push when another family member changes something.

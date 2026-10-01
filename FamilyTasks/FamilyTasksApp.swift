@@ -49,6 +49,7 @@ struct FamilyTasksApp: App {
                 if phase == .active {
                     organizerStore.refreshShopping()
                     WidgetBridge.shared.applyPendingActions()
+                    FamilyTasksShortcuts.updateAppShortcutParameters()
                     Task {
                         await sharedHouseholdStore.syncOnAppActivation()
                         await HealthSyncCoordinator.shared.syncIfNeeded(
