@@ -12,6 +12,7 @@
 		2C0A000F2C0A000000000001 /* TaskStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A000E2C0A000000000001 /* TaskStore.swift */; };
 		2C0A00112C0A000000000001 /* CalendarSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A00102C0A000000000001 /* CalendarSyncService.swift */; };
 		2C0A00132C0A000000000001 /* FamilySharingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A00122C0A000000000001 /* FamilySharingService.swift */; };
+		A1B2C3D40000000000000002 /* HouseholdRecords.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000000000000001 /* HouseholdRecords.swift */; };
 		2C0A00152C0A000000000001 /* TaskBoardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A00142C0A000000000001 /* TaskBoardView.swift */; };
 		2C0A00172C0A000000000001 /* BucketView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A00162C0A000000000001 /* BucketView.swift */; };
 		2C0A00192C0A000000000001 /* TaskCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A00182C0A000000000001 /* TaskCardView.swift */; };
@@ -43,6 +44,7 @@
 		B1C21BB45F89B4FD4287627F /* ModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E612F06E9C75226BD229FC11 /* ModelTests.swift */; };
 		CB2B06C79C39C339685B0128 /* OrganizerStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EE3F1FE8CB9085764096A06 /* OrganizerStoreTests.swift */; };
 		D06A7327F1ECEEC7990C61F1 /* SyncMergeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 725ABA626AD119FC773FD265 /* SyncMergeTests.swift */; };
+		A1B2C3D40000000000000004 /* HouseholdRecordsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000000000000003 /* HouseholdRecordsTests.swift */; };
 		FE238BE5F85C6DD9AC918A84 /* TaskStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9EBE4BFD6830D8DA4CF63B5 /* TaskStoreTests.swift */; };
 /* End PBXBuildFile section */
 
@@ -65,6 +67,7 @@
 		2C0A000E2C0A000000000001 /* TaskStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskStore.swift; sourceTree = "<group>"; };
 		2C0A00102C0A000000000001 /* CalendarSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarSyncService.swift; sourceTree = "<group>"; };
 		2C0A00122C0A000000000001 /* FamilySharingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilySharingService.swift; sourceTree = "<group>"; };
+		A1B2C3D40000000000000001 /* HouseholdRecords.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HouseholdRecords.swift; sourceTree = "<group>"; };
 		2C0A00142C0A000000000001 /* TaskBoardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskBoardView.swift; sourceTree = "<group>"; };
 		2C0A00162C0A000000000001 /* BucketView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BucketView.swift; sourceTree = "<group>"; };
 		2C0A00182C0A000000000001 /* TaskCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskCardView.swift; sourceTree = "<group>"; };
@@ -95,6 +98,7 @@
 		2C0A00562C0A000000000001 /* HealthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthView.swift; sourceTree = "<group>"; };
 		38838F69E4D0761A7610CF61 /* FamilyTasksTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FamilyTasksTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		725ABA626AD119FC773FD265 /* SyncMergeTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SyncMergeTests.swift; sourceTree = "<group>"; };
+		A1B2C3D40000000000000003 /* HouseholdRecordsTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HouseholdRecordsTests.swift; sourceTree = "<group>"; };
 		A9EBE4BFD6830D8DA4CF63B5 /* TaskStoreTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TaskStoreTests.swift; sourceTree = "<group>"; };
 		C51423B6E96D10EBE473AD60 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
 		CF4226E63FDF989D31BEA8BF /* HealthAggregationTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HealthAggregationTests.swift; sourceTree = "<group>"; };
@@ -181,6 +185,7 @@
 			children = (
 				2C0A00102C0A000000000001 /* CalendarSyncService.swift */,
 				2C0A00122C0A000000000001 /* FamilySharingService.swift */,
+				A1B2C3D40000000000000001 /* HouseholdRecords.swift */,
 				2C0A00542C0A000000000001 /* HealthMetricsService.swift */,
 				2C0A004F2C0A000000000001 /* NotificationScheduler.swift */,
 				2C0A004D2C0A000000000001 /* ShoppingListIntent.swift */,
@@ -227,6 +232,7 @@
 				2A13A167718A0EF3814EA4E9 /* NotificationTimingTests.swift */,
 				1EE3F1FE8CB9085764096A06 /* OrganizerStoreTests.swift */,
 				725ABA626AD119FC773FD265 /* SyncMergeTests.swift */,
+				A1B2C3D40000000000000003 /* HouseholdRecordsTests.swift */,
 				A9EBE4BFD6830D8DA4CF63B5 /* TaskStoreTests.swift */,
 			);
 			name = FamilyTasksTests;
@@ -347,6 +353,7 @@
 				2C0A00112C0A000000000001 /* CalendarSyncService.swift in Sources */,
 				2C0A000D2C0A000000000001 /* FamilyTask.swift in Sources */,
 				2C0A00132C0A000000000001 /* FamilySharingService.swift in Sources */,
+				A1B2C3D40000000000000002 /* HouseholdRecords.swift in Sources */,
 				2C0A004E2C0A000000000001 /* NotificationScheduler.swift in Sources */,
 				2C0A000B2C0A000000000001 /* FamilyTasksApp.swift in Sources */,
 				2C0A00152C0A000000000001 /* TaskBoardView.swift in Sources */,
@@ -377,6 +384,7 @@
 				30CB59E9CA5C66997CC39F93 /* NotificationTimingTests.swift in Sources */,
 				CB2B06C79C39C339685B0128 /* OrganizerStoreTests.swift in Sources */,
 				D06A7327F1ECEEC7990C61F1 /* SyncMergeTests.swift in Sources */,
+				A1B2C3D40000000000000004 /* HouseholdRecordsTests.swift in Sources */,
 				FE238BE5F85C6DD9AC918A84 /* TaskStoreTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

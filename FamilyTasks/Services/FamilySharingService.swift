@@ -86,7 +86,11 @@ struct SharedHouseholdPayload: Codable {
 
     /// Merges two copies of the household item by item: the newer `updatedAt` wins,
     /// and anything deleted after its last edit stays deleted.
-    static func merged(local: SharedHouseholdPayload, remote: SharedHouseholdPayload) -> SharedHouseholdPayload {
+    ///
+    /// `keepLocalOrder` lists local items first; use it when the remote order carries no
+    /// meaning (records fetched from CloudKit come back unordered). Shop order always
+    /// follows whichever side reordered shops last.
+    static func merged(local: SharedHouseholdPayload, remote: SharedHouseholdPayload, keepLocalOrder: Bool = false) -> SharedHouseholdPayload {
         let deletions = SyncLedger.union(local.deletions, remote.deletions)
         let memberAdditions = SyncLedger.union(local.memberAdditions, remote.memberAdditions)
 
@@ -97,21 +101,21 @@ struct SharedHouseholdPayload: Codable {
         return SharedHouseholdPayload(
             updatedAt: Date(),
             updatedBy: local.updatedBy,
-            tasks: mergeItems(local.tasks, remote.tasks, deletions: deletions),
+            tasks: mergeItems(local.tasks, remote.tasks, deletions: deletions, localOrderWins: keepLocalOrder),
             familyMembers: mergeMembers(local.familyMembers, remote.familyMembers, deletions: deletions, additions: memberAdditions),
             profiles: SharedMemberProfile.merge(existing: remote.profiles, incoming: local.profiles),
             shopping: ShoppingPayload(
                 shops: mergeItems(local.shopping.shops, remote.shopping.shops, deletions: deletions, localOrderWins: localShopOrderWins),
-                items: mergeItems(local.shopping.items, remote.shopping.items, deletions: deletions),
+                items: mergeItems(local.shopping.items, remote.shopping.items, deletions: deletions, localOrderWins: keepLocalOrder),
                 orderUpdatedAt: max(localOrderDate, remoteOrderDate) == .distantPast ? nil : max(localOrderDate, remoteOrderDate)
             ),
-            recurringTasks: mergeItems(local.recurringTasks, remote.recurringTasks, deletions: deletions),
+            recurringTasks: mergeItems(local.recurringTasks, remote.recurringTasks, deletions: deletions, localOrderWins: keepLocalOrder),
             mealPlan: MealPlanPayload(
-                mealIdeas: mergeItems(local.mealPlan.mealIdeas, remote.mealPlan.mealIdeas, deletions: deletions),
-                plannedMeals: mergeItems(local.mealPlan.plannedMeals, remote.mealPlan.plannedMeals, deletions: deletions)
+                mealIdeas: mergeItems(local.mealPlan.mealIdeas, remote.mealPlan.mealIdeas, deletions: deletions, localOrderWins: keepLocalOrder),
+                plannedMeals: mergeItems(local.mealPlan.plannedMeals, remote.mealPlan.plannedMeals, deletions: deletions, localOrderWins: keepLocalOrder)
             ),
-            ideas: mergeItems(local.ideas, remote.ideas, deletions: deletions),
-            healthSnapshots: mergeItems(local.healthSnapshots, remote.healthSnapshots, deletions: deletions),
+            ideas: mergeItems(local.ideas, remote.ideas, deletions: deletions, localOrderWins: keepLocalOrder),
+            healthSnapshots: mergeItems(local.healthSnapshots, remote.healthSnapshots, deletions: deletions, localOrderWins: keepLocalOrder),
             deletions: deletions,
             memberAdditions: memberAdditions
         )
@@ -186,7 +190,7 @@ final class SyncLedger {
     private(set) var memberAdditions: [String: Date] = [:]
 
     private let storageURL = URL.documentsDirectory.appendingPathComponent("family-sync-ledger.json")
-    private nonisolated static let retention: TimeInterval = 180 * 86_400
+    nonisolated static let retention: TimeInterval = 180 * 86_400
 
     private struct Stored: Codable {
         var deletions: [String: Date]
@@ -299,7 +303,13 @@ struct SharedMemberProfile: Codable, Identifiable, Equatable {
 
     static func profilesForUpload() -> [SharedMemberProfile] {
         var profiles = loadProfiles()
-        if let currentProfile = currentProfile() {
+        if var currentProfile = currentProfile() {
+            // Keep the stored timestamp when nothing changed, so the profile is not re-uploaded on every sync.
+            if let stored = profile(for: currentProfile.email, in: profiles),
+               stored.initials == currentProfile.initials,
+               stored.imageData == currentProfile.imageData {
+                currentProfile.updatedAt = stored.updatedAt
+            }
             profiles = merge(existing: profiles, incoming: [currentProfile])
             saveProfiles(profiles)
         }
@@ -378,16 +388,43 @@ extension Notification.Name {
     static let sharedTasksDidArrive = Notification.Name("SharedTasksDidArrive")
 }
 
-enum FamilySharingDefaults {
-    /// Set whenever this device has changes the shared record has not received yet
-    /// (including items added through Siri while the app was not running).
-    static let pendingLocalChangesKey = "familySharing.hasLocalIntentChanges"
-}
-
 struct PreparedCloudShare: Identifiable {
     let id = UUID()
     let share: CKShare
     let container: CKContainer
+}
+
+/// This device's copy of the shared zone as of the last sync: every record with the
+/// CloudKit metadata needed to update it, plus the token for fetching only newer changes.
+struct CloudMirror: Codable {
+    struct Entry: Codable {
+        var record: SyncRecord
+        var systemFields: Data?
+        var createdAt: Date?
+    }
+
+    var zoneKey: String
+    var changeToken: Data?
+    var records: [String: Entry] = [:]
+    var rootSystemFields: Data?
+    var rootSchemaVersion: Int?
+    /// The old single-record household, kept until it has been merged and cleared from the cloud.
+    var legacyPayload: Data?
+
+    /// Records oldest first, so items keep a stable order across devices.
+    var orderedRecords: [SyncRecord] {
+        records.values
+            .sorted { lhs, rhs in
+                let left = lhs.createdAt ?? .distantFuture
+                let right = rhs.createdAt ?? .distantFuture
+                return left != right ? left < right : lhs.record.name < rhs.record.name
+            }
+            .map(\.record)
+    }
+
+    var currentRecords: [String: SyncRecord] {
+        records.mapValues(\.record)
+    }
 }
 
 @MainActor
@@ -406,8 +443,10 @@ final class SharedHouseholdStore: ObservableObject {
     private var pendingUploadTask: Task<Void, Never>?
     private var suppressNextSharedTaskArrivalNotification = false
     private var syncChain: Task<Void, Never>?
-    private var localChangeGeneration = 0
+    private var subscribedScopes = Set<Int>()
+    private lazy var mirror = loadMirror()
     private let defaults = UserDefaults.standard
+    private let mirrorURL = URL.applicationSupportDirectory.appendingPathComponent("family-cloud-mirror.json")
 
     private enum DefaultsKey {
         static let recordName = "familySharing.recordName"
@@ -416,8 +455,16 @@ final class SharedHouseholdStore: ObservableObject {
         static let databaseScope = "familySharing.databaseScope"
     }
 
+    /// Fields on the root record that every family member's records hang off.
     private enum RecordKey {
         static let name = "name"
+        static let schemaVersion = "schemaVersion"
+        /// Versions before per-item records stored the whole household here.
+        static let payload = "payload"
+    }
+
+    private enum ItemKey {
+        static let kind = "kind"
         static let payload = "payload"
         static let updatedAt = "updatedAt"
         static let updatedBy = "updatedBy"
@@ -425,7 +472,11 @@ final class SharedHouseholdStore: ObservableObject {
 
     private enum CloudKitKey {
         static let rootRecordType = "FamilyTaskList"
+        static let itemRecordType = "FamilyItem"
         static let sharedZoneName = "FamilyTasksSharedZone"
+        static let subscriptionID = "familytasks-changes"
+        /// Root records at this version hold no data; everything lives in item records.
+        static let recordsSchemaVersion = 3
     }
 
     private init() {}
@@ -446,7 +497,7 @@ final class SharedHouseholdStore: ObservableObject {
                 queue: .main
             ) { [weak self] _ in
                 Task { @MainActor in
-                    self?.noteLocalChange()
+                    self?.scheduleUpload()
                 }
             }
         }
@@ -458,15 +509,14 @@ final class SharedHouseholdStore: ObservableObject {
         }
     }
 
-    /// Pulls the shared household, merges it with local changes, and uploads the
-    /// result if this device has anything the shared copy is missing.
+    /// Fetches what changed in the shared zone, merges it with local data, and uploads
+    /// whatever this device has that the cloud is missing.
     func refreshFromCloud() async {
-        await synchronize(mode: .mergeAndUploadIfNeeded)
+        await synchronize(mode: .merge)
     }
 
-    /// Merges with the shared household and always writes the result back.
     func uploadNow() async {
-        await synchronize(mode: .mergeAndUpload)
+        await synchronize(mode: .merge)
     }
 
     func syncOnAppActivation() async {
@@ -475,21 +525,9 @@ final class SharedHouseholdStore: ObservableObject {
     }
 
     private enum SyncMode {
-        case mergeAndUploadIfNeeded
-        case mergeAndUpload
+        case merge
         /// Used right after joining a share: the family's data replaces this device's local data.
-        case adoptRemoteAndUpload
-    }
-
-    private var hasPendingLocalChanges: Bool {
-        get { defaults.bool(forKey: FamilySharingDefaults.pendingLocalChangesKey) }
-        set { defaults.set(newValue, forKey: FamilySharingDefaults.pendingLocalChangesKey) }
-    }
-
-    private func noteLocalChange() {
-        localChangeGeneration += 1
-        hasPendingLocalChanges = true
-        scheduleUpload()
+        case adoptRemote
     }
 
     /// Runs sync operations one at a time so overlapping triggers cannot interleave
@@ -505,7 +543,7 @@ final class SharedHouseholdStore: ObservableObject {
     }
 
     private func performSync(mode: SyncMode) async {
-        guard let recordID = storedRootRecordID else {
+        guard let rootID = storedRootRecordID else {
             statusMessage = "Not sharing yet"
             return
         }
@@ -515,59 +553,53 @@ final class SharedHouseholdStore: ObservableObject {
         lastErrorMessage = nil
         defer { isSyncing = false }
 
+        let zoneKey = Self.zoneKey(rootID: rootID, scope: databaseScope)
+        if mirror.zoneKey != zoneKey {
+            mirror = CloudMirror(zoneKey: zoneKey)
+        }
+
         do {
             for attempt in 1...3 {
-                let record = try await fetchRootRecord(recordID)
-                let remotePayload = record.flatMap(decodePayload(from:))
+                let changed = try await fetchChanges(rootID: rootID)
                 guard let localPayload = currentPayload() else { return }
-                let changeGeneration = localChangeGeneration
 
-                let merged: SharedHouseholdPayload
-                if let remotePayload {
-                    if case .adoptRemoteAndUpload = mode {
-                        merged = remotePayload
-                    } else {
-                        merged = SharedHouseholdPayload.merged(local: localPayload, remote: remotePayload)
+                var remotePayload = HouseholdRecords.payload(from: mirror.orderedRecords)
+                let legacyPayload = mirror.legacyPayload.flatMap { try? JSONDecoder().decode(SharedHouseholdPayload.self, from: $0) }
+                if let legacyPayload {
+                    remotePayload = SharedHouseholdPayload.merged(local: remotePayload, remote: legacyPayload, keepLocalOrder: true)
+                }
+                let hasRemoteData = !mirror.records.isEmpty || legacyPayload != nil
+
+                if hasRemoteData {
+                    let merged = switch mode {
+                    case .adoptRemote: remotePayload
+                    case .merge: SharedHouseholdPayload.merged(local: localPayload, remote: remotePayload, keepLocalOrder: true)
                     }
-                    let arrival = sharedTaskArrival(from: remotePayload)
+                    let arrival = sharedTaskArrival(from: changed)
                     apply(merged)
                     postSharedTaskArrival(arrival)
-                } else {
-                    merged = localPayload
-                }
-
-                let needsUpload: Bool
-                switch mode {
-                case .mergeAndUploadIfNeeded:
-                    needsUpload = remotePayload == nil || hasPendingLocalChanges
-                case .mergeAndUpload, .adoptRemoteAndUpload:
-                    needsUpload = true
-                }
-
-                guard needsUpload else {
-                    if let remotePayload {
-                        statusMessage = "Updated \(remotePayload.updatedAt.formatted(date: .abbreviated, time: .shortened))"
-                    }
-                    return
                 }
 
                 // Re-read after apply so the upload includes this device's profile and member entry.
-                guard var uploadPayload = currentPayload() else { return }
-                uploadPayload.updatedAt = Date()
-                let target = record ?? CKRecord(recordType: CloudKitKey.rootRecordType, recordID: recordID)
-                encode(uploadPayload, into: target)
+                guard let uploadPayload = currentPayload() else { return }
+                let desired = HouseholdRecords.records(from: uploadPayload, updatedBy: uploadPayload.updatedBy)
+                let toSave = HouseholdRecords.changes(desired: desired, current: mirror.currentRecords)
+                let toDelete = HouseholdRecords.expiredDeletions(in: Array(mirror.currentRecords.values))
+                let needsRootUpdate = (mirror.rootSchemaVersion ?? 0) < CloudKitKey.recordsSchemaVersion
 
-                do {
-                    _ = try await database.save(target)
-                    if changeGeneration == localChangeGeneration {
-                        hasPendingLocalChanges = false
-                    }
-                    statusMessage = "Shared \(uploadPayload.updatedAt.formatted(date: .abbreviated, time: .shortened))"
+                guard !toSave.isEmpty || !toDelete.isEmpty || needsRootUpdate else {
+                    statusMessage = "Up to date \(Date().formatted(date: .abbreviated, time: .shortened))"
+                    await ensureSubscription()
                     return
-                } catch let error as CKError where error.code == .serverRecordChanged && attempt < 3 {
-                    // Someone else saved in between; fetch their version and merge again.
-                    continue
                 }
+
+                let hadConflicts = try await save(toSave, deleting: toDelete, updatingRoot: needsRootUpdate, rootID: rootID)
+                if !hadConflicts || attempt == 3 {
+                    statusMessage = "Shared \(Date().formatted(date: .abbreviated, time: .shortened))"
+                    await ensureSubscription()
+                    return
+                }
+                // Someone else saved some of the same records in between; merge their versions and retry.
             }
         } catch {
             lastErrorMessage = userFacingMessage(for: error)
@@ -575,11 +607,186 @@ final class SharedHouseholdStore: ObservableObject {
         }
     }
 
-    private func fetchRootRecord(_ recordID: CKRecord.ID) async throws -> CKRecord? {
-        do {
-            return try await database.record(for: recordID)
-        } catch let error as CKError where error.code == .unknownItem && databaseScope == .private {
+    /// Fetches records changed since the last sync into the mirror and returns them.
+    private func fetchChanges(rootID: CKRecord.ID) async throws -> [SyncRecord] {
+        var changed: [SyncRecord] = []
+        var moreComing = true
+
+        while moreComing {
+            let token = mirror.changeToken.flatMap {
+                try? NSKeyedUnarchiver.unarchivedObject(ofClass: CKServerChangeToken.self, from: $0)
+            }
+
+            let result: (
+                modificationResultsByID: [CKRecord.ID: Result<CKDatabase.RecordZoneChange.Modification, Error>],
+                deletions: [CKDatabase.RecordZoneChange.Deletion],
+                changeToken: CKServerChangeToken,
+                moreComing: Bool
+            )
+            do {
+                result = try await database.recordZoneChanges(inZoneWith: rootID.zoneID, since: token)
+            } catch let error as CKError where error.code == .changeTokenExpired && token != nil {
+                mirror = CloudMirror(zoneKey: mirror.zoneKey)
+                changed = []
+                continue
+            }
+
+            for case .success(let modification) in result.modificationResultsByID.values {
+                if let record = ingest(modification.record, rootID: rootID) {
+                    changed.append(record)
+                }
+            }
+            for deletion in result.deletions {
+                mirror.records[deletion.recordID.recordName] = nil
+            }
+            mirror.changeToken = try? NSKeyedArchiver.archivedData(withRootObject: result.changeToken, requiringSecureCoding: true)
+            moreComing = result.moreComing
+        }
+
+        saveMirror()
+        return changed
+    }
+
+    /// Stores a record from the cloud in the mirror, returning it if it is a household item.
+    @discardableResult
+    private func ingest(_ record: CKRecord, rootID: CKRecord.ID) -> SyncRecord? {
+        if record.recordID == rootID {
+            mirror.rootSystemFields = Self.systemFields(of: record)
+            let version = record[RecordKey.schemaVersion] as? Int ?? 0
+            mirror.rootSchemaVersion = version
+            if version < CloudKitKey.recordsSchemaVersion, let legacy = record[RecordKey.payload] as? Data {
+                mirror.legacyPayload = legacy
+            }
             return nil
+        }
+
+        guard record.recordType == CloudKitKey.itemRecordType,
+              let kindValue = record[ItemKey.kind] as? String,
+              let kind = SyncRecord.Kind(rawValue: kindValue) else { return nil }
+
+        let syncRecord = SyncRecord(
+            name: record.recordID.recordName,
+            kind: kind,
+            payload: record[ItemKey.payload] as? Data,
+            updatedAt: record[ItemKey.updatedAt] as? Date ?? HouseholdRecords.unknownDate,
+            updatedBy: record[ItemKey.updatedBy] as? String ?? ""
+        )
+        mirror.records[syncRecord.name] = CloudMirror.Entry(
+            record: syncRecord,
+            systemFields: Self.systemFields(of: record),
+            createdAt: record.creationDate
+        )
+        return syncRecord
+    }
+
+    /// Saves records only if nobody changed them since this device last saw them.
+    /// Returns true when some were changed elsewhere; their newer versions are then in the mirror.
+    private func save(_ records: [SyncRecord], deleting expired: [String], updatingRoot: Bool, rootID: CKRecord.ID) async throws -> Bool {
+        var ckRecords = records.map { ckRecord(for: $0, rootID: rootID) }
+        if updatingRoot {
+            let root = mirror.rootSystemFields.flatMap(Self.record(fromSystemFields:))
+                ?? CKRecord(recordType: CloudKitKey.rootRecordType, recordID: rootID)
+            root[RecordKey.name] = "Family Tasks" as CKRecordValue
+            root[RecordKey.schemaVersion] = CloudKitKey.recordsSchemaVersion as CKRecordValue
+            root[RecordKey.payload] = nil
+            ckRecords.insert(root, at: 0)
+        }
+        let deletions = expired.map { CKRecord.ID(recordName: $0, zoneID: rootID.zoneID) }
+
+        var hadConflicts = false
+        var firstError: Error?
+
+        for batch in Self.batches(ckRecords) {
+            let (saveResults, _) = try await database.modifyRecords(
+                saving: batch,
+                deleting: [],
+                savePolicy: .ifServerRecordUnchanged,
+                atomically: false
+            )
+            for (recordID, result) in saveResults {
+                switch result {
+                case .success(let saved):
+                    if recordID == rootID {
+                        mirror.rootSystemFields = Self.systemFields(of: saved)
+                        mirror.rootSchemaVersion = CloudKitKey.recordsSchemaVersion
+                        mirror.legacyPayload = nil
+                    } else {
+                        ingest(saved, rootID: rootID)
+                    }
+                case .failure(let error as CKError) where error.code == .serverRecordChanged:
+                    hadConflicts = true
+                    if let serverRecord = error.serverRecord {
+                        ingest(serverRecord, rootID: rootID)
+                    }
+                case .failure(let error):
+                    firstError = firstError ?? error
+                }
+            }
+        }
+
+        if !deletions.isEmpty {
+            let (_, deleteResults) = try await database.modifyRecords(saving: [], deleting: deletions, atomically: false)
+            for case (let recordID, .success) in deleteResults {
+                mirror.records[recordID.recordName] = nil
+            }
+        }
+
+        saveMirror()
+        if let firstError { throw firstError }
+        return hadConflicts
+    }
+
+    private func ckRecord(for record: SyncRecord, rootID: CKRecord.ID) -> CKRecord {
+        let ckRecord = mirror.records[record.name]?.systemFields.flatMap(Self.record(fromSystemFields:))
+            ?? CKRecord(recordType: CloudKitKey.itemRecordType, recordID: CKRecord.ID(recordName: record.name, zoneID: rootID.zoneID))
+        ckRecord[ItemKey.kind] = record.kind.rawValue as CKRecordValue
+        ckRecord[ItemKey.payload] = record.payload.map { $0 as NSData }
+        ckRecord[ItemKey.updatedAt] = record.updatedAt as NSDate
+        ckRecord[ItemKey.updatedBy] = record.updatedBy as NSString
+        // Records under the shared root record are part of the family share.
+        ckRecord.setParent(rootID)
+        return ckRecord
+    }
+
+    /// Splits records into requests CloudKit accepts (at most 400 records and about 2 MB each).
+    private static func batches(_ records: [CKRecord]) -> [[CKRecord]] {
+        let maxCount = 200
+        let maxBytes = 1_500_000
+        var batches: [[CKRecord]] = []
+        var current: [CKRecord] = []
+        var currentBytes = 0
+
+        for record in records {
+            let size = (record[ItemKey.payload] as? Data)?.count ?? 0
+            if !current.isEmpty && (current.count >= maxCount || currentBytes + size > maxBytes) {
+                batches.append(current)
+                current = []
+                currentBytes = 0
+            }
+            current.append(record)
+            currentBytes += size
+        }
+        if !current.isEmpty { batches.append(current) }
+        return batches
+    }
+
+    /// Asks CloudKit to wake this device with a silent push when the family's data changes.
+    /// Saved once per launch rather than remembered, so a device that switches between
+    /// development and App Store builds gets a subscription in each CloudKit environment.
+    private func ensureSubscription() async {
+        let scope = databaseScope
+        guard !subscribedScopes.contains(scope.rawValue) else { return }
+
+        let subscription = CKDatabaseSubscription(subscriptionID: CloudKitKey.subscriptionID)
+        let notificationInfo = CKSubscription.NotificationInfo()
+        notificationInfo.shouldSendContentAvailable = true
+        subscription.notificationInfo = notificationInfo
+
+        do {
+            _ = try await database.save(subscription)
+            subscribedScopes.insert(scope.rawValue)
+        } catch {
+            // Not fatal: changes still arrive when the app opens. Retried after the next sync.
         }
     }
 
@@ -602,6 +809,7 @@ final class SharedHouseholdStore: ObservableObject {
 
             store(recordID: rootRecord.recordID, databaseScope: .private)
             statusMessage = "Family sharing enabled"
+            Task { await uploadNow() }
             return PreparedCloudShare(share: share, container: container)
         } catch {
             lastErrorMessage = userFacingMessage(for: error)
@@ -620,7 +828,7 @@ final class SharedHouseholdStore: ObservableObject {
                 store(recordID: metadata.rootRecordID, databaseScope: .shared)
                 statusMessage = "Joined shared family list"
                 suppressNextSharedTaskArrivalNotification = true
-                await synchronize(mode: .adoptRemoteAndUpload)
+                await synchronize(mode: .adoptRemote)
             } catch {
                 lastErrorMessage = userFacingMessage(for: error)
                 statusMessage = "Could not join shared list"
@@ -648,7 +856,7 @@ final class SharedHouseholdStore: ObservableObject {
             store(recordID: metadata.rootRecordID, databaseScope: .shared)
             statusMessage = "Joined shared family list"
             suppressNextSharedTaskArrivalNotification = true
-            await synchronize(mode: .adoptRemoteAndUpload)
+            await synchronize(mode: .adoptRemote)
         } catch {
             lastErrorMessage = userFacingMessage(for: error)
             statusMessage = "Could not join shared list"
@@ -688,6 +896,38 @@ final class SharedHouseholdStore: ObservableObject {
         defaults.set(databaseScope.rawValue, forKey: DefaultsKey.databaseScope)
     }
 
+    private static func zoneKey(rootID: CKRecord.ID, scope: CKDatabase.Scope) -> String {
+        [String(scope.rawValue), rootID.zoneID.ownerName, rootID.zoneID.zoneName, rootID.recordName].joined(separator: "|")
+    }
+
+    private func loadMirror() -> CloudMirror {
+        guard let data = try? Data(contentsOf: mirrorURL),
+              let mirror = try? JSONDecoder().decode(CloudMirror.self, from: data) else {
+            return CloudMirror(zoneKey: "")
+        }
+        return mirror
+    }
+
+    private func saveMirror() {
+        guard let data = try? JSONEncoder().encode(mirror) else { return }
+        try? FileManager.default.createDirectory(at: mirrorURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try? data.write(to: mirrorURL, options: [.atomic])
+    }
+
+    private static func systemFields(of record: CKRecord) -> Data {
+        let coder = NSKeyedArchiver(requiringSecureCoding: true)
+        record.encodeSystemFields(with: coder)
+        coder.finishEncoding()
+        return coder.encodedData
+    }
+
+    private static func record(fromSystemFields data: Data) -> CKRecord? {
+        guard let coder = try? NSKeyedUnarchiver(forReadingFrom: data) else { return nil }
+        coder.requiresSecureCoding = true
+        defer { coder.finishDecoding() }
+        return CKRecord(coder: coder)
+    }
+
     private func scheduleUpload() {
         guard isSharingConfigured else { return }
 
@@ -701,14 +941,7 @@ final class SharedHouseholdStore: ObservableObject {
 
     private func rootRecordForSharing() async throws -> CKRecord {
         if let recordID = storedRootRecordID {
-            let record = try await container.privateCloudDatabase.record(for: recordID)
-            if let localPayload = currentPayload() {
-                let payload = decodePayload(from: record)
-                    .map { SharedHouseholdPayload.merged(local: localPayload, remote: $0) } ?? localPayload
-                apply(payload)
-                encode(payload, into: record)
-            }
-            return record
+            return try await container.privateCloudDatabase.record(for: recordID)
         }
 
         try await ensurePrivateSharingZone()
@@ -717,9 +950,7 @@ final class SharedHouseholdStore: ObservableObject {
         let recordID = CKRecord.ID(recordName: UUID().uuidString, zoneID: zoneID)
         let record = CKRecord(recordType: CloudKitKey.rootRecordType, recordID: recordID)
         record[RecordKey.name] = "Family Tasks" as CKRecordValue
-        if let payload = currentPayload() {
-            encode(payload, into: record)
-        }
+        record[RecordKey.schemaVersion] = CloudKitKey.recordsSchemaVersion as CKRecordValue
         let saved = try await container.privateCloudDatabase.save(record)
         store(recordID: saved.recordID, databaseScope: .private)
         return saved
@@ -758,7 +989,8 @@ final class SharedHouseholdStore: ObservableObject {
         )
     }
 
-    private func sharedTaskArrival(from payload: SharedHouseholdPayload) -> (count: Int, title: String?)? {
+    /// New tasks for this member that someone else added since the last sync.
+    private func sharedTaskArrival(from changed: [SyncRecord]) -> (count: Int, title: String?)? {
         if suppressNextSharedTaskArrivalNotification {
             suppressNextSharedTaskArrivalNotification = false
             return nil
@@ -769,16 +1001,13 @@ final class SharedHouseholdStore: ObservableObject {
         let currentEmail = (defaults.string(forKey: "profile.email") ?? "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .lowercased()
-        let updatedBy = payload.updatedBy
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .lowercased()
-
-        if !currentEmail.isEmpty, !updatedBy.isEmpty, currentEmail == updatedBy {
-            return nil
+        let fromOthers = changed.filter { record in
+            record.kind == .task &&
+                record.updatedBy.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() != currentEmail
         }
 
         let existingTaskIDs = Set(taskStore.exportTasks().map(\.id))
-        let newTasks = payload.tasks.filter { task in
+        let newTasks = HouseholdRecords.payload(from: fromOthers).tasks.filter { task in
             !existingTaskIDs.contains(task.id) && task.isVisible(to: currentEmail)
         }
         guard !newTasks.isEmpty else { return nil }
@@ -797,28 +1026,6 @@ final class SharedHouseholdStore: ObservableObject {
                 "title": arrival.title ?? ""
             ]
         )
-    }
-
-    private func encode(_ payload: SharedHouseholdPayload, into record: CKRecord) {
-        guard let data = try? JSONEncoder().encode(payload) else { return }
-        record[RecordKey.name] = "Family Tasks" as CKRecordValue
-        record[RecordKey.payload] = data as NSData
-        record[RecordKey.updatedAt] = payload.updatedAt as NSDate
-        record[RecordKey.updatedBy] = payload.updatedBy as NSString
-    }
-
-    private func decodePayload(from record: CKRecord) -> SharedHouseholdPayload? {
-        let data: Data?
-        if let value = record[RecordKey.payload] as? Data {
-            data = value
-        } else if let value = record[RecordKey.payload] as? NSData {
-            data = value as Data
-        } else {
-            data = nil
-        }
-
-        guard let data else { return nil }
-        return try? JSONDecoder().decode(SharedHouseholdPayload.self, from: data)
     }
 
     private func userFacingMessage(for error: Error) -> String {
@@ -934,7 +1141,21 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         }
         HealthSyncCoordinator.shared.registerBackgroundRefresh()
         HealthSyncCoordinator.shared.scheduleDailyRefresh()
+        // CloudKit sends a silent push when another family member changes something.
+        application.registerForRemoteNotifications()
         return true
+    }
+
+    func application(
+        _ application: UIApplication,
+        didReceiveRemoteNotification userInfo: [AnyHashable: Any]
+    ) async -> UIBackgroundFetchResult {
+        guard CKNotification(fromRemoteNotificationDictionary: userInfo) != nil,
+              SharedHouseholdStore.shared.isSharingConfigured else { return .noData }
+        await SharedHouseholdStore.shared.refreshFromCloud()
+        // Reminders are otherwise only rescheduled for local edits and when the app opens.
+        await NotificationScheduler.shared.reschedule()
+        return .newData
     }
 
     func application(_ application: UIApplication, userDidAcceptCloudKitShareWith cloudKitShareMetadata: CKShare.Metadata) {
