@@ -55,7 +55,7 @@ final class CalendarSyncService: ObservableObject {
         authorizationStatus = EKEventStore.authorizationStatus(for: .event)
 
         switch authorizationStatus {
-        case .fullAccess, .authorized:
+        case .fullAccess:
             refreshAvailableCalendars()
             return true
         case .notDetermined:
@@ -82,7 +82,7 @@ final class CalendarSyncService: ObservableObject {
         authorizationStatus = EKEventStore.authorizationStatus(for: .event)
 
         switch authorizationStatus {
-        case .fullAccess, .authorized:
+        case .fullAccess:
             refreshAvailableCalendars()
             return true
         case .notDetermined:
@@ -229,7 +229,7 @@ final class CalendarSyncService: ObservableObject {
     /// that resolve to an event on this device.
     private func adoptLegacyEventIdentifiers(from tasks: [FamilyTask]) {
         let status = EKEventStore.authorizationStatus(for: .event)
-        guard status == .fullAccess || status == .authorized else { return }
+        guard status == .fullAccess else { return }
 
         for task in tasks where taskEventIdentifiers[task.id] == nil {
             guard let identifier = task.calendarEventIdentifier,
@@ -244,7 +244,7 @@ final class CalendarSyncService: ObservableObject {
 
         let status = EKEventStore.authorizationStatus(for: .event)
         // Without read access we cannot look the events up; keep the mapping for later.
-        guard status == .fullAccess || status == .authorized else { return }
+        guard status == .fullAccess else { return }
 
         for (taskID, identifier) in orphaned {
             if let event = eventStore.event(withIdentifier: identifier) {
@@ -331,7 +331,7 @@ extension EKAuthorizationStatus {
             return "Restricted"
         case .denied:
             return "Denied"
-        case .authorized, .fullAccess:
+        case .fullAccess:
             return "Connected"
         case .writeOnly:
             return "Write Only"

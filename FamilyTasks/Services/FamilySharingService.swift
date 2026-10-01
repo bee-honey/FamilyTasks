@@ -825,7 +825,7 @@ final class SharedHouseholdStore: ObservableObject {
 
             do {
                 try await accept(metadata)
-                store(recordID: metadata.rootRecordID, databaseScope: .shared)
+                store(recordID: try Self.rootRecordID(of: metadata), databaseScope: .shared)
                 statusMessage = "Joined shared family list"
                 suppressNextSharedTaskArrivalNotification = true
                 await synchronize(mode: .adoptRemote)
@@ -853,7 +853,7 @@ final class SharedHouseholdStore: ObservableObject {
         do {
             let metadata = try await shareMetadata(for: shareURL)
             try await accept(metadata)
-            store(recordID: metadata.rootRecordID, databaseScope: .shared)
+            store(recordID: try Self.rootRecordID(of: metadata), databaseScope: .shared)
             statusMessage = "Joined shared family list"
             suppressNextSharedTaskArrivalNotification = true
             await synchronize(mode: .adoptRemote)
@@ -1048,29 +1048,27 @@ final class SharedHouseholdStore: ObservableObject {
     }
 
     private func shareMetadata(for shareURL: URL) async throws -> CKShare.Metadata {
-        try await withCheckedThrowingContinuation { continuation in
-            var fetchedMetadata: CKShare.Metadata?
-
-            let operation = CKFetchShareMetadataOperation(shareURLs: [shareURL])
-            operation.shouldFetchRootRecord = true
-            operation.perShareMetadataBlock = { _, metadata, _ in
-                fetchedMetadata = metadata
-            }
-            operation.fetchShareMetadataCompletionBlock = { error in
-                if let fetchedMetadata {
-                    continuation.resume(returning: fetchedMetadata)
-                    return
-                }
-
-                continuation.resume(throwing: error ?? NSError(
-                    domain: "FamilyTasks.CloudSharing",
-                    code: 1,
-                    userInfo: [NSLocalizedDescriptionKey: "Could not read the iCloud invite link."]
-                ))
-            }
-            operation.qualityOfService = .userInitiated
-            container.add(operation)
+        do {
+            return try await container.shareMetadata(for: shareURL)
+        } catch let error as CKError where error.code == .unknownItem || error.code == .invalidArguments {
+            throw NSError(
+                domain: "FamilyTasks.CloudSharing",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "Could not read the iCloud invite link."]
+            )
         }
+    }
+
+    /// Family Tasks shares one root record (not a whole zone), so invites always have one.
+    private static func rootRecordID(of metadata: CKShare.Metadata) throws -> CKRecord.ID {
+        guard let recordID = metadata.hierarchicalRootRecordID else {
+            throw NSError(
+                domain: "FamilyTasks.CloudSharing",
+                code: 2,
+                userInfo: [NSLocalizedDescriptionKey: "This iCloud invite is not for a Family Tasks list."]
+            )
+        }
+        return recordID
     }
 
     private func save(records: [CKRecord], in database: CKDatabase) async throws {

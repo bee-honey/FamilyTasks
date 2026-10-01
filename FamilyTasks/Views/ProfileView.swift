@@ -1025,7 +1025,7 @@ struct CalendarSettingsView: View {
     private var calendarStatusDetail: String {
         if calendarIntegrationEnabled {
             switch calendarSync.authorizationStatus {
-            case .authorized, .fullAccess:
+            case .fullAccess:
                 return "Calendar access is connected. Choose below which calendars Family Tasks can show and where synced tasks are added."
             case .notDetermined:
                 return "Calendar is enabled, but access has not been requested yet."
@@ -1045,7 +1045,7 @@ struct CalendarSettingsView: View {
 
     private var isCalendarConnected: Bool {
         switch calendarSync.authorizationStatus {
-        case .authorized, .fullAccess:
+        case .fullAccess:
             return true
         default:
             return false
