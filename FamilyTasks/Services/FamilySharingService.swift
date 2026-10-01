@@ -1101,6 +1101,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         MainActor.assumeIsolated {
             SharedHouseholdStore.shared.configure(taskStore: .shared, organizerStore: .shared)
             NotificationScheduler.shared.configure(taskStore: .shared, organizerStore: .shared)
+            WidgetBridge.shared.configure(taskStore: .shared, organizerStore: .shared)
         }
         HealthSyncCoordinator.shared.registerBackgroundRefresh()
         HealthSyncCoordinator.shared.scheduleDailyRefresh()
@@ -1115,6 +1116,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
     ) async -> UIBackgroundFetchResult {
         guard CKNotification(fromRemoteNotificationDictionary: userInfo) != nil,
               SharedHouseholdStore.shared.isSharingConfigured else { return .noData }
+        // Include check-offs made in widgets so they reach the family too.
+        WidgetBridge.shared.applyPendingActions()
         await SharedHouseholdStore.shared.refreshFromCloud()
         // Reminders are otherwise only rescheduled for local edits and when the app opens.
         await NotificationScheduler.shared.reschedule()

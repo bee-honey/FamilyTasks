@@ -147,6 +147,16 @@ final class TaskStore: ObservableObject {
         update(changed)
     }
 
+    /// Marks a task done as of `date` (a check-off made in a widget), unless it was
+    /// already done or edited after that.
+    func markDone(taskID: UUID, at date: Date) {
+        guard let index = tasks.firstIndex(where: { $0.id == taskID }),
+              !tasks[index].isDone,
+              tasks[index].updatedAt <= date else { return }
+        tasks[index].isDone = true
+        tasks[index].updatedAt = date
+    }
+
     func delete(_ task: FamilyTask) {
         tasks.removeAll { $0.id == task.id }
     }

@@ -160,6 +160,17 @@ final class OrganizerStore: ObservableObject {
         shoppingItems[index].updatedAt = Date()
     }
 
+    /// Marks an item bought as of `date` (a check-off made in a widget), unless it was
+    /// already bought or edited after that.
+    func markPurchased(itemID: UUID, at date: Date) {
+        guard let index = shoppingItems.firstIndex(where: { $0.id == itemID }),
+              !shoppingItems[index].isPurchased,
+              shoppingItems[index].updatedAt <= date else { return }
+        shoppingItems[index].isPurchased = true
+        shoppingItems[index].isNeeded = false
+        shoppingItems[index].updatedAt = date
+    }
+
     func deleteShoppingItem(_ item: ShoppingItem) {
         shoppingItems.removeAll { $0.id == item.id }
     }
