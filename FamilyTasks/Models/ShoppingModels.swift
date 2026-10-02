@@ -364,9 +364,18 @@ struct RecurringTask: Identifiable, Codable, Equatable {
         return FamilyTask.normalizedAssigneeEmails(assignedToEmails, legacyAssignedTo: assignedTo)
     }
 
-    var primaryAssigneeForAvatar: String {
+    /// Who the avatar shows: the first person on it other than the viewer, since the
+    /// editor always adds its creator; the viewer only when it's theirs alone.
+    func avatarAssignee(viewerEmail: String) -> String {
         if isAssignedToEveryone { return Assignee.everyone }
-        return assigneeEmails.first ?? assignedTo
+        let viewer = viewerEmail.trimmingCharacters(in: .whitespacesAndNewlines)
+        return assigneeEmails.first { $0.caseInsensitiveCompare(viewer) != .orderedSame }
+            ?? assigneeEmails.first
+            ?? assignedTo
+    }
+
+    var primaryAssigneeForAvatar: String {
+        avatarAssignee(viewerEmail: UserDefaults.standard.string(forKey: "profile.email") ?? "")
     }
 
     func isVisible(to profileEmail: String) -> Bool {

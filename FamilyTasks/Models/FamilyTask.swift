@@ -170,11 +170,18 @@ struct FamilyTask: Identifiable, Codable, Equatable {
         return Self.normalizedAssigneeEmails(assignedToEmails, legacyAssignedTo: assignedTo)
     }
 
+    /// Who the avatar shows: the first person on it other than the viewer, since the
+    /// editor always adds its creator; the viewer only when it's theirs alone.
+    func avatarAssignee(viewerEmail: String) -> String {
+        if isAssignedToEveryone { return Assignee.everyone }
+        let viewer = viewerEmail.trimmingCharacters(in: .whitespacesAndNewlines)
+        return assigneeEmails.first { $0.caseInsensitiveCompare(viewer) != .orderedSame }
+            ?? assigneeEmails.first
+            ?? assignedTo
+    }
+
     var primaryAssigneeForAvatar: String {
-        if isAssignedToEveryone {
-            return Assignee.everyone
-        }
-        return assigneeEmails.first ?? assignedTo
+        avatarAssignee(viewerEmail: UserDefaults.standard.string(forKey: "profile.email") ?? "")
     }
 
     var assignmentSummary: String {

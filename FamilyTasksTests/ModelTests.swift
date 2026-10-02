@@ -20,6 +20,13 @@ final class ModelTests: XCTestCase {
         XCTAssertEqual(decoded, task)
     }
 
+    func testAvatarShowsWhoElseTheTaskIsFor() {
+        let task = FamilyTask(title: "Pick up Maya", assignedToEmails: ["naveen@example.com", "priya@example.com"])
+        XCTAssertEqual(task.avatarAssignee(viewerEmail: "naveen@example.com"), "priya@example.com")
+        XCTAssertEqual(task.avatarAssignee(viewerEmail: "priya@example.com"), "naveen@example.com")
+        XCTAssertEqual(FamilyTask(title: "Mine", assignedToEmails: ["naveen@example.com"]).avatarAssignee(viewerEmail: "naveen@example.com"), "naveen@example.com")
+    }
+
     func testAssigneeEmailsAreSplitNormalizedAndDeduplicated() {
         let emails = FamilyTask.normalizedAssigneeEmails(
             [" B@Example.com", "a@example.com, b@example.com", Assignee.everyone, ""],
