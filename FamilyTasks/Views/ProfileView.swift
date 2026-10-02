@@ -141,6 +141,7 @@ struct ViewSettingsView: View {
     @AppStorage("schedule.taskSortOrder") private var taskSortOrder = ScheduleTaskSortOrder.priority.rawValue
     @AppStorage("tasks.showPriorityMarkers") private var showTaskPriorityMarkers = false
     @AppStorage("view.appearance") private var appearance = AppAppearance.system.rawValue
+    @AppStorage(ThemePalette.storageKey) private var themeID = ThemePalette.sageLinen.id
     @AppStorage("calendar.integration.enabled") private var calendarIntegrationEnabled = false
     @AppStorage("schedule.contentPriority") private var scheduleContentPriority = ScheduleContentPriority.tasksFirst.rawValue
 
@@ -148,6 +149,21 @@ struct ViewSettingsView: View {
         // Shown inside a tab's NavigationStack.
         Group {
             Form {
+                Section {
+                    LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                        ForEach(ThemePalette.all) { theme in
+                            ThemeCard(theme: theme, isSelected: theme.id == ThemePalette.named(themeID).id) {
+                                themeID = theme.id
+                            }
+                        }
+                    }
+                    .padding(.vertical, 4)
+                } header: {
+                    Text("Theme")
+                } footer: {
+                    Text(ThemePalette.named(themeID).summary)
+                }
+
                 Section("Appearance") {
                     Picker("Mode", selection: $appearance) {
                         ForEach(AppAppearance.allCases) { option in
@@ -1313,5 +1329,66 @@ struct RefreshRow: View {
         .buttonStyle(.plain)
         .disabled(isRunning || isBusy)
         .accessibilityLabel(isRunning || isBusy ? busyTitle : title)
+    }
+}
+
+/// A theme drawn in its own colors: background, a card, the main color and its accents.
+private struct ThemeCard: View {
+    let theme: ThemePalette
+    let isSelected: Bool
+    let action: () -> Void
+
+    private var accents: [Swatch] {
+        [theme.warmAccent, theme.coolAccent, theme.goldAccent, theme.softAccent, theme.brightAccent]
+    }
+
+    var body: some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(theme.primary.color)
+                        .frame(width: 26, height: 26)
+                        .overlay {
+                            Image(systemName: isSelected ? "checkmark" : "plus")
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(theme.onPrimary.color)
+                        }
+                    Spacer(minLength: 0)
+                    HStack(spacing: -4) {
+                        ForEach(Array(accents.enumerated()), id: \.offset) { _, accent in
+                            Circle()
+                                .fill(accent.color)
+                                .frame(width: 14, height: 14)
+                                .overlay(Circle().stroke(theme.surface.color, lineWidth: 1.5))
+                        }
+                    }
+                }
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(theme.surfaceMuted.color)
+                    .frame(height: 6)
+                    .overlay(alignment: .leading) {
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .fill(theme.primary.color)
+                            .frame(width: 44, height: 6)
+                    }
+                Text(theme.name)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(theme.ink.color)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+            }
+            .padding(12)
+            .background(theme.surface.color, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .padding(4)
+            .background(theme.background.color, in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 17, style: .continuous)
+                    .strokeBorder(isSelected ? theme.primary.color : Color.secondary.opacity(0.25), lineWidth: isSelected ? 2.5 : 1)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(theme.name) theme")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }

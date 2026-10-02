@@ -871,7 +871,7 @@ private struct TonightCard: View {
             Text("TONIGHT")
                 .font(.footnote.weight(.bold))
                 .tracking(1)
-                .foregroundStyle(AppTheme.terracotta)
+                .foregroundStyle(AppTheme.warmAccent)
 
             if let dinner = dinners.first, let meal = organizerStore.mealIdea(for: dinner) {
                 let ingredients = dinners.flatMap { organizerStore.ingredients(for: $0) }
@@ -903,7 +903,7 @@ private struct TonightCard: View {
                             .frame(maxWidth: .infinity, minHeight: 44)
                     }
                     .buttonStyle(.borderedProminent)
-                    .tint(AppTheme.terracotta)
+                    .tint(AppTheme.warmAccent)
                     .foregroundStyle(.black)
                     .disabled(organizerStore.shops.isEmpty)
                 } else if !ingredients.isEmpty {

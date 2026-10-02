@@ -165,4 +165,51 @@ final class ModelTests: XCTestCase {
     func testTaskTagTitles() {
         XCTAssertEqual(TaskBucket.allCases.map(\.tagTitle), ["Do now", "Schedule", "Delegate", "Someday"])
     }
+
+    // MARK: Themes
+
+    /// WCAG contrast ratio between two sRGB hex colors.
+    private func contrast(_ a: UInt, _ b: UInt) -> Double {
+        func luminance(_ hex: UInt) -> Double {
+            func channel(_ value: UInt) -> Double {
+                let c = Double(value) / 255
+                return c <= 0.03928 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4)
+            }
+            return 0.2126 * channel((hex >> 16) & 0xFF) + 0.7152 * channel((hex >> 8) & 0xFF) + 0.0722 * channel(hex & 0xFF)
+        }
+        let (l1, l2) = (luminance(a), luminance(b))
+        return (max(l1, l2) + 0.05) / (min(l1, l2) + 0.05)
+    }
+
+    func testSageAndLinenIsTheDefaultAndThemeIDsAreUnique() {
+        XCTAssertEqual(ThemePalette.all.first?.id, ThemePalette.sageLinen.id)
+        XCTAssertEqual(ThemePalette.named(nil).id, ThemePalette.sageLinen.id)
+        XCTAssertEqual(ThemePalette.named("no-such-theme").id, ThemePalette.sageLinen.id)
+        XCTAssertEqual(Set(ThemePalette.all.map(\.id)).count, ThemePalette.all.count)
+    }
+
+    func testEveryThemeIsReadableInLightAndDarkMode() {
+        for theme in ThemePalette.all {
+            for mode in ["light", "dark"] {
+                func value(_ swatch: Swatch) -> UInt { mode == "light" ? swatch.light : swatch.dark }
+                func check(_ foreground: Swatch, on background: Swatch, _ what: String, minimum: Double = 4.5) {
+                    let ratio = contrast(value(foreground), value(background))
+                    XCTAssertGreaterThanOrEqual(ratio, minimum, "\(theme.name) \(mode): \(what) is \(String(format: "%.2f", ratio)):1")
+                }
+
+                check(theme.ink, on: theme.background, "text on background")
+                check(theme.ink, on: theme.surface, "text on cards")
+                check(theme.onPrimary, on: theme.primary, "icons on the main color")
+                for (name, accent) in [("warm", theme.warmAccent), ("cool", theme.coolAccent), ("gold", theme.goldAccent),
+                                       ("soft", theme.softAccent), ("bright", theme.brightAccent), ("done", theme.success),
+                                       ("error", theme.destructive), ("main", theme.primary)] {
+                    check(accent, on: theme.surface, "\(name) text on cards")
+                }
+                for (name, avatar) in [("main", theme.primary), ("soft", theme.softAccent), ("bright", theme.brightAccent),
+                                       ("cool", theme.coolAccent), ("gold", theme.goldAccent), ("warm", theme.warmAccent)] {
+                    check(theme.onAvatar, on: avatar, "initials on the \(name) avatar")
+                }
+            }
+        }
+    }
 }

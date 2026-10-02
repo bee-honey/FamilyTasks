@@ -3,7 +3,8 @@ import SwiftUI
 /// The app's main navigation: the busiest sections as tabs, the rest one level down
 /// under Family and More.
 struct RootTabView: View {
-    @State private var selection: AppTab = .today
+    /// Kept across the rebuild that follows a theme change.
+    @SceneStorage("root.selectedTab") private var selection: AppTab = .today
 
     var body: some View {
         TabView(selection: $selection) {
@@ -31,7 +32,7 @@ struct RootTabView: View {
     }
 }
 
-private enum AppTab: Hashable {
+private enum AppTab: String, Hashable {
     case today
     case tasks
     case shopping
@@ -52,17 +53,17 @@ private struct FamilyHubView: View {
                     NavigationLink {
                         ChoresView()
                     } label: {
-                        HubRow(title: "Chores", systemImage: "star.circle", tint: AppTheme.lavender, detail: choresDetail)
+                        HubRow(title: "Chores", systemImage: "star.circle", tint: AppTheme.softAccent, detail: choresDetail)
                     }
                     NavigationLink {
                         MealPlanView()
                     } label: {
-                        HubRow(title: "Meal Plan", systemImage: "fork.knife", tint: AppTheme.terracotta, detail: mealsDetail)
+                        HubRow(title: "Meal Plan", systemImage: "fork.knife", tint: AppTheme.warmAccent, detail: mealsDetail)
                     }
                     NavigationLink {
                         RecurringTasksView()
                     } label: {
-                        HubRow(title: "Recurring", systemImage: "repeat", tint: AppTheme.dustyBlue, detail: recurringDetail)
+                        HubRow(title: "Recurring", systemImage: "repeat", tint: AppTheme.coolAccent, detail: recurringDetail)
                     }
                     if healthSectionEnabled {
                         NavigationLink {

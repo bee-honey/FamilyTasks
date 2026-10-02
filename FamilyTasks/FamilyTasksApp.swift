@@ -13,13 +13,16 @@ struct FamilyTasksApp: App {
     @AppStorage("profile.email") private var profileEmail = ""
     @AppStorage("profile.isSetup") private var isProfileSetup = false
     @AppStorage("view.appearance") private var appearance = AppAppearance.system.rawValue
+    @AppStorage(ThemePalette.storageKey) private var themeID = ThemePalette.sageLinen.id
     @AppStorage("health.share.enabled") private var healthSharingEnabled = false
 
     var body: some Scene {
         WindowGroup {
             Group {
                 if isProfileReady {
+                    // Screens read theme colors as they draw, so rebuild them when the theme changes.
                     RootTabView()
+                        .id(themeID)
                 } else {
                     ProfileSetupView()
                 }
