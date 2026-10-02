@@ -56,21 +56,8 @@ struct MealPlanView: View {
                 if selectedTab == .plan {
                     ToolbarItem(placement: .topBarTrailing) {
                         let toBuy = weekIngredientsToBuy
-                        Button {
+                        ShopForWeekButton(count: toBuy) {
                             isShoppingForWeek = true
-                        } label: {
-                            Image(systemName: "cart")
-                                .overlay(alignment: .topTrailing) {
-                                    if toBuy > 0 {
-                                        Text("\(toBuy)")
-                                            .font(.caption2.weight(.bold))
-                                            .foregroundStyle(.black)
-                                            .padding(.horizontal, 4)
-                                            .frame(minWidth: 16, minHeight: 16)
-                                            .background(AppTheme.warning, in: Capsule())
-                                            .offset(x: 10, y: -8)
-                                    }
-                                }
                         }
                         .accessibilityLabel(toBuy > 0 ? "\(shopForWeekTitle), \(toBuy) to buy" : shopForWeekTitle)
                     }
@@ -1013,5 +1000,37 @@ private struct WrappingStack: Layout {
         }
         if !current.indices.isEmpty { rows.append(current) }
         return rows
+    }
+}
+
+/// The cart button with how many of the week's ingredients are not on the list yet.
+/// iOS 26 draws toolbar buttons in glass that clips anything outside them, so there the
+/// system toolbar badge is used; earlier versions draw the count on the icon.
+private struct ShopForWeekButton: View {
+    let count: Int
+    let action: () -> Void
+
+    var body: some View {
+        if #available(iOS 26, *) {
+            Button(action: action) {
+                Image(systemName: "cart")
+            }
+            .badge(count)
+        } else {
+            Button(action: action) {
+                Image(systemName: "cart")
+                    .overlay(alignment: .topTrailing) {
+                        if count > 0 {
+                            Text("\(count)")
+                                .font(.caption2.weight(.bold))
+                                .foregroundStyle(.black)
+                                .padding(.horizontal, 4)
+                                .frame(minWidth: 16, minHeight: 16)
+                                .background(AppTheme.warning, in: Capsule())
+                                .offset(x: 10, y: -8)
+                        }
+                    }
+            }
+        }
     }
 }

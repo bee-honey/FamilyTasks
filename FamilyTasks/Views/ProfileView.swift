@@ -7,6 +7,7 @@ struct ProfileView: View {
     @EnvironmentObject private var taskStore: TaskStore
     @EnvironmentObject private var sharedHouseholdStore: SharedHouseholdStore
     @AppStorage("profile.email") private var email = ""
+    @AppStorage("profile.name") private var name = ""
     @AppStorage("profile.initials") private var initials = ""
     @AppStorage("profile.imageData") private var imageData = Data()
     @State private var selectedPhoto: PhotosPickerItem?
@@ -45,6 +46,10 @@ struct ProfileView: View {
                 }
 
                 Section {
+                    TextField("Name (for greetings)", text: $name)
+                        .textInputAutocapitalization(.words)
+                        .textContentType(.givenName)
+
                     TextField("Email", text: $email)
                         .keyboardType(.emailAddress)
                         .textInputAutocapitalization(.never)
@@ -129,8 +134,9 @@ struct ProfileView: View {
 
 struct ViewSettingsView: View {
     @EnvironmentObject private var calendarSync: CalendarSyncService
-    @AppStorage("schedule.showTaskTime") private var showTaskTime = false
-    @AppStorage("schedule.defaultDisplayMode") private var defaultScheduleView = "week"
+    @AppStorage("schedule.showTaskTime") private var showTaskTime = true
+    @AppStorage("schedule.showPriorityTags") private var showPriorityTags = true
+    @AppStorage("schedule.defaultDisplayMode") private var defaultScheduleView = ScheduleDisplayMode.week.rawValue
     @AppStorage("schedule.taskSortOrder") private var taskSortOrder = ScheduleTaskSortOrder.priority.rawValue
     @AppStorage("tasks.showBucketColors") private var showTaskBucketColors = false
     @AppStorage("tasks.showPriorityMarkers") private var showTaskPriorityMarkers = false
@@ -155,11 +161,11 @@ struct ViewSettingsView: View {
                         .foregroundStyle(.secondary)
                 }
 
-                Section("Schedule View") {
+                Section("Today") {
                     Picker("Default View", selection: $defaultScheduleView) {
-                        Text("Today").tag("today")
-                        Text("Week").tag("week")
-                        Text("Month").tag("month")
+                        ForEach(ScheduleDisplayMode.allCases) { mode in
+                            Text(mode.title).tag(mode.rawValue)
+                        }
                     }
 
                     Picker("Task Sort", selection: $taskSortOrder) {
@@ -168,7 +174,11 @@ struct ViewSettingsView: View {
                         }
                     }
 
-                    Toggle("Show Time On Tasks", isOn: $showTaskTime)
+                    Toggle("Show Priority Tags", isOn: $showPriorityTags)
+                    Toggle("Show Times", isOn: $showTaskTime)
+                }
+
+                Section("Task Matrix") {
                     Toggle("Show Task Colors", isOn: $showTaskBucketColors)
                     Toggle("Show Bucket Markers", isOn: $showTaskPriorityMarkers)
                 }
@@ -195,7 +205,7 @@ struct ViewSettingsView: View {
                         }
                     }
 
-                    Text("Choose whether Schedule leads with family tasks or calendar events.")
+                    Text("Choose whether Today leads with family tasks or calendar events.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

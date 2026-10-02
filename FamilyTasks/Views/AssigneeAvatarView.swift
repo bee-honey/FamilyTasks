@@ -3,6 +3,9 @@ import UIKit
 
 struct AssigneeAvatarView: View {
     let name: String
+    var size: CGFloat = 38
+    /// Colored initials only, even when the member has a profile photo.
+    var showsPhoto = true
     @AppStorage("profile.email") private var profileEmail = ""
     @AppStorage("profile.initials") private var profileInitials = ""
     @AppStorage("profile.imageData") private var profileImageData = Data()
@@ -42,27 +45,34 @@ struct AssigneeAvatarView: View {
 
     var body: some View {
         Group {
-            if let image = avatarImage {
+            if showsPhoto, let image = avatarImage {
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFill()
             } else {
                 Text(initials)
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(.white)
+                    .font(.system(size: size * (initials.count > 2 ? 0.3 : 0.36), weight: .bold))
+                    .foregroundStyle(AppTheme.onAvatar)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(avatarColor)
             }
         }
-        .frame(width: 38, height: 38)
+        .frame(width: size, height: size)
         .clipShape(Circle())
         .accessibilityLabel(name.isEmpty ? "Unassigned" : "Assigned to \(Assignee.displayName(for: name))")
     }
 
+    /// Family members get colors in family-list order, so each one differs (for up to six)
+    /// and matches on every phone; anyone else gets a stable color from their name
+    /// (`hashValue` would change on every launch).
     private var avatarColor: Color {
-        let source = name.isEmpty ? "Unassigned" : name
-        let index = abs(source.hashValue) % AppTheme.avatarPalette.count
-        return AppTheme.avatarPalette[index]
+        let source = (name.isEmpty ? "Unassigned" : name).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let palette = AppTheme.avatarPalette
+        if let index = TaskStore.shared.familyMembers.firstIndex(of: source) {
+            return palette[index % palette.count]
+        }
+        let hash = source.unicodeScalars.reduce(0) { ($0 &* 31 &+ Int($1.value)) & 0x7FFF_FFFF }
+        return palette[hash % palette.count]
     }
 
     private var avatarImage: UIImage? {

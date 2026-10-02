@@ -8,6 +8,8 @@ enum AppTheme {
     static let primary = Color(light: 0x167C80, dark: 0x58C7C5)
     /// Text and icons drawn on a `primary` fill.
     static let onPrimary = Color(light: 0xFFFFFF, dark: 0x102A2A)
+    /// Initials on an `avatarPalette` fill: the dark-mode palette is light, so it needs dark text.
+    static let onAvatar = Color(light: 0xFFFFFF, dark: 0x171411)
     static let primarySoft = Color(light: 0xD9EEEA, dark: 0x173D3E)
     static let success = Color(light: 0x4F8A6B, dark: 0x74C69D)
     static let warning = Color(light: 0xD9912B, dark: 0xF0B85A)
