@@ -69,6 +69,7 @@ struct ProfileView: View {
 
             }
             .navigationTitle("Profile")
+            .labelStyle(.tile(SettingsTint.profile))
             .scrollContentBackground(.hidden)
             .background(AppTheme.background)
             .onChange(of: selectedPhoto) { _, item in
@@ -161,28 +162,46 @@ struct ViewSettingsView: View {
                 }
 
                 Section("Today") {
-                    Picker("Default View", selection: $defaultScheduleView) {
+                    Picker(selection: $defaultScheduleView) {
                         ForEach(ScheduleDisplayMode.allCases) { mode in
                             Text(mode.title).tag(mode.rawValue)
                         }
+                    } label: {
+                        Label("Default View", systemImage: "calendar")
+                            .labelStyle(.tile(AppTheme.primary))
                     }
 
-                    Picker("Task Sort", selection: $taskSortOrder) {
+                    Picker(selection: $taskSortOrder) {
                         ForEach(ScheduleTaskSortOrder.allCases) { option in
                             Text(option.title).tag(option.rawValue)
                         }
+                    } label: {
+                        Label("Task Sort", systemImage: "arrow.up.arrow.down")
+                            .labelStyle(.tile(AppTheme.taskSchedule))
                     }
 
-                    Toggle("Show Priority Tags", isOn: $showPriorityTags)
-                    Toggle("Show Times", isOn: $showTaskTime)
+                    Toggle(isOn: $showPriorityTags) {
+                        Label("Show Priority Tags", systemImage: "tag.fill")
+                            .labelStyle(.tile(AppTheme.taskDo))
+                    }
+                    Toggle(isOn: $showTaskTime) {
+                        Label("Show Times", systemImage: "clock.fill")
+                            .labelStyle(.tile(AppTheme.warning))
+                    }
                 }
 
                 Section("Task Matrix") {
-                    Toggle("Show Bucket Markers", isOn: $showTaskPriorityMarkers)
+                    Toggle(isOn: $showTaskPriorityMarkers) {
+                        Label("Show Bucket Markers", systemImage: "square.grid.2x2.fill")
+                            .labelStyle(.tile(AppTheme.success))
+                    }
                 }
 
                 Section("Tasks and Calendars") {
-                    Toggle("Show Calendar Events in Schedule", isOn: $calendarIntegrationEnabled)
+                    Toggle(isOn: $calendarIntegrationEnabled) {
+                        Label("Show Calendar Events on Today", systemImage: "calendar.badge.plus")
+                            .labelStyle(.tile(SettingsTint.calendar))
+                    }
                         .onChange(of: calendarIntegrationEnabled) { _, enabled in
                             Task {
                                 if enabled {
@@ -197,10 +216,13 @@ struct ViewSettingsView: View {
                             }
                         }
 
-                    Picker("Schedule Priority", selection: $scheduleContentPriority) {
+                    Picker(selection: $scheduleContentPriority) {
                         ForEach(ScheduleContentPriority.allCases) { priority in
                             Text(priority.title).tag(priority.rawValue)
                         }
+                    } label: {
+                        Label("Show First", systemImage: "list.bullet")
+                            .labelStyle(.tile(AppTheme.taskSchedule))
                     }
 
                     Text("Choose whether Today leads with family tasks or calendar events.")
@@ -208,7 +230,8 @@ struct ViewSettingsView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            .navigationTitle("View Settings")
+            .navigationTitle("Appearance")
+            .labelStyle(.tile(SettingsTint.appearance))
             .scrollContentBackground(.hidden)
             .background(AppTheme.background)
         }
@@ -229,7 +252,10 @@ struct HealthSettingsView: View {
         Group {
             Form {
                 Section("Health") {
-                    Toggle("Enable Health", isOn: $healthSectionEnabled)
+                    Toggle(isOn: $healthSectionEnabled) {
+                        Label("Enable Health", systemImage: "heart.fill")
+                            .labelStyle(.tile(SettingsTint.health))
+                    }
                         .disabled(!healthService.isHealthAvailable)
                         .onChange(of: healthSectionEnabled) { _, enabled in
                             if enabled {
@@ -249,7 +275,10 @@ struct HealthSettingsView: View {
 
                 if healthSectionEnabled {
                     Section("Family Sharing") {
-                        Toggle("Share Steps and Sleep With Family", isOn: $healthSharingEnabled)
+                        Toggle(isOn: $healthSharingEnabled) {
+                            Label("Share Steps and Sleep With Family", systemImage: "person.2.fill")
+                                .labelStyle(.tile(AppTheme.primary))
+                        }
                             .disabled(!healthService.isHealthAvailable)
                             .onChange(of: healthSharingEnabled) { _, enabled in
                                 if enabled {
@@ -298,7 +327,8 @@ struct HealthSettingsView: View {
                     }
                 }
             }
-            .navigationTitle("Health Settings")
+            .navigationTitle("Health")
+            .labelStyle(.tile(SettingsTint.health))
             .scrollContentBackground(.hidden)
             .background(AppTheme.background)
             .task {
@@ -331,7 +361,10 @@ struct NotificationSettingsView: View {
         Group {
             Form {
                 Section("Notifications") {
-                    Toggle("Enable Notifications", isOn: $notificationsEnabled)
+                    Toggle(isOn: $notificationsEnabled) {
+                        Label("Enable Notifications", systemImage: "bell.fill")
+                            .labelStyle(.tile(SettingsTint.notifications))
+                    }
                         .onChange(of: notificationsEnabled) { _, enabled in
                             if enabled {
                                 requestNotificationPermission()
@@ -340,20 +373,26 @@ struct NotificationSettingsView: View {
                             }
                         }
 
-                    Toggle("Today Digest", isOn: $todayDigestEnabled)
+                    Toggle(isOn: $todayDigestEnabled) {
+                        Label("Today Digest", systemImage: "sun.max.fill")
+                            .labelStyle(.tile(AppTheme.warning))
+                    }
                         .disabled(!notificationsEnabled)
                         .onChange(of: todayDigestEnabled) { _, _ in
                             rescheduleNotifications()
                         }
 
                     if todayDigestEnabled {
-                        Picker("Digest Time", selection: Binding(
+                        Picker(selection: Binding(
                             get: { todayDigestTime },
                             set: { todayDigestTime = $0 }
                         )) {
                             ForEach(NotificationDigestTimeOption.options) { option in
                                 Text(option.title).tag(option.id)
                             }
+                        } label: {
+                            Label("Digest Time", systemImage: "alarm")
+                                .labelStyle(.tile(AppTheme.warning))
                         }
                         .disabled(!notificationsEnabled)
                         .onChange(of: todayDigestTime) { _, _ in
@@ -361,7 +400,10 @@ struct NotificationSettingsView: View {
                         }
                     }
 
-                    Toggle("Due Soon Alerts", isOn: $dueSoonEnabled)
+                    Toggle(isOn: $dueSoonEnabled) {
+                        Label("Due Soon Alerts", systemImage: "clock.badge.exclamationmark")
+                            .labelStyle(.tile(AppTheme.taskSchedule))
+                    }
                         .disabled(!notificationsEnabled)
                         .onChange(of: dueSoonEnabled) { _, _ in
                             rescheduleNotifications()
@@ -375,7 +417,10 @@ struct NotificationSettingsView: View {
                             }
                     }
 
-                    Toggle("When Family Finishes a Task", isOn: $familyCompletionsEnabled)
+                    Toggle(isOn: $familyCompletionsEnabled) {
+                        Label("When Family Finishes a Task", systemImage: "checkmark.circle.fill")
+                            .labelStyle(.tile(AppTheme.success))
+                    }
                         .disabled(!notificationsEnabled)
 
                     Text(notificationDetail)
@@ -400,12 +445,14 @@ struct NotificationSettingsView: View {
                             await notificationScheduler.sendTestNotification()
                         }
                     } label: {
-                        Label("Send Test Notification", systemImage: "paperplane")
+                        Label("Send Test Notification", systemImage: "paperplane.fill")
+                            .labelStyle(.tile(AppTheme.primary))
                     }
                     .disabled(!notificationsEnabled)
                 }
             }
-            .navigationTitle("Notification Settings")
+            .navigationTitle("Notifications")
+            .labelStyle(.tile(SettingsTint.notifications))
             .scrollContentBackground(.hidden)
             .background(AppTheme.background)
             .task {
@@ -878,7 +925,8 @@ struct SyncSettingsView: View {
                     .padding(.vertical, 4)
                 }
             }
-            .navigationTitle("iCloud Settings")
+            .navigationTitle("iCloud Sharing")
+            .labelStyle(.tile(SettingsTint.iCloud))
             .scrollContentBackground(.hidden)
             .background(AppTheme.background)
             .sheet(item: $preparedCloudShare) { preparedShare in
@@ -1001,7 +1049,8 @@ struct CalendarSettingsView: View {
                     }
                 }
             }
-            .navigationTitle("Calendar Settings")
+            .navigationTitle("Calendar")
+            .labelStyle(.tile(SettingsTint.calendar))
             .scrollContentBackground(.hidden)
             .background(AppTheme.background)
         }
@@ -1168,6 +1217,7 @@ struct ProfileSetupView: View {
                 }
             }
             .navigationTitle("Welcome")
+            .labelStyle(.tile(SettingsTint.profile))
             .navigationBarTitleDisplayMode(.inline)
             .scrollContentBackground(.hidden)
             .background(AppTheme.background)
@@ -1242,8 +1292,9 @@ struct RefreshRow: View {
             }
         } label: {
             if isRunning || isBusy {
-                HStack(spacing: 10) {
+                HStack(spacing: 12) {
                     ProgressView()
+                        .frame(width: 30, height: 30)
                     Text(busyTitle)
                 }
             } else {

@@ -43,6 +43,7 @@
 		2DD97B59D957D90DD20C3329 /* TaskIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5EDC30D6C9571B5F9D9D3CFC /* TaskIntents.swift */; };
 		30CB59E9CA5C66997CC39F93 /* NotificationTimingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A13A167718A0EF3814EA4E9 /* NotificationTimingTests.swift */; };
 		37B9E1677D74E24B22D3A7DC /* ChoreModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = C817928FC24BEF3835312223 /* ChoreModels.swift */; };
+		3A13BD42E01E2675D9D5CFA1 /* IconTile.swift in Sources */ = {isa = PBXBuildFile; fileRef = D62DC77D66754F9AC86E222E /* IconTile.swift */; };
 		3DD28E028918977E37FF9148 /* HealthAggregationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF4226E63FDF989D31BEA8BF /* HealthAggregationTests.swift */; };
 		441BB0E0F9BAD9779AF2D01F /* WidgetDataTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1959E02C60CB8BEF62319D0D /* WidgetDataTests.swift */; };
 		56D116660832334365FC31BD /* ChoreStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE8CC412E6186E109604CD94 /* ChoreStore.swift */; };
@@ -160,6 +161,7 @@
 		CD24FF1E8EE7630C60874D77 /* FamilyTasksWidgetsBundle.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = FamilyTasksWidgetsBundle.swift; sourceTree = "<group>"; };
 		CF4226E63FDF989D31BEA8BF /* HealthAggregationTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HealthAggregationTests.swift; sourceTree = "<group>"; };
 		D0AD9AC5EA77F9FBA94997D1 /* TodayWidget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TodayWidget.swift; sourceTree = "<group>"; };
+		D62DC77D66754F9AC86E222E /* IconTile.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = IconTile.swift; sourceTree = "<group>"; };
 		DB53E2CCC7AFC0F5493E24C0 /* ChoresView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ChoresView.swift; sourceTree = "<group>"; };
 		DBF42F5D8704345FA15A373D /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		E612F06E9C75226BD229FC11 /* ModelTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ModelTests.swift; sourceTree = "<group>"; };
@@ -292,6 +294,7 @@
 				2C0A00362C0A000000000001 /* EditTaskView.swift */,
 				DB53E2CCC7AFC0F5493E24C0 /* ChoresView.swift */,
 				EC9AE0823AA92C2177793719 /* WrappingStack.swift */,
+				D62DC77D66754F9AC86E222E /* IconTile.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -505,6 +508,7 @@
 				56D116660832334365FC31BD /* ChoreStore.swift in Sources */,
 				26A57217B63A6D03B4F5955C /* ChoresView.swift in Sources */,
 				C3C5421C98381E6DD2DE3A19 /* WrappingStack.swift in Sources */,
+				3A13BD42E01E2675D9D5CFA1 /* IconTile.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

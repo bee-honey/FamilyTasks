@@ -100,9 +100,17 @@ private struct FamilyHubView: View {
     }
 }
 
-/// Ideas and every setting.
+/// Ideas and every setting, each with a one-line summary.
 private struct MoreView: View {
     @EnvironmentObject private var organizerStore: OrganizerStore
+    @EnvironmentObject private var sharedHouseholdStore: SharedHouseholdStore
+    @AppStorage("profile.email") private var profileEmail = ""
+    @AppStorage("profile.name") private var profileName = ""
+    @AppStorage("notifications.enabled") private var notificationsEnabled = false
+    @AppStorage("calendar.integration.enabled") private var calendarEnabled = false
+    @AppStorage("health.section.enabled") private var healthEnabled = false
+    @AppStorage("health.share.enabled") private var healthSharing = false
+    @AppStorage("view.appearance") private var appearance = AppAppearance.system.rawValue
 
     var body: some View {
         NavigationStack {
@@ -111,18 +119,30 @@ private struct MoreView: View {
                     NavigationLink {
                         IdeaNotebookView()
                     } label: {
-                        HubRow(title: "Ideas", systemImage: "lightbulb", tint: AppTheme.warning, detail: ideasDetail)
+                        HubRow(title: "Ideas", systemImage: "lightbulb", tint: SettingsTint.ideas, detail: ideasDetail)
                     }
                 }
                 .listRowBackground(AppTheme.surface)
 
                 Section("Settings") {
-                    NavigationLink { ProfileView() } label: { Label("Profile", systemImage: "person.crop.circle") }
-                    NavigationLink { SyncSettingsView() } label: { Label("iCloud Sharing", systemImage: "icloud") }
-                    NavigationLink { NotificationSettingsView() } label: { Label("Notifications", systemImage: "bell.badge") }
-                    NavigationLink { CalendarSettingsView() } label: { Label("Calendar", systemImage: "calendar.badge.clock") }
-                    NavigationLink { HealthSettingsView() } label: { Label("Health", systemImage: "heart") }
-                    NavigationLink { ViewSettingsView() } label: { Label("Appearance", systemImage: "slider.horizontal.3") }
+                    NavigationLink { ProfileView() } label: {
+                        HubRow(title: "Profile", systemImage: "person.crop.circle", tint: SettingsTint.profile, detail: profileDetail)
+                    }
+                    NavigationLink { SyncSettingsView() } label: {
+                        HubRow(title: "iCloud Sharing", systemImage: "icloud", tint: SettingsTint.iCloud, detail: sharedHouseholdStore.statusMessage)
+                    }
+                    NavigationLink { NotificationSettingsView() } label: {
+                        HubRow(title: "Notifications", systemImage: "bell.badge", tint: SettingsTint.notifications, detail: notificationsEnabled ? "On" : "Off")
+                    }
+                    NavigationLink { CalendarSettingsView() } label: {
+                        HubRow(title: "Calendar", systemImage: "calendar.badge.clock", tint: SettingsTint.calendar, detail: calendarEnabled ? "Showing your calendar events" : "Off")
+                    }
+                    NavigationLink { HealthSettingsView() } label: {
+                        HubRow(title: "Health", systemImage: "heart", tint: SettingsTint.health, detail: healthDetail)
+                    }
+                    NavigationLink { ViewSettingsView() } label: {
+                        HubRow(title: "Appearance", systemImage: "paintbrush", tint: SettingsTint.appearance, detail: appearanceDetail)
+                    }
                 }
                 .listRowBackground(AppTheme.surface)
 
@@ -136,6 +156,25 @@ private struct MoreView: View {
             .background(AppTheme.background)
             .navigationTitle("More")
         }
+    }
+
+    private var profileDetail: String {
+        let name = profileName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let email = profileEmail.trimmingCharacters(in: .whitespacesAndNewlines)
+        switch (name.isEmpty, email.isEmpty) {
+        case (false, false): return "\(name) · \(email)"
+        case (true, false): return email
+        default: return "Set up your profile"
+        }
+    }
+
+    private var healthDetail: String {
+        guard healthEnabled else { return "Off" }
+        return healthSharing ? "Sharing steps and sleep with family" : "On, not shared"
+    }
+
+    private var appearanceDetail: String {
+        "\(AppAppearance(rawValue: appearance)?.title ?? "System") · Today, tags and times"
     }
 
     private var ideasDetail: String {
@@ -158,11 +197,7 @@ private struct HubRow: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            Image(systemName: systemImage)
-                .font(.title3)
-                .foregroundStyle(tint)
-                .frame(width: 40, height: 40)
-                .background(tint.opacity(0.16), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            IconTile(systemImage: systemImage, tint: tint, size: 40)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.body.weight(.semibold))
