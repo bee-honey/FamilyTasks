@@ -84,9 +84,14 @@ struct HealthView: View {
                     Button {
                         Task { await healthService.refresh() }
                     } label: {
-                        Image(systemName: "arrow.clockwise")
+                        if healthService.isLoading {
+                            ProgressView()
+                        } else {
+                            Image(systemName: "arrow.clockwise")
+                        }
                     }
-                    .accessibilityLabel("Refresh health data")
+                    .disabled(healthService.isLoading)
+                    .accessibilityLabel(healthService.isLoading ? "Refreshing health data" : "Refresh health data")
                 }
             }
             .task {

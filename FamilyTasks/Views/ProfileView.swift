@@ -266,16 +266,12 @@ struct HealthSettingsView: View {
                                 }
                             }
 
-                        Button {
-                            Task {
-                                await HealthSyncCoordinator.shared.syncNow(
-                                    taskStore: taskStore,
-                                    organizerStore: organizerStore,
-                                    sharedHouseholdStore: sharedHouseholdStore
-                                )
-                            }
-                        } label: {
-                            Label("Sync Health Summary Now", systemImage: "arrow.triangle.2.circlepath")
+                        RefreshRow(title: "Sync Health Summary Now", busyTitle: "Syncing Health Summary") {
+                            await HealthSyncCoordinator.shared.syncNow(
+                                taskStore: taskStore,
+                                organizerStore: organizerStore,
+                                sharedHouseholdStore: sharedHouseholdStore
+                            )
                         }
                         .disabled(!healthSharingEnabled)
 
@@ -285,12 +281,8 @@ struct HealthSettingsView: View {
                     }
 
                     Section("Access") {
-                        Button {
-                            Task {
-                                await healthService.requestAccessAndRefresh()
-                            }
-                        } label: {
-                            Label("Refresh Health Access", systemImage: "heart")
+                        RefreshRow(title: "Refresh Health Access", busyTitle: "Refreshing Health Access", systemImage: "heart") {
+                            await healthService.requestAccessAndRefresh()
                         }
                         .disabled(!healthService.isHealthAvailable)
 
@@ -845,27 +837,14 @@ struct SyncSettingsView: View {
                     }
                     .padding(.vertical, 4)
 
-                    Button {
-                        Task {
-                            await sharedHouseholdStore.refreshFromCloud()
-                        }
-                    } label: {
-                        if sharedHouseholdStore.isSyncing {
-                            HStack {
-                                ProgressView()
-                                Text("Refreshing Shared Data")
-                            }
-                        } else {
-                            VStack(alignment: .leading, spacing: 3) {
-                                Label("Refresh Shared Data", systemImage: "arrow.triangle.2.circlepath")
-                                Text(sharedHouseholdStore.statusMessage)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
+                    RefreshRow(
+                        title: "Refresh Shared Data",
+                        busyTitle: "Refreshing Shared Data",
+                        detail: sharedHouseholdStore.statusMessage,
+                        isBusy: sharedHouseholdStore.isSyncing
+                    ) {
+                        await sharedHouseholdStore.refreshFromCloud()
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .buttonStyle(.plain)
                     .disabled(!sharedHouseholdStore.isSharingConfigured)
 
                     HStack {
@@ -926,7 +905,6 @@ struct SyncSettingsView: View {
 struct CalendarSettingsView: View {
     @EnvironmentObject private var calendarSync: CalendarSyncService
     @AppStorage("calendar.integration.enabled") private var calendarIntegrationEnabled = false
-    @State private var isRefreshingCalendar = false
 
     var body: some View {
         // Shown inside a tab's NavigationStack.
@@ -956,25 +934,14 @@ struct CalendarSettingsView: View {
                         Label(calendarAccessActionTitle, systemImage: calendarAccessActionIcon)
                     }
 
-                    Button {
-                        refreshCalendar()
-                    } label: {
-                        if isRefreshingCalendar || calendarSync.isLoadingTodayEvents {
-                            HStack {
-                                ProgressView()
-                                Text("Refreshing Calendar Events")
-                            }
-                        } else {
-                            VStack(alignment: .leading, spacing: 3) {
-                                Label("Refresh Calendar Events", systemImage: "arrow.triangle.2.circlepath")
-                                Text(calendarRefreshDetail)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
+                    RefreshRow(
+                        title: "Refresh Calendar Events",
+                        busyTitle: "Refreshing Calendar Events",
+                        detail: calendarRefreshDetail,
+                        isBusy: calendarSync.isLoadingTodayEvents
+                    ) {
+                        await refreshCalendar()
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .buttonStyle(.plain)
                     .disabled(!calendarIntegrationEnabled)
 
                     if let message = calendarSync.lastErrorMessage, !message.isEmpty {
@@ -1109,7 +1076,7 @@ struct CalendarSettingsView: View {
 
     private func refreshCalendarIfEnabled() {
         guard calendarIntegrationEnabled else { return }
-        refreshCalendar()
+        Task { await refreshCalendar() }
     }
 
     private var calendarRefreshDetail: String {
@@ -1122,16 +1089,11 @@ struct CalendarSettingsView: View {
         return "Pulls events only from the selected calendars for Schedule."
     }
 
-    private func refreshCalendar() {
-        Task {
-            isRefreshingCalendar = true
-            let connected = await calendarSync.requestFullAccessForReadingIfNeeded()
-            calendarIntegrationEnabled = connected
-            if connected {
-                await calendarSync.loadTodayEvents()
-            }
-            try? await Task.sleep(for: .milliseconds(350))
-            isRefreshingCalendar = false
+    private func refreshCalendar() async {
+        let connected = await calendarSync.requestFullAccessForReadingIfNeeded()
+        calendarIntegrationEnabled = connected
+        if connected {
+            await calendarSync.loadTodayEvents()
         }
     }
 }
@@ -1249,5 +1211,56 @@ struct ProfileSetupView: View {
     private enum Field {
         case email
         case initials
+    }
+}
+
+/// A settings row that runs a refresh: while it works it shows a spinner and the busy title,
+/// for at least a moment so even an instant refresh visibly happens, and ignores taps.
+struct RefreshRow: View {
+    let title: String
+    let busyTitle: String
+    var systemImage = "arrow.triangle.2.circlepath"
+    var detail: String?
+    /// Already refreshing for another reason (for example a sync the app started itself).
+    var isBusy = false
+    let action: () async -> Void
+    @State private var isRunning = false
+
+    var body: some View {
+        Button {
+            guard !isRunning else { return }
+            Task {
+                isRunning = true
+                let started = Date()
+                await action()
+                let minimum: TimeInterval = 0.6
+                let elapsed = Date().timeIntervalSince(started)
+                if elapsed < minimum {
+                    try? await Task.sleep(for: .seconds(minimum - elapsed))
+                }
+                isRunning = false
+            }
+        } label: {
+            if isRunning || isBusy {
+                HStack(spacing: 10) {
+                    ProgressView()
+                    Text(busyTitle)
+                }
+            } else {
+                VStack(alignment: .leading, spacing: 3) {
+                    Label(title, systemImage: systemImage)
+                    if let detail, !detail.isEmpty {
+                        Text(detail)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+        .buttonStyle(.plain)
+        .disabled(isRunning || isBusy)
+        .accessibilityLabel(isRunning || isBusy ? busyTitle : title)
     }
 }
