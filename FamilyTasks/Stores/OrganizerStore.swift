@@ -268,6 +268,18 @@ final class OrganizerStore: ObservableObject {
         }
     }
 
+    /// One planned meal's ingredients, each marked if it is already on the shopping list.
+    func ingredients(for plannedMeal: PlannedMeal) -> [WeeklyIngredient] {
+        Self.weeklyIngredients(
+            plannedMeals: [plannedMeal],
+            mealIdeas: mealIdeas,
+            shops: shops,
+            shoppingItems: shoppingItems,
+            from: .distantPast,
+            to: .distantFuture
+        )
+    }
+
     /// Every ingredient of the meals planned between `start` and `end`, combined.
     func weeklyIngredients(from start: Date, to end: Date) -> [WeeklyIngredient] {
         Self.weeklyIngredients(plannedMeals: plannedMeals, mealIdeas: mealIdeas, shops: shops, shoppingItems: shoppingItems, from: start, to: end)

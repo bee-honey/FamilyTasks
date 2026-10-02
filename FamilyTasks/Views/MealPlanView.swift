@@ -17,15 +17,6 @@ struct MealPlanView: View {
         // Shown inside a tab's NavigationStack.
         Group {
             VStack(spacing: 0) {
-                Picker("Meal plan section", selection: $selectedTab) {
-                    ForEach(MealPlanTab.allCases) { tab in
-                        Text(tab.title).tag(tab)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .padding(.horizontal, 16)
-                .padding(.top, 12)
-
                 if selectedTab == .meals {
                     Picker("Meal type", selection: $selectedMealCategory) {
                         ForEach(MealCategory.allCases) { category in
@@ -59,16 +50,48 @@ struct MealPlanView: View {
                 }
             }
             .background(AppTheme.background)
-            .navigationTitle("Meal Plan")
+            .navigationTitle(selectedTab == .plan ? "Meal Plan" : "Meals")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                if selectedTab == .plan {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        let toBuy = weekIngredientsToBuy
+                        Button {
+                            isShoppingForWeek = true
+                        } label: {
+                            Image(systemName: "cart")
+                                .overlay(alignment: .topTrailing) {
+                                    if toBuy > 0 {
+                                        Text("\(toBuy)")
+                                            .font(.caption2.weight(.bold))
+                                            .foregroundStyle(.black)
+                                            .padding(.horizontal, 4)
+                                            .frame(minWidth: 16, minHeight: 16)
+                                            .background(AppTheme.warning, in: Capsule())
+                                            .offset(x: 10, y: -8)
+                                    }
+                                }
+                        }
+                        .accessibilityLabel(toBuy > 0 ? "\(shopForWeekTitle), \(toBuy) to buy" : shopForWeekTitle)
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
-                        isAddingMeal = true
+                        selectedTab = selectedTab == .plan ? .meals : .plan
                     } label: {
-                        Image(systemName: "plus")
+                        Label(selectedTab == .plan ? "Meals" : "Plan", systemImage: selectedTab == .plan ? "book" : "calendar")
+                            .labelStyle(.titleAndIcon)
                     }
-                    .accessibilityLabel("Add meal")
+                }
+                if selectedTab == .meals {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            isAddingMeal = true
+                        } label: {
+                            Image(systemName: "plus")
+                        }
+                        .accessibilityLabel("Add meal")
+                    }
                 }
             }
             .sheet(isPresented: $isAddingMeal) {
@@ -89,37 +112,93 @@ struct MealPlanView: View {
     private var planContent: some View {
         LazyVStack(spacing: 12) {
             if organizerStore.mealIdeas.isEmpty {
-                ContentUnavailableView("No Meals Yet", systemImage: "fork.knife", description: Text("Add meals in the Meals tab, then plan them for breakfast, lunch, or dinner."))
+                ContentUnavailableView("No Meals Yet", systemImage: "fork.knife", description: Text("Tap Meals to add the meals you make, then plan them for breakfast, lunch, or dinner."))
                     .padding(.top, 80)
             } else {
-                dayPicker
+                weekHeader
 
-                Button {
-                    isShoppingForWeek = true
-                } label: {
-                    Label(shopForWeekTitle, systemImage: "cart.badge.plus")
-                        .font(.footnote.weight(.semibold))
-                        .frame(maxWidth: .infinity)
+                if daysToShow.contains(where: { Calendar.current.isDateInToday($0) }) {
+                    TonightCard(dinners: plannedMeals(on: Date(), slot: .dinner)) {
+                        planSlot(day: Date(), slot: .dinner)
+                    }
                 }
-                .buttonStyle(.bordered)
-                .disabled(shoppingRange == nil)
 
                 WeeklyMealPlanGrid(days: daysToShow) { day, slot in
                     plannedMeals(on: day, slot: slot)
                 } mealForPlannedMeal: { plannedMeal in
                     organizerStore.mealIdea(for: plannedMeal)
                 } onPlanSlot: { day, slot in
-                    planningDate = day
-                    planningSlot = slot
-                    selectedMealCategory = mealCategory(for: slot)
-                    selectedDay = day
-                    selectedTab = .meals
+                    planSlot(day: day, slot: slot)
                 } onDelete: { plannedMeal in
                     organizerStore.deletePlannedMeal(plannedMeal)
                 }
             }
         }
         .padding(14)
+    }
+
+    /// Opens the meal library on the right category, ready to plan `slot` on `day`.
+    private func planSlot(day: Date, slot: MealSlot) {
+        planningDate = day
+        planningSlot = slot
+        selectedMealCategory = mealCategory(for: slot)
+        selectedDay = day
+        selectedTab = .meals
+    }
+
+    /// "SEP 27 – OCT 3 / This week" with small arrows to change week.
+    private var weekHeader: some View {
+        HStack(alignment: .center) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(weekTitle.uppercased())
+                    .font(.footnote.weight(.semibold))
+                    .tracking(1)
+                    .foregroundStyle(AppTheme.primary)
+                Text(weekRelativeTitle)
+                    .font(.title2.weight(.bold))
+            }
+            Spacer()
+            HStack(spacing: 6) {
+                weekArrow("chevron.left", label: "Previous week", offset: -7)
+                weekArrow("chevron.right", label: "Next week", offset: 7)
+            }
+        }
+        .padding(.horizontal, 4)
+    }
+
+    private func weekArrow(_ systemImage: String, label: String, offset: Int) -> some View {
+        Button {
+            selectedDay = Calendar.current.date(byAdding: .day, value: offset, to: selectedDay) ?? selectedDay
+        } label: {
+            Image(systemName: systemImage)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .frame(width: 40, height: 40)
+                .background(AppTheme.surface, in: Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+    }
+
+    private var weekRelativeTitle: String {
+        let calendar = Calendar.current
+        guard let shown = calendar.dateInterval(of: .weekOfYear, for: selectedDay)?.start,
+              let current = calendar.dateInterval(of: .weekOfYear, for: Date())?.start else { return "Week" }
+        let weeks = calendar.dateComponents([.weekOfYear], from: current, to: shown).weekOfYear ?? 0
+        switch weeks {
+        case 0: return "This Week"
+        case 1: return "Next Week"
+        case -1: return "Last Week"
+        default: return weeks > 0 ? "In \(weeks) Weeks" : "\(-weeks) Weeks Ago"
+        }
+    }
+
+    /// Ingredients for the shown week that are not on the shopping list yet.
+    private var weekIngredientsToBuy: Int {
+        guard let range = shoppingRange else { return 0 }
+        return organizerStore.weeklyIngredients(from: range.lowerBound, to: range.upperBound)
+            .filter { !$0.isAlreadyNeeded }
+            .count
     }
 
     private var mealsContent: some View {
@@ -145,38 +224,6 @@ struct MealPlanView: View {
             }
         }
         .padding(14)
-    }
-
-    private var dayPicker: some View {
-        HStack(spacing: 10) {
-            Button {
-                selectedDay = Calendar.current.date(byAdding: .day, value: -7, to: selectedDay) ?? selectedDay
-            } label: {
-                Image(systemName: "chevron.left")
-                    .frame(width: 36, height: 36)
-            }
-            .buttonStyle(.plain)
-
-            VStack(spacing: 2) {
-                Text(weekTitle)
-                    .font(.footnote.weight(.semibold))
-                    .multilineTextAlignment(.center)
-                Text("Week")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity)
-
-            Button {
-                selectedDay = Calendar.current.date(byAdding: .day, value: 7, to: selectedDay) ?? selectedDay
-            } label: {
-                Image(systemName: "chevron.right")
-                    .frame(width: 36, height: 36)
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(12)
-        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))
     }
 
     private var daysToShow: [Date] {
@@ -257,12 +304,12 @@ private struct WeeklyMealPlanGrid: View {
             headerRow
 
             ForEach(days, id: \.self) { day in
-                Divider()
-                    .padding(.leading, 76)
-
-                HStack(alignment: .top, spacing: 0) {
-                    DayColumn(day: day)
-                        .frame(width: 76, alignment: .leading)
+                let isToday = Calendar.current.isDateInToday(day)
+                let isPast = day < Calendar.current.startOfDay(for: Date())
+                HStack(alignment: .top, spacing: 6) {
+                    DayColumn(day: day, isToday: isToday)
+                        .frame(width: 58, alignment: .leading)
+                        .padding(.top, 6)
 
                     ForEach(MealSlot.allCases) { slot in
                         MealPlanGridCell(
@@ -270,45 +317,48 @@ private struct WeeklyMealPlanGrid: View {
                             slot: slot,
                             plannedMeals: plannedMeals(day, slot),
                             mealForPlannedMeal: mealForPlannedMeal,
+                            isToday: isToday,
                             onPlan: { onPlanSlot(day, slot) },
                             onDelete: onDelete
                         )
-                        .frame(maxWidth: .infinity, minHeight: 76, alignment: .topLeading)
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
                     }
                 }
-                .padding(.vertical, 10)
+                .padding(6)
+                .background(isToday ? AppTheme.primarySoft : .clear, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .opacity(isPast ? 0.5 : 1)
+                .padding(.vertical, 2)
             }
         }
-        .padding(12)
-        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .padding(.vertical, 4)
     }
 
     private var headerRow: some View {
-        HStack(spacing: 0) {
-            Text("Week")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .frame(width: 76, alignment: .leading)
+        HStack(spacing: 6) {
+            Color.clear
+                .frame(width: 58, height: 1)
 
             ForEach(MealSlot.allCases) { slot in
                 Text(slot.title)
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(AppTheme.primary)
-                    .frame(maxWidth: .infinity, alignment: .center)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-        .padding(.bottom, 8)
+        .padding(.horizontal, 6)
+        .padding(.bottom, 4)
     }
 }
 
 private struct DayColumn: View {
     let day: Date
+    var isToday = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(day.formatted(.dateTime.weekday(.abbreviated)))
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(AppTheme.ink)
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(isToday ? AppTheme.primary : AppTheme.ink)
             Text(day.formatted(.dateTime.month(.abbreviated).day()))
                 .font(.caption2)
                 .foregroundStyle(.secondary)
@@ -321,6 +371,7 @@ private struct MealPlanGridCell: View {
     let slot: MealSlot
     let plannedMeals: [PlannedMeal]
     let mealForPlannedMeal: (PlannedMeal) -> MealIdea?
+    var isToday = false
     let onPlan: () -> Void
     let onDelete: (PlannedMeal) -> Void
 
@@ -328,11 +379,10 @@ private struct MealPlanGridCell: View {
         VStack(alignment: .center, spacing: 6) {
             if plannedMeals.isEmpty {
                 Button(action: onPlan) {
-                    Image(systemName: "plus.circle")
-                        .font(.title3)
-                        .foregroundStyle(AppTheme.primary)
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .strokeBorder(AppTheme.surfaceMuted, style: StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
                         .frame(maxWidth: .infinity, minHeight: 48)
-                        .background(AppTheme.surfaceMuted.opacity(0.8), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Add meal for \(slot.title) on \(day.formatted(date: .abbreviated, time: .omitted))")
@@ -350,31 +400,21 @@ private struct MealPlanGridCell: View {
                             }
                         } label: {
                             Text(meal.name)
-                                .font(.caption.weight(.medium))
+                                .font(.caption.weight(.semibold))
                                 .foregroundStyle(AppTheme.ink)
-                                .multilineTextAlignment(.center)
-                                .lineLimit(3)
-                                .minimumScaleFactor(0.78)
-                                .frame(maxWidth: .infinity, minHeight: 48)
-                                .padding(.horizontal, 5)
-                                .background(AppTheme.primarySoft.opacity(0.8), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                                .multilineTextAlignment(.leading)
+                                .lineLimit(2)
+                                .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
+                                .padding(.horizontal, 8)
+                                .background(isToday ? AppTheme.surface : AppTheme.surfaceMuted, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel("\(slot.title): \(meal.name)")
+                        .accessibilityHint("Add another or remove")
                     }
                 }
-
-                Button(action: onPlan) {
-                    Image(systemName: "plus")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(AppTheme.primary)
-                        .frame(width: 26, height: 26)
-                        .background(AppTheme.surfaceMuted, in: Circle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Add another meal for \(slot.title)")
             }
         }
-        .padding(.horizontal, 4)
     }
 }
 
@@ -830,5 +870,148 @@ private struct WeeklyShoppingView: View {
 
     private func shopName(for ingredient: WeeklyIngredient) -> String {
         organizerStore.shops.first { $0.id == shopIDs[ingredient.id] }?.name ?? "Choose Shop"
+    }
+}
+
+/// Tonight's dinner, its ingredients and whether they are on the shopping list.
+private struct TonightCard: View {
+    @EnvironmentObject private var organizerStore: OrganizerStore
+    let dinners: [PlannedMeal]
+    let onPlanDinner: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("TONIGHT")
+                .font(.footnote.weight(.bold))
+                .tracking(1)
+                .foregroundStyle(AppTheme.avatarPalette[2])
+
+            if let dinner = dinners.first, let meal = organizerStore.mealIdea(for: dinner) {
+                let ingredients = dinners.flatMap { organizerStore.ingredients(for: $0) }
+                let missing = ingredients.filter { !$0.isAlreadyNeeded }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(meal.name)
+                        .font(.title2.weight(.bold))
+                    if dinners.count > 1 {
+                        Text("and \(dinners.count - 1) more")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                if !ingredients.isEmpty {
+                    FlowChips(ingredients: ingredients)
+                }
+
+                if !missing.isEmpty {
+                    Button {
+                        let fallbackShopID = organizerStore.shops.first?.id
+                        organizerStore.addNeededItems(missing.compactMap { ingredient in
+                            (ingredient.shopID ?? fallbackShopID).map { (ingredient.name, $0) }
+                        })
+                    } label: {
+                        Text("Add \(missing.count) to shopping")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity, minHeight: 44)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(AppTheme.avatarPalette[2])
+                    .foregroundStyle(.black)
+                    .disabled(organizerStore.shops.isEmpty)
+                } else if !ingredients.isEmpty {
+                    Label("Everything is on your list", systemImage: "checkmark.circle.fill")
+                        .font(.subheadline)
+                        .foregroundStyle(AppTheme.success)
+                }
+            } else {
+                Text("Nothing planned for dinner")
+                    .font(.title3.weight(.semibold))
+                Button(action: onPlanDinner) {
+                    Text("Plan dinner")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                }
+                .buttonStyle(.bordered)
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+}
+
+/// Ingredient chips that wrap onto new lines; ones not on the list are highlighted.
+private struct FlowChips: View {
+    let ingredients: [WeeklyIngredient]
+
+    var body: some View {
+        WrappingStack(spacing: 6) {
+            ForEach(ingredients) { ingredient in
+                HStack(spacing: 4) {
+                    if ingredient.isAlreadyNeeded {
+                        Image(systemName: "checkmark")
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(AppTheme.success)
+                    }
+                    Text(ingredient.name)
+                }
+                .font(.footnote)
+                .foregroundStyle(ingredient.isAlreadyNeeded ? AppTheme.ink : AppTheme.warning)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(AppTheme.surfaceMuted, in: Capsule())
+                .accessibilityLabel(ingredient.isAlreadyNeeded ? "\(ingredient.name), on your list" : "\(ingredient.name), not on your list")
+            }
+        }
+    }
+}
+
+/// Lays children out left to right, wrapping to a new line when the row is full.
+private struct WrappingStack: Layout {
+    var spacing: CGFloat = 8
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let rows = arrange(subviews: subviews, width: proposal.width ?? .infinity)
+        let height = rows.map(\.height).reduce(0, +) + spacing * CGFloat(max(rows.count - 1, 0))
+        let width = rows.map(\.width).max() ?? 0
+        return CGSize(width: proposal.width ?? width, height: height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var y = bounds.minY
+        for row in arrange(subviews: subviews, width: bounds.width) {
+            var x = bounds.minX
+            for index in row.indices {
+                let size = subviews[index].sizeThatFits(.unspecified)
+                subviews[index].place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(size))
+                x += size.width + spacing
+            }
+            y += row.height + spacing
+        }
+    }
+
+    private struct Row {
+        var indices: [Int] = []
+        var width: CGFloat = 0
+        var height: CGFloat = 0
+    }
+
+    private func arrange(subviews: Subviews, width: CGFloat) -> [Row] {
+        var rows: [Row] = []
+        var current = Row()
+        for index in subviews.indices {
+            let size = subviews[index].sizeThatFits(.unspecified)
+            let needed = current.indices.isEmpty ? size.width : current.width + spacing + size.width
+            if needed > width, !current.indices.isEmpty {
+                rows.append(current)
+                current = Row()
+            }
+            current.width = current.indices.isEmpty ? size.width : current.width + spacing + size.width
+            current.height = max(current.height, size.height)
+            current.indices.append(index)
+        }
+        if !current.indices.isEmpty { rows.append(current) }
+        return rows
     }
 }
