@@ -1,34 +1,43 @@
 import SwiftUI
 import UIKit
 
+/// "Sage & Linen": linen and warm off-white (soft charcoal in dark mode) with sage as the
+/// main color, and terracotta, dusty blue, honey, lavender and apricot accents at matching
+/// lightness. Light mode is its own palette, not dimmed dark colors.
 enum AppTheme {
-    static let background = Color(light: 0xF6F2EC, dark: 0x171411)
-    static let surface = Color(light: 0xFFFDF8, dark: 0x24201B)
-    static let surfaceMuted = Color(light: 0xEFE8DF, dark: 0x332D26)
-    static let primary = Color(light: 0x167C80, dark: 0x58C7C5)
+    static let background = Color(light: 0xF5F2EA, dark: 0x151714)
+    static let surface = Color(light: 0xFFFDF8, dark: 0x20231F)
+    static let surfaceMuted = Color(light: 0xE7E2D7, dark: 0x2D312C)
+    static let primary = Color(light: 0x4E7B5A, dark: 0x8DC09B)
     /// Text and icons drawn on a `primary` fill.
-    static let onPrimary = Color(light: 0xFFFFFF, dark: 0x102A2A)
+    static let onPrimary = Color(light: 0xFFFFFF, dark: 0x142519)
     /// Initials on an `avatarPalette` fill: the dark-mode palette is light, so it needs dark text.
-    static let onAvatar = Color(light: 0xFFFFFF, dark: 0x171411)
-    static let primarySoft = Color(light: 0xD9EEEA, dark: 0x173D3E)
-    static let success = Color(light: 0x4F8A6B, dark: 0x74C69D)
-    static let warning = Color(light: 0xD9912B, dark: 0xF0B85A)
-    static let destructive = Color(light: 0xC85D5A, dark: 0xFF8A86)
-    static let ink = Color(light: 0x242424, dark: 0xF4EFE7)
+    static let onAvatar = Color(light: 0xFFFFFF, dark: 0x151714)
+    static let primarySoft = Color(light: 0xE1ECDF, dark: 0x23332A)
+    static let ink = Color(light: 0x22251F, dark: 0xF1EEE6)
 
-    static let avatarPalette: [Color] = [
-        Color(light: 0x167C80, dark: 0x58C7C5),
-        Color(light: 0x7B6BA8, dark: 0xB5A6E4),
-        Color(light: 0xC66F4E, dark: 0xF3A47F),
-        Color(light: 0x4F8A6B, dark: 0x74C69D),
-        Color(light: 0xB45F7A, dark: 0xEA93AF),
-        Color(light: 0x5E7F9A, dark: 0x9CBBD4)
-    ]
+    static let sage = primary
+    static let terracotta = Color(light: 0xB0553A, dark: 0xE9906F)
+    static let dustyBlue = Color(light: 0x3C6A92, dark: 0x8FB3D9)
+    static let honey = Color(light: 0x8F6A1E, dark: 0xE5C07B)
+    static let lavender = Color(light: 0x6E5BA6, dark: 0xBBA9E0)
+    static let apricot = Color(light: 0xA85F35, dark: 0xEFB07F)
 
-    static let taskDo = Color(light: 0xC85D5A, dark: 0xFF8A86)
-    static let taskSchedule = Color(light: 0x3E7C9F, dark: 0x79BFE2)
-    static let taskDelegate = Color(light: 0xD9912B, dark: 0xF0B85A)
-    static let taskDrop = Color(light: 0x4F8A6B, dark: 0x74C69D)
+    /// Done and healthy: the main sage.
+    static let success = sage
+    static let warning = honey
+    /// Only for deleting and errors; things running late use `overdue`.
+    static let destructive = Color(light: 0xB83A32, dark: 0xF27A6E)
+    /// Late but not alarming.
+    static let overdue = terracotta
+
+    /// Family members take these in family-list order.
+    static let avatarPalette: [Color] = [sage, lavender, apricot, dustyBlue, honey, terracotta]
+
+    static let taskDo = terracotta
+    static let taskSchedule = dustyBlue
+    static let taskDelegate = honey
+    static let taskDrop = lavender
 }
 
 enum AppAppearance: String, CaseIterable, Identifiable {

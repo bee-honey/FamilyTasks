@@ -156,12 +156,14 @@ private struct DisplayedTask: Identifiable {
 
 private struct TaskRowView: View {
     let row: DisplayedTask
+    /// The app's "Do now" terracotta (the widget can't see the app's theme).
+    static let doNowColor = Color(red: 0.91, green: 0.56, blue: 0.44)
 
     var body: some View {
         HStack(spacing: 6) {
             Button(intent: CompleteTaskIntent(taskID: row.task.id)) {
                 Image(systemName: "circle")
-                    .foregroundStyle(row.task.isUrgent && row.task.isImportant ? .red : .secondary)
+                    .foregroundStyle(row.task.isUrgent && row.task.isImportant ? Self.doNowColor : .secondary)
             }
             .buttonStyle(.plain)
 
@@ -174,7 +176,7 @@ private struct TaskRowView: View {
             if row.isOverdue {
                 Text(row.task.dueDate, format: .dateTime.month(.abbreviated).day())
                     .font(.caption2)
-                    .foregroundStyle(.red)
+                    .foregroundStyle(Self.doNowColor)
             }
         }
     }

@@ -154,7 +154,7 @@ private struct StatTile: View {
         VStack(alignment: .leading, spacing: 2) {
             Text(value)
                 .font(.title2.weight(.bold))
-                .foregroundStyle(isWarning ? AppTheme.destructive : AppTheme.ink)
+                .foregroundStyle(isWarning ? AppTheme.overdue : AppTheme.ink)
             Text(label)
                 .font(.caption)
                 .foregroundStyle(.secondary)

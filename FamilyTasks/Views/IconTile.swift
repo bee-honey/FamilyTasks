@@ -42,11 +42,11 @@ extension LabelStyle where Self == TileLabelStyle {
 
 /// Each settings screen's color, shared by its row in More and the icons on the screen.
 enum SettingsTint {
-    static let profile = AppTheme.primary
-    static let iCloud = AppTheme.taskSchedule
-    static let notifications = AppTheme.avatarPalette[2]
-    static let calendar = AppTheme.destructive
-    static let health = AppTheme.avatarPalette[4]
-    static let appearance = AppTheme.avatarPalette[1]
-    static let ideas = AppTheme.warning
+    static let profile = AppTheme.sage
+    static let iCloud = AppTheme.dustyBlue
+    static let notifications = AppTheme.honey
+    static let calendar = AppTheme.terracotta
+    static let health = AppTheme.apricot
+    static let appearance = AppTheme.lavender
+    static let ideas = AppTheme.honey
 }

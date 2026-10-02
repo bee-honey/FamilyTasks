@@ -203,7 +203,7 @@ struct TodayTasksView: View {
                     taskRow(task, isOverdue: true)
                 }
             } header: {
-                SectionTitle(text: "Overdue", color: AppTheme.destructive)
+                SectionTitle(text: "Overdue", color: AppTheme.overdue)
             }
         }
 
@@ -388,7 +388,7 @@ enum DayMarker {
         switch self {
         case .none: .clear
         case .planned: .secondary
-        case .overdue: AppTheme.destructive
+        case .overdue: AppTheme.overdue
         }
     }
 }
@@ -683,7 +683,7 @@ private struct TodayTaskRow: View {
                 .background(AppTheme.success, in: Circle())
         } else {
             Circle()
-                .strokeBorder(isOverdue ? AppTheme.destructive : Color.secondary, lineWidth: 2)
+                .strokeBorder(isOverdue ? AppTheme.overdue : Color.secondary, lineWidth: 2)
                 .frame(width: 26, height: 26)
         }
     }
@@ -697,7 +697,7 @@ private struct TodayTaskRow: View {
         } else if isOverdue, let dueDate = task.dueDate {
             Text(Self.overdueText(for: dueDate))
                 .font(.footnote)
-                .foregroundStyle(AppTheme.destructive)
+                .foregroundStyle(AppTheme.overdue)
         } else if showTag || showTime {
             HStack(spacing: 8) {
                 if showTag {

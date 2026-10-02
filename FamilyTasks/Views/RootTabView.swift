@@ -52,23 +52,23 @@ private struct FamilyHubView: View {
                     NavigationLink {
                         ChoresView()
                     } label: {
-                        HubRow(title: "Chores", systemImage: "star.circle", tint: AppTheme.avatarPalette[1], detail: choresDetail)
+                        HubRow(title: "Chores", systemImage: "star.circle", tint: AppTheme.lavender, detail: choresDetail)
                     }
                     NavigationLink {
                         MealPlanView()
                     } label: {
-                        HubRow(title: "Meal Plan", systemImage: "fork.knife", tint: AppTheme.avatarPalette[2], detail: mealsDetail)
+                        HubRow(title: "Meal Plan", systemImage: "fork.knife", tint: AppTheme.terracotta, detail: mealsDetail)
                     }
                     NavigationLink {
                         RecurringTasksView()
                     } label: {
-                        HubRow(title: "Recurring", systemImage: "repeat", tint: AppTheme.success, detail: recurringDetail)
+                        HubRow(title: "Recurring", systemImage: "repeat", tint: AppTheme.dustyBlue, detail: recurringDetail)
                     }
                     if healthSectionEnabled {
                         NavigationLink {
                             HealthView()
                         } label: {
-                            HubRow(title: "Health", systemImage: "heart.text.square", tint: AppTheme.destructive, detail: "Steps and sleep")
+                            HubRow(title: "Health", systemImage: "heart.text.square", tint: SettingsTint.health, detail: "Steps and sleep")
                         }
                     }
                 }
