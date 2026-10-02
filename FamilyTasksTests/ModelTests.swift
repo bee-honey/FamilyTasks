@@ -124,4 +124,45 @@ final class ModelTests: XCTestCase {
             "Sam and Mum finished Bins and Groceries."
         )
     }
+
+    // MARK: Quick due dates
+
+    private func date(_ string: String) -> Date {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd HH:mm"
+        return formatter.date(from: string)!
+    }
+
+    func testQuickDueDatesPickSensibleTimes() {
+        let thursdayAfternoon = date("2026-10-01 14:20")
+        XCTAssertEqual(TaskDueChoice.today.dueDate(now: thursdayAfternoon), date("2026-10-01 18:00"))
+        XCTAssertEqual(TaskDueChoice.tonight.dueDate(now: thursdayAfternoon), date("2026-10-01 19:00"))
+        XCTAssertEqual(TaskDueChoice.tomorrow.dueDate(now: thursdayAfternoon), date("2026-10-02 09:00"))
+        XCTAssertEqual(TaskDueChoice.weekend.dueDate(now: thursdayAfternoon), date("2026-10-03 10:00"))
+        XCTAssertNil(TaskDueChoice.noDate.dueDate(now: thursdayAfternoon))
+        XCTAssertNil(TaskDueChoice.pickDate.dueDate(now: thursdayAfternoon))
+    }
+
+    func testLateInTheDayTodayAndTonightMeanTheNextHour() {
+        let lateEvening = date("2026-10-01 18:40")
+        XCTAssertEqual(TaskDueChoice.today.dueDate(now: lateEvening), date("2026-10-01 20:00"))
+        XCTAssertEqual(TaskDueChoice.tonight.dueDate(now: lateEvening), date("2026-10-01 20:00"))
+    }
+
+    func testThisWeekendOnSaturdayAfternoonMeansSundayMorning() {
+        XCTAssertEqual(TaskDueChoice.weekend.dueDate(now: date("2026-10-03 15:00")), date("2026-10-04 10:00"))
+        XCTAssertEqual(TaskDueChoice.weekend.dueDate(now: date("2026-10-03 08:00")), date("2026-10-03 10:00"))
+    }
+
+    func testExistingDueDatesHighlightTheMatchingChoice() {
+        let now = date("2026-10-01 14:20")
+        XCTAssertEqual(TaskDueChoice.matching(date("2026-10-02 09:00"), now: now), .tomorrow)
+        XCTAssertEqual(TaskDueChoice.matching(date("2026-10-05 13:15"), now: now), .pickDate)
+        XCTAssertEqual(TaskDueChoice.matching(nil, now: now), .noDate)
+    }
+
+    func testTaskTagTitles() {
+        XCTAssertEqual(TaskBucket.allCases.map(\.tagTitle), ["Do now", "Schedule", "Delegate", "Someday"])
+    }
 }

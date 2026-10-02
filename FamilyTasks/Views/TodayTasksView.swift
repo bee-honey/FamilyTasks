@@ -366,7 +366,7 @@ enum ScheduleDisplayMode: String, CaseIterable, Identifiable {
 }
 
 /// Small bold uppercase section title: "OVERDUE", "TODAY", "FRI, OCT 2".
-private struct SectionTitle: View {
+struct SectionTitle: View {
     let text: String
     var color: Color = .secondary
 
@@ -718,21 +718,12 @@ private struct PriorityTag: View {
     let bucket: TaskBucket
 
     var body: some View {
-        Text(title)
+        Text(bucket.tagTitle)
             .font(.caption.weight(.semibold))
             .foregroundStyle(bucket.accentColor)
             .padding(.horizontal, 8)
             .padding(.vertical, 2)
             .background(bucket.accentColor.opacity(0.18), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
-    }
-
-    private var title: String {
-        switch bucket {
-        case .doNow: "Do now"
-        case .schedule: "Schedule"
-        case .delegate: "Delegate"
-        case .delete: "Someday"
-        }
     }
 }
 

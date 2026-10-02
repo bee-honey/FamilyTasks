@@ -59,6 +59,7 @@
 		B6AB9552389A62F1C4E6BBF6 /* WidgetData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33B236709ED79055EFC132AD /* WidgetData.swift */; };
 		B7A8D40ABA07CDF7AF17409F /* WidgetBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5E2990011171453CBC039DF /* WidgetBridge.swift */; };
 		BCAFBD55818EE04C0DF7D8BB /* WidgetData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33B236709ED79055EFC132AD /* WidgetData.swift */; };
+		C3C5421C98381E6DD2DE3A19 /* WrappingStack.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC9AE0823AA92C2177793719 /* WrappingStack.swift */; };
 		CB2B06C79C39C339685B0128 /* OrganizerStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EE3F1FE8CB9085764096A06 /* OrganizerStoreTests.swift */; };
 		D06A7327F1ECEEC7990C61F1 /* SyncMergeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 725ABA626AD119FC773FD265 /* SyncMergeTests.swift */; };
 		E49F060B43B3C6BB15701A58 /* ShoppingWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30492DE6FC1049291904840D /* ShoppingWidget.swift */; };
@@ -162,6 +163,7 @@
 		DB53E2CCC7AFC0F5493E24C0 /* ChoresView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ChoresView.swift; sourceTree = "<group>"; };
 		DBF42F5D8704345FA15A373D /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		E612F06E9C75226BD229FC11 /* ModelTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ModelTests.swift; sourceTree = "<group>"; };
+		EC9AE0823AA92C2177793719 /* WrappingStack.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WrappingStack.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -289,6 +291,7 @@
 				2C0A001A2C0A000000000001 /* AddTaskView.swift */,
 				2C0A00362C0A000000000001 /* EditTaskView.swift */,
 				DB53E2CCC7AFC0F5493E24C0 /* ChoresView.swift */,
+				EC9AE0823AA92C2177793719 /* WrappingStack.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -501,6 +504,7 @@
 				37B9E1677D74E24B22D3A7DC /* ChoreModels.swift in Sources */,
 				56D116660832334365FC31BD /* ChoreStore.swift in Sources */,
 				26A57217B63A6D03B4F5955C /* ChoresView.swift in Sources */,
+				C3C5421C98381E6DD2DE3A19 /* WrappingStack.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

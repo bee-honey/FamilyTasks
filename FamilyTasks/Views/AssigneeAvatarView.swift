@@ -52,14 +52,19 @@ struct AssigneeAvatarView: View {
             } else {
                 Text(initials)
                     .font(.system(size: size * (initials.count > 2 ? 0.3 : 0.36), weight: .bold))
-                    .foregroundStyle(AppTheme.onAvatar)
+                    .foregroundStyle(isEveryone ? AppTheme.ink : AppTheme.onAvatar)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(avatarColor)
+                    .background(isEveryone ? AppTheme.surfaceMuted : avatarColor)
             }
         }
         .frame(width: size, height: size)
         .clipShape(Circle())
         .accessibilityLabel(name.isEmpty ? "Unassigned" : "Assigned to \(Assignee.displayName(for: name))")
+    }
+
+    /// "Everyone" isn't a person, so it gets a neutral avatar instead of a family color.
+    private var isEveryone: Bool {
+        Assignee.isEveryone(name)
     }
 
     /// Family members get colors in family-list order, so each one differs (for up to six)

@@ -418,3 +418,66 @@ struct TaskDraft {
         notificationPreference = task.notificationPreference ?? TaskNotificationPreference()
     }
 }
+
+/// The quick "When" choices in the task editor.
+enum TaskDueChoice: String, CaseIterable, Identifiable {
+    case today
+    case tonight
+    case tomorrow
+    case weekend
+    case pickDate
+    case noDate
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .today: "Today"
+        case .tonight: "Tonight"
+        case .tomorrow: "Tomorrow"
+        case .weekend: "This Weekend"
+        case .pickDate: "Pick Date"
+        case .noDate: "No Date"
+        }
+    }
+
+    /// The due date the choice sets; nil for Pick Date and No Date.
+    func dueDate(now: Date = Date(), calendar: Calendar = .current) -> Date? {
+        func at(_ hour: Int, on day: Date) -> Date {
+            calendar.date(bySettingHour: hour, minute: 0, second: 0, of: day) ?? day
+        }
+        // The first whole hour at least an hour from now (6:40 PM → 8:00 PM).
+        let nextWholeHour = calendar.dateInterval(of: .hour, for: now.addingTimeInterval(7_200))?.start ?? now
+
+        switch self {
+        case .today:
+            let evening = at(18, on: now)
+            return now < evening.addingTimeInterval(-3_600) ? evening : nextWholeHour
+        case .tonight:
+            let tonight = at(19, on: now)
+            return now < tonight.addingTimeInterval(-3_600) ? tonight : nextWholeHour
+        case .tomorrow:
+            let tomorrow = calendar.date(byAdding: .day, value: 1, to: now) ?? now
+            return at(9, on: tomorrow)
+        case .weekend:
+            // The coming Saturday at 10, or Sunday at 10 if that's the next weekend morning.
+            for offset in 0...7 {
+                guard let day = calendar.date(byAdding: .day, value: offset, to: now) else { continue }
+                let weekday = calendar.component(.weekday, from: day)
+                let morning = at(10, on: day)
+                if (weekday == 7 || weekday == 1), morning > now {
+                    return morning
+                }
+            }
+            return nil
+        case .pickDate, .noDate:
+            return nil
+        }
+    }
+
+    /// The choice an existing due date corresponds to, for highlighting when editing.
+    static func matching(_ dueDate: Date?, now: Date = Date(), calendar: Calendar = .current) -> TaskDueChoice {
+        guard let dueDate else { return .noDate }
+        return [.today, .tonight, .tomorrow, .weekend].first { $0.dueDate(now: now, calendar: calendar) == dueDate } ?? .pickDate
+    }
+}

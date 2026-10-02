@@ -138,7 +138,6 @@ struct ViewSettingsView: View {
     @AppStorage("schedule.showPriorityTags") private var showPriorityTags = true
     @AppStorage("schedule.defaultDisplayMode") private var defaultScheduleView = ScheduleDisplayMode.week.rawValue
     @AppStorage("schedule.taskSortOrder") private var taskSortOrder = ScheduleTaskSortOrder.priority.rawValue
-    @AppStorage("tasks.showBucketColors") private var showTaskBucketColors = false
     @AppStorage("tasks.showPriorityMarkers") private var showTaskPriorityMarkers = false
     @AppStorage("view.appearance") private var appearance = AppAppearance.system.rawValue
     @AppStorage("calendar.integration.enabled") private var calendarIntegrationEnabled = false
@@ -179,7 +178,6 @@ struct ViewSettingsView: View {
                 }
 
                 Section("Task Matrix") {
-                    Toggle("Show Task Colors", isOn: $showTaskBucketColors)
                     Toggle("Show Bucket Markers", isOn: $showTaskPriorityMarkers)
                 }
 

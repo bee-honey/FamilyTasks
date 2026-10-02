@@ -2,193 +2,199 @@ import SwiftUI
 
 struct TaskBoardView: View {
     @EnvironmentObject private var taskStore: TaskStore
-    @EnvironmentObject private var calendarSync: CalendarSyncService
     @State private var isAddingTask = false
-    @State private var syncingTaskID: FamilyTask.ID?
-    @State private var editingTask: FamilyTask?
     @State private var analyticsRange: TaskAnalyticsRange = .week
 
     var body: some View {
+        let summary = TaskAnalyticsSummary(
+            tasks: taskStore.visibleTasks,
+            familyMembers: taskStore.familyMembers,
+            range: analyticsRange
+        )
+
         NavigationStack {
             ScrollView {
-                LazyVStack(spacing: 14) {
-                    TaskAnalyticsDashboard(
-                        summary: TaskAnalyticsSummary(
-                            tasks: taskStore.tasks,
-                            familyMembers: taskStore.familyMembers,
-                            range: analyticsRange
-                        ),
-                        selectedRange: $analyticsRange
-                    )
+                VStack(alignment: .leading, spacing: 18) {
+                    header
 
-                    ForEach(TaskBucket.allCases) { bucket in
-                        BucketView(
-                            bucket: bucket,
-                            tasks: taskStore.tasks(in: bucket),
-                            syncingTaskID: syncingTaskID,
-                            onMove: { task, target in taskStore.move(task, to: target) },
-                            onDone: taskStore.markDone,
-                            onDelete: taskStore.delete,
-                            onSync: syncToCalendar,
-                            onEdit: { editingTask = $0 }
-                        )
+                    LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                        ForEach(TaskBucket.allCases) { bucket in
+                            NavigationLink {
+                                BucketDetailView(bucket: bucket)
+                            } label: {
+                                QuadrantCard(bucket: bucket, openTasks: taskStore.tasks(in: bucket).filter { !$0.isDone })
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+
+                    HStack(spacing: 8) {
+                        StatTile(value: "\(summary.completedInRange)", label: "done \(analyticsRange.title.lowercased())")
+                        StatTile(value: summary.onTimePercent.map { "\($0)%" } ?? "–", label: "on time")
+                        StatTile(value: "\(summary.overdueTasks)", label: "overdue", isWarning: summary.overdueTasks > 0)
+                    }
+
+                    if !summary.people.isEmpty {
+                        VStack(alignment: .leading, spacing: 12) {
+                            SectionTitle(text: "Who's done what")
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(alignment: .top, spacing: 18) {
+                                    ForEach(summary.people) { person in
+                                        PersonRing(person: person)
+                                    }
+                                }
+                                .padding(.horizontal, 2)
+                            }
+                        }
                     }
                 }
-                .padding(.horizontal, 14)
-                .padding(.top, 12)
-                .padding(.bottom, 76)
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                .padding(.bottom, 24)
             }
             .background(AppTheme.background)
-            .navigationTitle("Matrix")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        isAddingTask = true
-                    } label: {
-                        Image(systemName: "plus")
-                    }
-                    .accessibilityLabel("Add task")
-                }
-            }
+            .navigationTitle("Tasks")
+            .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $isAddingTask) {
                 AddTaskView()
             }
-            .sheet(item: $editingTask) { task in
-                EditTaskView(task: task)
-            }
-            .alert("Calendar Sync", isPresented: Binding(
-                get: { calendarSync.lastErrorMessage != nil },
-                set: { if !$0 { calendarSync.lastErrorMessage = nil } }
-            )) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text(calendarSync.lastErrorMessage ?? "")
-            }
         }
     }
 
-    private func syncToCalendar(_ task: FamilyTask) {
-        syncingTaskID = task.id
-        Task {
-            do {
-                try await calendarSync.sync(task)
-            } catch {
-                calendarSync.lastErrorMessage = error.localizedDescription
+    /// "THIS WEEK ▾ / Tasks" with the add button; the caption picks the stats period.
+    private var header: some View {
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 4) {
+                Menu {
+                    Picker("Period", selection: $analyticsRange) {
+                        ForEach(TaskAnalyticsRange.allCases) { range in
+                            Text(range.title).tag(range)
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Text(analyticsRange.title.uppercased())
+                        Image(systemName: "chevron.down")
+                            .font(.caption2.weight(.bold))
+                    }
+                    .font(.footnote.weight(.semibold))
+                    .tracking(1)
+                    .foregroundStyle(AppTheme.primary)
+                }
+                .accessibilityLabel("Stats period, \(analyticsRange.title)")
+                Text("Tasks")
+                    .font(.title.weight(.bold))
             }
-            syncingTaskID = nil
+            Spacer()
+            Button {
+                isAddingTask = true
+            } label: {
+                Image(systemName: "plus")
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(AppTheme.onPrimary)
+                    .frame(width: 48, height: 48)
+                    .background(AppTheme.primary, in: Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Add task")
         }
     }
 }
 
-private struct TaskAnalyticsDashboard: View {
-    let summary: TaskAnalyticsSummary
-    @Binding var selectedRange: TaskAnalyticsRange
+/// One quadrant: its open-task count and the first few tasks.
+private struct QuadrantCard: View {
+    let bucket: TaskBucket
+    let openTasks: [FamilyTask]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Family Performance")
-                        .font(.headline)
-                    Text(summary.range.title)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
+                Text(bucket.tagTitle)
+                    .font(.subheadline.weight(.bold))
                 Spacer()
+                Text("\(openTasks.count)")
+                    .font(.title2.weight(.bold))
+            }
+            .foregroundStyle(bucket.accentColor)
 
-                Picker("Range", selection: $selectedRange) {
-                    ForEach(TaskAnalyticsRange.allCases) { range in
-                        Text(range.shortTitle).tag(range)
-                    }
+            if openTasks.isEmpty {
+                Text("All clear")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(openTasks.prefix(3)) { task in
+                    Text(task.title)
+                        .font(.footnote)
+                        .foregroundStyle(AppTheme.ink)
+                        .lineLimit(1)
                 }
-                .pickerStyle(.segmented)
-                .frame(maxWidth: 190)
-            }
-
-            LazyVGrid(columns: [
-                GridItem(.flexible(), spacing: 10),
-                GridItem(.flexible(), spacing: 10)
-            ], spacing: 10) {
-                AnalyticsMetricView(title: "Total Tasks", value: "\(summary.totalTasks)", detail: "\(summary.completedTasks) done")
-                AnalyticsMetricView(title: "Left", value: "\(summary.openTasks)", detail: "\(summary.overdueTasks) overdue")
-                AnalyticsMetricView(title: "Completed", value: "\(summary.completionPercent)%", detail: "All-time")
-                AnalyticsMetricView(title: "This \(summary.range.noun)", value: "\(summary.completedInRange)", detail: "completed")
-            }
-
-            VStack(alignment: .leading, spacing: 10) {
-                Text("By Person")
-                    .font(.subheadline.weight(.semibold))
-
-                if summary.people.isEmpty {
-                    Text("Assign tasks to family members to see individual performance.")
+                if openTasks.count > 3 {
+                    Text("+\(openTasks.count - 3) more")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                } else {
-                    ForEach(summary.people) { person in
-                        PersonPerformanceRow(person: person)
-                    }
                 }
             }
+            Spacer(minLength: 0)
         }
         .padding(14)
-        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .frame(maxWidth: .infinity, minHeight: 150, alignment: .topLeading)
+        .background(bucket.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+        .accessibilityHint("Shows all \(bucket.tagTitle) tasks")
     }
 }
 
-private struct AnalyticsMetricView: View {
-    let title: String
+private struct StatTile: View {
     let value: String
-    let detail: String
+    let label: String
+    var isWarning = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title)
+        VStack(alignment: .leading, spacing: 2) {
+            Text(value)
+                .font(.title2.weight(.bold))
+                .foregroundStyle(isWarning ? AppTheme.destructive : AppTheme.ink)
+            Text(label)
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            Text(value)
-                .font(.title2.weight(.semibold))
-                .foregroundStyle(AppTheme.ink)
-            Text(detail)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
-        .background(AppTheme.surfaceMuted.opacity(0.65), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .accessibilityElement(children: .combine)
     }
 }
 
-private struct PersonPerformanceRow: View {
+/// A family member's initials inside a ring showing how much of their share is done.
+private struct PersonRing: View {
     let person: PersonTaskPerformance
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 8) {
-                AssigneeAvatarView(name: person.assignee)
-                    .scaleEffect(0.68)
-                    .frame(width: 28, height: 28)
-
-                Text(person.displayName)
-                    .font(.caption.weight(.medium))
-                    .lineLimit(1)
-
-                Spacer()
-
-                Text("\(person.completionPercent)%")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(AppTheme.primary)
+        VStack(spacing: 6) {
+            ZStack {
+                Circle()
+                    .stroke(AppTheme.surfaceMuted, lineWidth: 4)
+                Circle()
+                    .trim(from: 0, to: Double(person.completionPercent) / 100)
+                    .stroke(AppTheme.success, style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                AssigneeAvatarView(name: person.assignee, size: 40, showsPhoto: false)
             }
+            .frame(width: 54, height: 54)
 
-            ProgressView(value: Double(person.completedTasks), total: Double(max(person.totalTasks, 1)))
-                .tint(AppTheme.primary)
-
-            Text("\(person.completedTasks) of \(person.totalTasks) completed")
+            Text(person.shortName)
+                .font(.caption.weight(.semibold))
+                .lineLimit(1)
+            Text("\(person.completedTasks) of \(person.totalTasks)")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
         }
-        .padding(.vertical, 2)
+        .frame(minWidth: 60)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(person.shortName): \(person.completedTasks) of \(person.totalTasks) done")
     }
 }
 
@@ -199,6 +205,8 @@ private struct TaskAnalyticsSummary {
     let openTasks: Int
     let overdueTasks: Int
     let completedInRange: Int
+    /// Of the tasks finished in the period that had a due date; nil when there were none.
+    let onTimePercent: Int?
     let completionPercent: Int
     let people: [PersonTaskPerformance]
 
@@ -215,9 +223,23 @@ private struct TaskAnalyticsSummary {
 
         let startDate = range.startDate(from: now, calendar: calendar)
         let rangeTasks = tasks.filter { $0.createdAt >= startDate || $0.updatedAt >= startDate }
-        completedInRange = rangeTasks.filter { $0.isDone && $0.updatedAt >= startDate }.count
+        let finishedInRange = tasks.filter { task in
+            task.isDone && (task.completedAt ?? task.updatedAt) >= startDate
+        }
+        completedInRange = finishedInRange.count
 
+        // On time: finished no later than the end of the day it was due.
+        let dated = finishedInRange.filter { $0.dueDate != nil && $0.completedAt != nil }
+        let onTime = dated.filter { task in
+            guard let due = task.dueDate, let finished = task.completedAt,
+                  let endOfDueDay = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: due)) else { return false }
+            return finished < endOfDueDay
+        }
+        onTimePercent = dated.isEmpty ? nil : Self.percent(onTime.count, of: dated.count)
+
+        // People only: "Everyone" and unassigned tasks have no one to credit.
         let assignees = Self.assignees(from: tasks, familyMembers: familyMembers)
+            .filter { !Assignee.isEveryone($0) && $0 != PersonTaskPerformance.unassigned }
         people = assignees.compactMap { assignee in
             let assignedTasks = rangeTasks.filter { Self.matchesAssignee($0, assignee: assignee) }
             guard !assignedTasks.isEmpty else { return nil }
@@ -288,6 +310,14 @@ private struct PersonTaskPerformance: Identifiable {
             return "Unassigned"
         }
         return Assignee.displayName(for: assignee)
+    }
+
+    /// "You" or a first name, for the small label under the ring.
+    var shortName: String {
+        let me = (UserDefaults.standard.string(forKey: "profile.email") ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        if assignee.caseInsensitiveCompare(me) == .orderedSame { return "You" }
+        let name = Assignee.memberName(for: assignee)
+        return name.split(separator: " ").first.map(String.init) ?? name
     }
 }
 

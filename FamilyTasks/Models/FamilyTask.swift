@@ -366,3 +366,15 @@ struct TaskCompletion: Equatable {
         return "\(ListFormatter.localizedString(byJoining: people)) finished \(tasks)."
     }
 }
+
+extension TaskBucket {
+    /// The short label on task tags: "Do now", "Schedule", "Delegate", "Someday".
+    var tagTitle: String {
+        switch self {
+        case .doNow: "Do now"
+        case .schedule: "Schedule"
+        case .delegate: "Delegate"
+        case .delete: "Someday"
+        }
+    }
+}
