@@ -2,7 +2,7 @@ import SwiftUI
 
 struct ShoppingView: View {
     @EnvironmentObject private var organizerStore: OrganizerStore
-    /// Opened from More rather than as a tab, so it needs the bar's back button.
+    /// Opened from Family rather than as a tab, so it needs the bar's back button.
     var showsNavigationBar = false
     @AppStorage("shopping.selectedShopID") private var selectedShopID = ""
     @State private var newItemName = ""
@@ -13,7 +13,7 @@ struct ShoppingView: View {
     @State private var itemToMove: ShoppingItem?
 
     var body: some View {
-        // Shown inside a tab's NavigationStack, or pushed from More.
+        // Shown inside a tab's NavigationStack, or pushed from Family.
         Group {
             List {
                 Section {

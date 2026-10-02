@@ -215,21 +215,27 @@ final class ModelTests: XCTestCase {
 
     // MARK: Tab bar
 
-    func testTabBarDefaultsToMealPlanShoppingAndFamily() {
-        XCTAssertEqual(TabSection.slots(from: ""), [.mealPlan, .shopping, .family])
-        XCTAssertEqual(TabSection.slots(from: "garbage"), [.mealPlan, .shopping, .family])
+    func testTabBarDefaultsToMealPlanAndShopping() {
+        XCTAssertEqual(TabSection.slots(from: ""), [.mealPlan, .shopping])
+        XCTAssertEqual(TabSection.slots(from: "garbage"), [.mealPlan, .shopping])
     }
 
-    func testSavedTabsAreKeptUniqueAndFilledToThree() {
-        XCTAssertEqual(TabSection.slots(from: "tasks,ideas,chores"), [.tasks, .ideas, .chores])
-        XCTAssertEqual(TabSection.slots(from: "tasks,tasks"), [.tasks, .mealPlan, .shopping])
-        XCTAssertEqual(TabSection.slots(from: TabSection.encode([.chores, .tasks, .ideas])), [.chores, .tasks, .ideas])
+    func testSavedTabsAreKeptUniqueAndFilledToTwo() {
+        XCTAssertEqual(TabSection.slots(from: "tasks,ideas"), [.tasks, .ideas])
+        XCTAssertEqual(TabSection.slots(from: "tasks,tasks"), [.tasks, .mealPlan])
+        XCTAssertEqual(TabSection.slots(from: TabSection.encode([.chores, .ideas])), [.chores, .ideas])
     }
 
-    func testPickingASectionAlreadyInAnotherTabSwapsThem() {
-        let slots: [TabSection] = [.mealPlan, .shopping, .family]
-        XCTAssertEqual(TabSection.replacing(slots, at: 0, with: .family), [.family, .shopping, .mealPlan])
-        XCTAssertEqual(TabSection.replacing(slots, at: 1, with: .tasks), [.mealPlan, .tasks, .family])
+    func testTabsSavedWithFamilyCarryOver() {
+        // Family used to be a choice; it's always a tab now.
+        XCTAssertEqual(TabSection.slots(from: "mealPlan,shopping,family"), [.mealPlan, .shopping])
+        XCTAssertEqual(TabSection.slots(from: "family,tasks,chores"), [.tasks, .chores])
+    }
+
+    func testPickingASectionAlreadyInTheOtherTabSwapsThem() {
+        let slots: [TabSection] = [.mealPlan, .shopping]
+        XCTAssertEqual(TabSection.replacing(slots, at: 0, with: .shopping), [.shopping, .mealPlan])
+        XCTAssertEqual(TabSection.replacing(slots, at: 1, with: .tasks), [.mealPlan, .tasks])
     }
 
     // MARK: Locations

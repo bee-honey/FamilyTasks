@@ -1,11 +1,11 @@
 import SwiftUI
 
-/// The sections that can sit in the tab bar between Today and More.
+/// The sections that can be tabs. The two chosen sit between Today and Family; Family
+/// lists the rest.
 enum TabSection: String, CaseIterable, Identifiable {
     case tasks
     case shopping
     case mealPlan
-    case family
     case chores
     case recurring
     case ideas
@@ -17,7 +17,6 @@ enum TabSection: String, CaseIterable, Identifiable {
         case .tasks: "Tasks"
         case .shopping: "Shopping"
         case .mealPlan: "Meal Plan"
-        case .family: "Family"
         case .chores: "Chores"
         case .recurring: "Recurring"
         case .ideas: "Ideas"
@@ -29,7 +28,6 @@ enum TabSection: String, CaseIterable, Identifiable {
         case .tasks: "square.grid.2x2"
         case .shopping: "cart"
         case .mealPlan: "fork.knife"
-        case .family: "person.2"
         case .chores: "star.circle"
         case .recurring: "repeat"
         case .ideas: "lightbulb"
@@ -37,10 +35,11 @@ enum TabSection: String, CaseIterable, Identifiable {
     }
 
     static let storageKey = "tabs.middle"
-    static let defaultSlots: [TabSection] = [.mealPlan, .shopping, .family]
-    static let slotCount = 3
+    static let defaultSlots: [TabSection] = [.mealPlan, .shopping]
+    static let slotCount = 2
 
-    /// The saved middle tabs: three different sections, filled from the defaults.
+    /// The saved tabs: two different sections, filled from the defaults. Anything saved
+    /// that is no longer a choice (Family, which is always a tab now) is skipped.
     static func slots(from raw: String) -> [TabSection] {
         var slots: [TabSection] = []
         for section in raw.split(separator: ",").compactMap({ TabSection(rawValue: String($0)) }) where !slots.contains(section) {
@@ -69,7 +68,7 @@ enum TabSection: String, CaseIterable, Identifiable {
     }
 }
 
-/// The app's main navigation: Today, three chosen sections and More.
+/// The app's main navigation: Today, two chosen sections, Family (everything else) and Settings.
 struct RootTabView: View {
     /// Kept across the rebuild that follows a theme change.
     @SceneStorage("root.selectedTab") private var selection = "today"
@@ -90,29 +89,37 @@ struct RootTabView: View {
                 .tag(section.rawValue)
             }
 
-            MoreView(tabSections: slots)
-                .tabItem { Label("More", systemImage: "ellipsis") }
-                .tag("more")
+            NavigationStack {
+                FamilyHubView()
+            }
+            .tabItem { Label("Family", systemImage: "person.2") }
+            .tag("family")
+
+            SettingsHomeView()
+                .tabItem { Label("Settings", systemImage: "gearshape") }
+                .tag("settings")
         }
         .tint(AppTheme.primary)
         .onAppear {
             // The tab saved last time may no longer be in the tab bar.
-            let valid = ["today", "more"] + TabSection.slots(from: slotsRaw).map(\.rawValue)
-            if !valid.contains(selection) {
+            if !validTabs(slotsRaw).contains(selection) {
                 selection = "today"
             }
         }
         .onChange(of: slotsRaw) { _, newValue in
-            // A section taken out of the tab bar can't stay selected.
-            let valid = ["today", "more"] + TabSection.slots(from: newValue).map(\.rawValue)
-            if !valid.contains(selection) {
-                selection = "more"
+            // A section taken out of the tab bar is now in Family.
+            if !validTabs(newValue).contains(selection) {
+                selection = "family"
             }
         }
     }
+
+    private func validTabs(_ raw: String) -> [String] {
+        ["today", "family", "settings"] + TabSection.slots(from: raw).map(\.rawValue)
+    }
 }
 
-/// A section's screen, as a tab or pushed from More.
+/// A section's screen, as a tab or pushed from Family.
 struct TabSectionScreen: View {
     let section: TabSection
     var isPushed = false
@@ -122,7 +129,6 @@ struct TabSectionScreen: View {
         case .tasks: TaskBoardView(showsNavigationBar: isPushed)
         case .shopping: ShoppingView(showsNavigationBar: isPushed)
         case .mealPlan: MealPlanView()
-        case .family: FamilyHubView()
         case .chores: ChoresView()
         case .recurring: RecurringTasksView()
         case .ideas: IdeaNotebookView()
@@ -130,31 +136,25 @@ struct TabSectionScreen: View {
     }
 }
 
-/// Chores, meals, recurring tasks and health, each with a live summary.
+/// Every section that isn't its own tab, plus Health, each with a live summary.
 struct FamilyHubView: View {
     @EnvironmentObject private var organizerStore: OrganizerStore
     @EnvironmentObject private var choreStore: ChoreStore
+    @EnvironmentObject private var taskStore: TaskStore
+    @AppStorage(TabSection.storageKey) private var slotsRaw = ""
     @AppStorage("health.section.enabled") private var healthSectionEnabled = false
 
     var body: some View {
-        // Shown inside a tab's NavigationStack, or pushed from More.
+        // Shown inside the Family tab's NavigationStack.
         Group {
             List {
                 Section {
-                    NavigationLink {
-                        ChoresView()
-                    } label: {
-                        HubRow(title: "Chores", systemImage: "star.circle", tint: AppTheme.softAccent, detail: choresDetail)
-                    }
-                    NavigationLink {
-                        MealPlanView()
-                    } label: {
-                        HubRow(title: "Meal Plan", systemImage: "fork.knife", tint: AppTheme.warmAccent, detail: mealsDetail)
-                    }
-                    NavigationLink {
-                        RecurringTasksView()
-                    } label: {
-                        HubRow(title: "Recurring", systemImage: "repeat", tint: AppTheme.coolAccent, detail: recurringDetail)
+                    ForEach(hubSections) { section in
+                        NavigationLink {
+                            TabSectionScreen(section: section, isPushed: true)
+                        } label: {
+                            HubRow(title: section.title, systemImage: section.systemImage, tint: tint(for: section), detail: detail(for: section))
+                        }
                     }
                     if healthSectionEnabled {
                         NavigationLink {
@@ -172,32 +172,53 @@ struct FamilyHubView: View {
         }
     }
 
-    private var choresDetail: String {
-        let waiting = choreStore.waitingForApproval.count
-        if waiting > 0 { return "\(waiting) to approve" }
-        if choreStore.kids.isEmpty { return "Points for kids" }
-        return "\(choreStore.chores.count) \(choreStore.chores.count == 1 ? "chore" : "chores")"
+    /// Sections already in the tab bar aren't listed again.
+    private var hubSections: [TabSection] {
+        let tabs = TabSection.slots(from: slotsRaw)
+        return TabSection.allCases.filter { !tabs.contains($0) }
     }
 
-    private var mealsDetail: String {
-        guard let week = WeeklyIngredient.weekRange(containing: Date()) else { return "Plan the week" }
-        let count = organizerStore.plannedMeals.filter { week.contains($0.date) }.count
-        return count == 0 ? "Plan the week" : "\(count) \(count == 1 ? "meal" : "meals") this week"
+    private func tint(for section: TabSection) -> Color {
+        switch section {
+        case .tasks: AppTheme.warmAccent
+        case .shopping: AppTheme.coolAccent
+        case .mealPlan: AppTheme.brightAccent
+        case .chores: AppTheme.softAccent
+        case .recurring: AppTheme.primary
+        case .ideas: SettingsTint.ideas
+        }
     }
 
-    private var recurringDetail: String {
-        let active = organizerStore.visibleRecurringTasks.filter(\.isActive)
-        guard let next = active.min(by: { $0.nextDueDate < $1.nextDueDate }) else { return "Bills and routines" }
-        return "\(next.title) · \(next.nextDueDate.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))"
+    private func detail(for section: TabSection) -> String {
+        switch section {
+        case .tasks:
+            let open = taskStore.visibleTasks.filter { !$0.isDone }.count
+            return open == 1 ? "1 open task" : "\(open) open tasks"
+        case .shopping:
+            let toBuy = organizerStore.shoppingItems.filter { $0.isNeeded && !$0.isPurchased }.count
+            return "\(toBuy) to buy"
+        case .mealPlan:
+            guard let week = WeeklyIngredient.weekRange(containing: Date()) else { return "Plan the week" }
+            let count = organizerStore.plannedMeals.filter { week.contains($0.date) }.count
+            return count == 0 ? "Plan the week" : "\(count) \(count == 1 ? "meal" : "meals") this week"
+        case .chores:
+            let waiting = choreStore.waitingForApproval.count
+            if waiting > 0 { return "\(waiting) to approve" }
+            if choreStore.kids.isEmpty { return "Points for kids" }
+            return "\(choreStore.chores.count) \(choreStore.chores.count == 1 ? "chore" : "chores")"
+        case .recurring:
+            let active = organizerStore.visibleRecurringTasks.filter(\.isActive)
+            guard let next = active.min(by: { $0.nextDueDate < $1.nextDueDate }) else { return "Bills and routines" }
+            return "\(next.title) · \(next.nextDueDate.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))"
+        case .ideas:
+            let count = organizerStore.ideaNotes.count
+            return count == 0 ? "Notes for later" : "\(count) \(count == 1 ? "idea" : "ideas")"
+        }
     }
 }
 
-/// Ideas and every setting, each with a one-line summary.
-private struct MoreView: View {
-    /// The sections in the tab bar; More lists the others.
-    let tabSections: [TabSection]
-    @EnvironmentObject private var organizerStore: OrganizerStore
-    @EnvironmentObject private var taskStore: TaskStore
+/// Every setting, each with a one-line summary.
+private struct SettingsHomeView: View {
     @EnvironmentObject private var sharedHouseholdStore: SharedHouseholdStore
     @AppStorage("profile.email") private var profileEmail = ""
     @AppStorage("profile.name") private var profileName = ""
@@ -210,21 +231,7 @@ private struct MoreView: View {
     var body: some View {
         NavigationStack {
             List {
-                let sections = moreSections
-                if !sections.isEmpty {
-                    Section {
-                        ForEach(sections) { section in
-                            NavigationLink {
-                                TabSectionScreen(section: section, isPushed: true)
-                            } label: {
-                                HubRow(title: section.title, systemImage: section.systemImage, tint: tint(for: section), detail: detail(for: section))
-                            }
-                        }
-                    }
-                    .listRowBackground(AppTheme.surface)
-                }
-
-                Section("Settings") {
+                Section {
                     NavigationLink { ProfileView() } label: {
                         HubRow(title: "Profile", systemImage: "person.crop.circle", tint: SettingsTint.profile, detail: profileDetail)
                     }
@@ -254,36 +261,7 @@ private struct MoreView: View {
             }
             .scrollContentBackground(.hidden)
             .background(AppTheme.background)
-            .navigationTitle("More")
-        }
-    }
-
-    /// Sections not in the tab bar. Chores, Meal Plan and Recurring also live in Family.
-    private var moreSections: [TabSection] {
-        [TabSection.tasks, .shopping, .family, .ideas].filter { !tabSections.contains($0) }
-    }
-
-    private func tint(for section: TabSection) -> Color {
-        switch section {
-        case .tasks: AppTheme.warmAccent
-        case .shopping: AppTheme.coolAccent
-        case .family: AppTheme.primary
-        default: SettingsTint.ideas
-        }
-    }
-
-    private func detail(for section: TabSection) -> String {
-        switch section {
-        case .tasks:
-            let open = taskStore.visibleTasks.filter { !$0.isDone }.count
-            return open == 1 ? "1 open task" : "\(open) open tasks"
-        case .shopping:
-            let toBuy = organizerStore.shoppingItems.filter { $0.isNeeded && !$0.isPurchased }.count
-            return "\(toBuy) to buy"
-        case .family:
-            return "Chores, meals and routines"
-        default:
-            return ideasDetail
+            .navigationTitle("Settings")
         }
     }
 
@@ -304,11 +282,6 @@ private struct MoreView: View {
 
     private var appearanceDetail: String {
         "\(AppAppearance(rawValue: appearance)?.title ?? "System") · Today, tags and times"
-    }
-
-    private var ideasDetail: String {
-        let count = organizerStore.ideaNotes.count
-        return count == 0 ? "Notes for later" : "\(count) \(count == 1 ? "idea" : "ideas")"
     }
 
     private var appVersionDisplay: String {

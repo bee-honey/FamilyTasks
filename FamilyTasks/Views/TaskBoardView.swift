@@ -2,7 +2,7 @@ import SwiftUI
 
 struct TaskBoardView: View {
     @EnvironmentObject private var taskStore: TaskStore
-    /// Opened from More rather than as a tab, so it needs the bar's back button.
+    /// Opened from Family rather than as a tab, so it needs the bar's back button.
     var showsNavigationBar = false
     @State private var isAddingTask = false
     @State private var analyticsRange: TaskAnalyticsRange = .week
@@ -14,7 +14,7 @@ struct TaskBoardView: View {
             range: analyticsRange
         )
 
-        // Shown inside a tab's NavigationStack, or pushed from More.
+        // Shown inside a tab's NavigationStack, or pushed from Family.
         Group {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {

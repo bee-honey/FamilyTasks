@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// A colored symbol on a soft square of the same color, as in the Family and More lists.
+/// A colored symbol on a soft square of the same color, as in the Family and Settings lists.
 struct IconTile: View {
     let systemImage: String
     let tint: Color
@@ -40,7 +40,7 @@ extension LabelStyle where Self == TileLabelStyle {
     }
 }
 
-/// Each settings screen's color, shared by its row in More and the icons on the screen.
+/// Each settings screen's color, shared by its row in Settings and the icons on the screen.
 enum SettingsTint {
     static var profile: Color { AppTheme.primary }
     static var iCloud: Color { AppTheme.coolAccent }
