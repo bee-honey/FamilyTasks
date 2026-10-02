@@ -90,6 +90,25 @@ final class ChoreTests: XCTestCase {
         XCTAssertEqual(ChoreMath.money(for: 3, settings: ChoreSettings(pointsPerCurrencyUnit: 0)), 3, "A zero rate must not divide by zero")
     }
 
+    func testParentsCanChooseTheCurrency() throws {
+        let usLocale = Locale(identifier: "en_US")
+        XCTAssertEqual(ChoreMath.formattedMoney(for: 45, settings: ChoreSettings(pointsPerCurrencyUnit: 10, currencyCode: "EUR"), locale: usLocale), "€4.50")
+        XCTAssertEqual(ChoreMath.currencyCode(for: ChoreSettings(currencyCode: "INR"), locale: usLocale), "INR")
+        XCTAssertEqual(ChoreMath.currencyCode(for: ChoreSettings(), locale: Locale(identifier: "en_GB")), "GBP", "No choice uses the phone's currency")
+
+        let store = ChoreStore(directory: directory)
+        store.updateSettings(pointsPerCurrencyUnit: 10, currencyCode: "AUD")
+        XCTAssertEqual(store.settings.currencyCode, "AUD")
+        XCTAssertGreaterThan(store.settings.updatedAt, HouseholdRecords.unknownDate, "The choice must sync to the family")
+    }
+
+    func testSettingsSavedBeforeCurrenciesExistedStillLoad() throws {
+        let old = Data(#"{"pointsPerCurrencyUnit":20,"updatedAt":0}"#.utf8)
+        let settings = try JSONDecoder().decode(ChoreSettings.self, from: old)
+        XCTAssertEqual(settings.pointsPerCurrencyUnit, 20)
+        XCTAssertNil(settings.currencyCode)
+    }
+
     func testRemovingAKidRemovesTheirAssignmentsAndHistory() throws {
         let (store, kid, chore) = try storeWithKidAndChore()
         store.markDone(chore, for: kid)
@@ -106,7 +125,7 @@ final class ChoreTests: XCTestCase {
     func testChoresSurviveARelaunch() throws {
         let (store, kid, chore) = try storeWithKidAndChore()
         store.markDone(chore, for: kid)
-        store.setPointsPerCurrencyUnit(20)
+        store.updateSettings(pointsPerCurrencyUnit: 20, currencyCode: "EUR")
 
         let relaunched = ChoreStore(directory: directory)
 

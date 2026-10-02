@@ -112,8 +112,10 @@ struct ChorePayout: Identifiable, Codable, Equatable {
 }
 
 struct ChoreSettings: Codable, Equatable {
-    /// How many points make one unit of the local currency (10 points = $1 by default).
+    /// How many points make one unit of the currency (10 points = $1 by default).
     var pointsPerCurrencyUnit: Int = 10
+    /// ISO currency code such as "EUR" chosen by a parent; nil uses each phone's own currency.
+    var currencyCode: String?
     var updatedAt: Date = HouseholdRecords.unknownDate
 }
 
@@ -192,9 +194,14 @@ enum ChoreMath {
         Decimal(points) / Decimal(max(settings.pointsPerCurrencyUnit, 1))
     }
 
-    /// "$4.50" in the device's currency.
+    /// The family's chosen currency, or else the phone's.
+    static func currencyCode(for settings: ChoreSettings, locale: Locale = .current) -> String {
+        settings.currencyCode ?? locale.currency?.identifier ?? "USD"
+    }
+
+    /// "$4.50", "€4.50" or "₹4.50", in the family's currency.
     static func formattedMoney(for points: Int, settings: ChoreSettings, locale: Locale = .current) -> String {
-        let code = locale.currency?.identifier ?? "USD"
-        return money(for: points, settings: settings).formatted(.currency(code: code).locale(locale))
+        money(for: points, settings: settings)
+            .formatted(.currency(code: currencyCode(for: settings, locale: locale)).locale(locale))
     }
 }

@@ -143,9 +143,11 @@ final class ChoreStore: ObservableObject {
         payouts.append(ChorePayout(kidID: kid.id, points: points, paidBy: Self.currentProfileEmail()))
     }
 
-    func setPointsPerCurrencyUnit(_ points: Int) {
-        guard points > 0, points != settings.pointsPerCurrencyUnit else { return }
-        settings = ChoreSettings(pointsPerCurrencyUnit: points, updatedAt: Date())
+    /// Changes the family-wide points value; a nil currency uses each phone's own currency.
+    func updateSettings(pointsPerCurrencyUnit points: Int, currencyCode: String?) {
+        guard points > 0 else { return }
+        guard points != settings.pointsPerCurrencyUnit || currencyCode != settings.currencyCode else { return }
+        settings = ChoreSettings(pointsPerCurrencyUnit: points, currencyCode: currencyCode, updatedAt: Date())
     }
 
     // MARK: Family sharing

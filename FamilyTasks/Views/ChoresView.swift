@@ -493,16 +493,28 @@ private struct ChoreSettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var choreStore: ChoreStore
     @State private var pointsPerUnit = 10
+    /// nil means each phone's own currency.
+    @State private var currencyCode: String?
 
     var body: some View {
         NavigationStack {
             Form {
                 Section {
+                    NavigationLink {
+                        CurrencyPickerView(selection: $currencyCode)
+                    } label: {
+                        LabeledContent("Currency", value: CurrencyPickerView.name(for: currencyCode))
+                    }
+                } footer: {
+                    Text("Applies to the whole family.")
+                }
+
+                Section {
                     Stepper("\(pointsPerUnit) points", value: $pointsPerUnit, in: 1...1_000)
                 } header: {
-                    Text("Points per \(ChoreMath.formattedMoney(for: 1, settings: ChoreSettings(pointsPerCurrencyUnit: 1)))")
+                    Text("Points per \(ChoreMath.formattedMoney(for: 1, settings: draft(pointsPerUnit: 1)))")
                 } footer: {
-                    Text("\(pointsPerUnit * 10) points = \(ChoreMath.formattedMoney(for: pointsPerUnit * 10, settings: ChoreSettings(pointsPerCurrencyUnit: pointsPerUnit))). Applies to the whole family.")
+                    Text("\(pointsPerUnit * 10) points = \(ChoreMath.formattedMoney(for: pointsPerUnit * 10, settings: draft(pointsPerUnit: pointsPerUnit)))")
                 }
             }
             .navigationTitle("Points Value")
@@ -513,13 +525,92 @@ private struct ChoreSettingsView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
-                        choreStore.setPointsPerCurrencyUnit(pointsPerUnit)
+                        choreStore.updateSettings(pointsPerCurrencyUnit: pointsPerUnit, currencyCode: currencyCode)
                         dismiss()
                     }
                 }
             }
-            .onAppear { pointsPerUnit = choreStore.settings.pointsPerCurrencyUnit }
+            .onAppear {
+                pointsPerUnit = choreStore.settings.pointsPerCurrencyUnit
+                currencyCode = choreStore.settings.currencyCode
+            }
         }
-        .presentationDetents([.medium])
+    }
+
+    private func draft(pointsPerUnit: Int) -> ChoreSettings {
+        ChoreSettings(pointsPerCurrencyUnit: pointsPerUnit, currencyCode: currencyCode)
+    }
+}
+
+/// Every currency the phone knows, searchable by name or code.
+private struct CurrencyPickerView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Binding var selection: String?
+    @State private var searchText = ""
+
+    var body: some View {
+        List {
+            if searchText.isEmpty {
+                Section {
+                    row(code: nil)
+                }
+            }
+            Section {
+                ForEach(filteredCodes, id: \.self) { code in
+                    row(code: code)
+                }
+            }
+        }
+        .navigationTitle("Currency")
+        .navigationBarTitleDisplayMode(.inline)
+        .searchable(text: $searchText, prompt: "Search currencies")
+    }
+
+    private func row(code: String?) -> some View {
+        Button {
+            selection = code
+            dismiss()
+        } label: {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(Self.name(for: code))
+                        .foregroundStyle(.primary)
+                    Text(code ?? "Uses \(Self.phoneCurrencyCode) on each phone")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                if selection == code {
+                    Image(systemName: "checkmark")
+                        .foregroundStyle(AppTheme.primary)
+                }
+            }
+        }
+    }
+
+    private var filteredCodes: [String] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return Self.allCodes }
+        return Self.allCodes.filter { code in
+            code.localizedCaseInsensitiveContains(query) || Self.name(for: code).localizedCaseInsensitiveContains(query)
+        }
+    }
+
+    private static var phoneCurrencyCode: String {
+        Locale.current.currency?.identifier ?? "USD"
+    }
+
+    /// The phone's currency first, then the rest by name.
+    private static let allCodes: [String] = {
+        let others = Locale.commonISOCurrencyCodes
+            .filter { $0 != phoneCurrencyCode }
+            .sorted { name(for: $0).localizedCaseInsensitiveCompare(name(for: $1)) == .orderedAscending }
+        return [phoneCurrencyCode] + others
+    }()
+
+    static func name(for code: String?) -> String {
+        guard let code else { return "Phone's Currency" }
+        let name = Locale.current.localizedString(forCurrencyCode: code) ?? code
+        return "\(name) (\(code))"
     }
 }
