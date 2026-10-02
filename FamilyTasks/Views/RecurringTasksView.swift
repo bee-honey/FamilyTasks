@@ -6,7 +6,8 @@ struct RecurringTasksView: View {
     @State private var editingTask: RecurringTask?
 
     var body: some View {
-        NavigationStack {
+        // Shown inside a tab's NavigationStack.
+        Group {
             List {
                 Section {
                     ForEach(organizerStore.visibleRecurringTasks.sorted(by: { $0.nextDueDate < $1.nextDueDate })) { task in

@@ -8,7 +8,8 @@ struct HealthView: View {
     @State private var selectedScope = HealthMetricScope.day
 
     var body: some View {
-        NavigationStack {
+        // Shown inside a tab's NavigationStack.
+        Group {
             List {
                 Section {
                     Picker("Range", selection: $selectedScope) {

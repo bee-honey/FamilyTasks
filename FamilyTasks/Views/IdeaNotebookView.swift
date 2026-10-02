@@ -8,7 +8,8 @@ struct IdeaNotebookView: View {
     @State private var editingIdea: IdeaNote?
 
     var body: some View {
-        NavigationStack {
+        // Shown inside a tab's NavigationStack.
+        Group {
             List {
                 Section {
                     Picker("Tag", selection: $selectedTag) {

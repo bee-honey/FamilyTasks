@@ -14,7 +14,8 @@ struct MealPlanView: View {
     @State private var isShoppingForWeek = false
 
     var body: some View {
-        NavigationStack {
+        // Shown inside a tab's NavigationStack.
+        Group {
             VStack(spacing: 0) {
                 Picker("Meal plan section", selection: $selectedTab) {
                     ForEach(MealPlanTab.allCases) { tab in

@@ -6,6 +6,8 @@ enum AppTheme {
     static let surface = Color(light: 0xFFFDF8, dark: 0x24201B)
     static let surfaceMuted = Color(light: 0xEFE8DF, dark: 0x332D26)
     static let primary = Color(light: 0x167C80, dark: 0x58C7C5)
+    /// Text and icons drawn on a `primary` fill.
+    static let onPrimary = Color(light: 0xFFFFFF, dark: 0x102A2A)
     static let primarySoft = Color(light: 0xD9EEEA, dark: 0x173D3E)
     static let success = Color(light: 0x4F8A6B, dark: 0x74C69D)
     static let warning = Color(light: 0xD9912B, dark: 0xF0B85A)

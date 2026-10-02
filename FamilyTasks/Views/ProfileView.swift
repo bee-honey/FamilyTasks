@@ -12,7 +12,8 @@ struct ProfileView: View {
     @State private var selectedPhoto: PhotosPickerItem?
 
     var body: some View {
-        NavigationStack {
+        // Shown inside a tab's NavigationStack.
+        Group {
             Form {
                 Section {
                     HStack(spacing: 16) {
@@ -138,7 +139,8 @@ struct ViewSettingsView: View {
     @AppStorage("schedule.contentPriority") private var scheduleContentPriority = ScheduleContentPriority.tasksFirst.rawValue
 
     var body: some View {
-        NavigationStack {
+        // Shown inside a tab's NavigationStack.
+        Group {
             Form {
                 Section("Appearance") {
                     Picker("Mode", selection: $appearance) {
@@ -215,7 +217,8 @@ struct HealthSettingsView: View {
     @AppStorage("health.share.enabled") private var healthSharingEnabled = false
 
     var body: some View {
-        NavigationStack {
+        // Shown inside a tab's NavigationStack.
+        Group {
             Form {
                 Section("Health") {
                     Toggle("Enable Health", isOn: $healthSectionEnabled)
@@ -324,7 +327,8 @@ struct NotificationSettingsView: View {
     @AppStorage("notifications.dueSoonLeadMinutesList") private var dueSoonLeadMinutesList = "60"
 
     var body: some View {
-        NavigationStack {
+        // Shown inside a tab's NavigationStack.
+        Group {
             Form {
                 Section("Notifications") {
                     Toggle("Enable Notifications", isOn: $notificationsEnabled)
@@ -718,7 +722,8 @@ struct SyncSettingsView: View {
     @State private var inviteLinkText = ""
 
     var body: some View {
-        NavigationStack {
+        // Shown inside a tab's NavigationStack.
+        Group {
             Form {
                 Section("Household Sharing") {
                     VStack(alignment: .leading, spacing: 8) {
@@ -916,7 +921,8 @@ struct CalendarSettingsView: View {
     @State private var isRefreshingCalendar = false
 
     var body: some View {
-        NavigationStack {
+        // Shown inside a tab's NavigationStack.
+        Group {
             Form {
                 Section("Calendar Access") {
                     VStack(alignment: .leading, spacing: 6) {

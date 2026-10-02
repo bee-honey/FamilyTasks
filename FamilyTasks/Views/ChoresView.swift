@@ -8,7 +8,8 @@ struct ChoresView: View {
     @State private var isEditingSettings = false
 
     var body: some View {
-        NavigationStack {
+        // Shown inside a tab's NavigationStack.
+        Group {
             List {
                 if choreStore.kids.isEmpty {
                     ContentUnavailableView {

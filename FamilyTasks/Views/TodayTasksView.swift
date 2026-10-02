@@ -21,6 +21,13 @@ struct TodayTasksView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
+                TodayHeader {
+                    isAddingTask = true
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 8)
+                .padding(.bottom, 14)
+
                 scheduleControls
                     .padding(.horizontal, 16)
                     .padding(.top, 4)
@@ -80,18 +87,8 @@ struct TodayTasksView: View {
                 .scrollContentBackground(.hidden)
             }
             .background(AppTheme.background)
-            .navigationTitle("Schedule")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        isAddingTask = true
-                    } label: {
-                        Image(systemName: "plus")
-                    }
-                    .accessibilityLabel("Add task")
-                }
-            }
+            .navigationTitle("Today")
+            .toolbar(.hidden, for: .navigationBar)
             .task {
                 displayMode = ScheduleDisplayMode(rawValue: defaultDisplayModeRaw) ?? .week
 
@@ -304,10 +301,13 @@ struct TodayTasksView: View {
         }
 
         if !pendingTasks.isEmpty {
-            Section("Pending") {
+            Section {
                 ForEach(pendingTasks) { task in
-                    taskRow(task)
+                    taskRow(task, isOverdue: true)
                 }
+            } header: {
+                Text("Overdue")
+                    .foregroundStyle(AppTheme.destructive)
             }
         }
     }
@@ -400,9 +400,10 @@ struct TodayTasksView: View {
         }
     }
 
-    private func taskRow(_ task: FamilyTask) -> some View {
+    private func taskRow(_ task: FamilyTask, isOverdue: Bool = false) -> some View {
         TodayTaskRow(
             task: task,
+            isOverdue: isOverdue,
             showTime: showTaskTime,
             showBucketColors: showTaskBucketColors,
             showPriorityMarkers: showTaskPriorityMarkers
@@ -726,12 +727,23 @@ private struct RecurringScheduleRow: View {
 
 private struct TodayTaskRow: View {
     let task: FamilyTask
+    var isOverdue = false
     let showTime: Bool
     let showBucketColors: Bool
     let showPriorityMarkers: Bool
     let onDone: () -> Void
     let onEdit: () -> Void
     @AppStorage("profile.email") private var profileEmail = ""
+
+    /// "Was due yesterday", "Was due Tuesday" (this past week) or "Was due Sep 12".
+    static func overdueText(for dueDate: Date, now: Date = Date(), calendar: Calendar = .current) -> String {
+        let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: dueDate), to: calendar.startOfDay(for: now)).day ?? 0
+        switch days {
+        case ...1: return "Was due yesterday"
+        case 2...6: return "Was due \(dueDate.formatted(.dateTime.weekday(.wide)))"
+        default: return "Was due \(dueDate.formatted(.dateTime.month(.abbreviated).day()))"
+        }
+    }
 
     var body: some View {
         HStack(spacing: 12) {
@@ -744,6 +756,12 @@ private struct TodayTaskRow: View {
                         .lineLimit(2)
                         .strikethrough(task.isDone)
                         .foregroundStyle(task.isDone ? .secondary : .primary)
+                }
+
+                if isOverdue, let dueDate = task.dueDate {
+                    Text(Self.overdueText(for: dueDate))
+                        .font(.caption)
+                        .foregroundStyle(AppTheme.destructive)
                 }
 
                 if let completion = task.completionSummary(viewerEmail: profileEmail) {
@@ -821,5 +839,143 @@ enum ScheduleContentPriority: String, CaseIterable, Identifiable {
 private extension TaskBucket {
     var scheduleColor: Color {
         accentColor
+    }
+}
+
+/// "THURSDAY, OCT 1 / Good evening, Naveen" with today's progress and family news.
+private struct TodayHeader: View {
+    @EnvironmentObject private var taskStore: TaskStore
+    @AppStorage("profile.email") private var profileEmail = ""
+    let onAdd: () -> Void
+
+    var body: some View {
+        let now = Date()
+        let today = taskStore.tasksScheduledToday()
+        let done = today.filter(\.isDone).count
+        let overdue = taskStore.pendingTasks(before: now).count
+
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(now.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()).uppercased())
+                        .font(.footnote.weight(.semibold))
+                        .tracking(1)
+                        .foregroundStyle(AppTheme.primary)
+                    Text(Self.greeting(at: now, email: profileEmail))
+                        .font(.title.weight(.bold))
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.8)
+                }
+                Spacer(minLength: 12)
+                Button(action: onAdd) {
+                    Image(systemName: "plus")
+                        .font(.headline.weight(.bold))
+                        .foregroundStyle(AppTheme.onPrimary)
+                        .frame(width: 44, height: 44)
+                        .background(AppTheme.primary, in: Circle())
+                }
+                .accessibilityLabel("Add task")
+            }
+
+            HStack(spacing: 14) {
+                ProgressRing(fraction: today.isEmpty ? 0 : Double(done) / Double(today.count))
+                    .overlay {
+                        if today.isEmpty {
+                            Image(systemName: "calendar")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .frame(width: 46, height: 46)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(today.isEmpty ? "Nothing due today" : "\(done) of \(today.count) done today")
+                        .font(.headline)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
+                    if let detail = detail(overdue: overdue, now: now) {
+                        Text(detail)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+                Spacer(minLength: 8)
+                FamilyAvatarStack(emails: Array(taskStore.exportFamilyMembers().prefix(3)))
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .accessibilityElement(children: .combine)
+        }
+    }
+
+    /// "1 overdue · Sam finished Take out bins"
+    private func detail(overdue: Int, now: Date) -> String? {
+        var parts: [String] = []
+        if overdue > 0 {
+            parts.append("\(overdue) overdue")
+        }
+        let me = profileEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let latestByOthers = taskStore.visibleTasks
+            .filter { task in
+                guard let by = task.completedBy?.lowercased(), by != me, let at = task.completedAt else { return false }
+                return Calendar.current.isDate(at, inSameDayAs: now)
+            }
+            .max { ($0.completedAt ?? .distantPast) < ($1.completedAt ?? .distantPast) }
+        if let latest = latestByOthers, let by = latest.completedBy {
+            parts.append("\(Self.firstName(for: by)) finished \(latest.title)")
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    static func greeting(at date: Date, email: String, calendar: Calendar = .current) -> String {
+        let hour = calendar.component(.hour, from: date)
+        let partOfDay = switch hour {
+        case 5..<12: "Good morning"
+        case 12..<17: "Good afternoon"
+        default: "Good evening"
+        }
+        let trimmed = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard TaskStore.isValidEmail(trimmed) else { return partOfDay }
+        return "\(partOfDay), \(firstName(for: trimmed))"
+    }
+
+    /// "naveen.keerthy@…" → "Naveen"
+    static func firstName(for email: String) -> String {
+        let name = Assignee.memberName(for: email)
+        return name.split(separator: " ").first.map(String.init) ?? name
+    }
+}
+
+private struct ProgressRing: View {
+    let fraction: Double
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .stroke(AppTheme.surfaceMuted, lineWidth: 6)
+            Circle()
+                .trim(from: 0, to: max(0, min(fraction, 1)))
+                .stroke(AppTheme.success, style: StrokeStyle(lineWidth: 6, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+        }
+        .animation(.easeOut, value: fraction)
+        .accessibilityHidden(true)
+    }
+}
+
+private struct FamilyAvatarStack: View {
+    let emails: [String]
+
+    var body: some View {
+        HStack(spacing: -10) {
+            ForEach(emails, id: \.self) { email in
+                AssigneeAvatarView(name: email)
+                    .scaleEffect(28.0 / 38.0)
+                    .frame(width: 28, height: 28)
+                    .overlay(Circle().stroke(AppTheme.surface, lineWidth: 2))
+            }
+        }
+        .accessibilityHidden(true)
     }
 }

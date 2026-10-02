@@ -1,206 +1,177 @@
 import SwiftUI
 
+/// The app's main navigation: the busiest sections as tabs, the rest one level down
+/// under Family and More.
 struct RootTabView: View {
-    @State private var selection: AppSection? = .today
-    @AppStorage("menu.primarySectionOrder") private var primarySectionOrder = AppSection.defaultPrimarySectionOrder
+    @State private var selection: AppTab = .today
+
+    var body: some View {
+        TabView(selection: $selection) {
+            TodayTasksView()
+                .tabItem { Label("Today", systemImage: "calendar") }
+                .tag(AppTab.today)
+
+            TaskBoardView()
+                .tabItem { Label("Tasks", systemImage: "square.grid.2x2") }
+                .tag(AppTab.tasks)
+
+            ShoppingView()
+                .tabItem { Label("Shopping", systemImage: "cart") }
+                .tag(AppTab.shopping)
+
+            FamilyHubView()
+                .tabItem { Label("Family", systemImage: "person.2") }
+                .tag(AppTab.family)
+
+            MoreView()
+                .tabItem { Label("More", systemImage: "ellipsis") }
+                .tag(AppTab.more)
+        }
+        .tint(AppTheme.primary)
+    }
+}
+
+private enum AppTab: Hashable {
+    case today
+    case tasks
+    case shopping
+    case family
+    case more
+}
+
+/// Chores, meals, recurring tasks and health, each with a live summary.
+private struct FamilyHubView: View {
+    @EnvironmentObject private var organizerStore: OrganizerStore
+    @EnvironmentObject private var choreStore: ChoreStore
     @AppStorage("health.section.enabled") private var healthSectionEnabled = false
 
     var body: some View {
-        NavigationSplitView {
-            List(selection: $selection) {
-                Section("Family Tasks") {
-                    ForEach(primarySections) { section in
-                        NavigationLink(value: section) {
-                            Label(section.title, systemImage: section.systemImage)
-                        }
-                        .listRowBackground(AppTheme.surface)
+        NavigationStack {
+            List {
+                Section {
+                    NavigationLink {
+                        ChoresView()
+                    } label: {
+                        HubRow(title: "Chores", systemImage: "star.circle", tint: AppTheme.avatarPalette[1], detail: choresDetail)
                     }
-                    .onMove(perform: movePrimarySections)
+                    NavigationLink {
+                        MealPlanView()
+                    } label: {
+                        HubRow(title: "Meal Plan", systemImage: "fork.knife", tint: AppTheme.avatarPalette[2], detail: mealsDetail)
+                    }
+                    NavigationLink {
+                        RecurringTasksView()
+                    } label: {
+                        HubRow(title: "Recurring", systemImage: "repeat", tint: AppTheme.success, detail: recurringDetail)
+                    }
+                    if healthSectionEnabled {
+                        NavigationLink {
+                            HealthView()
+                        } label: {
+                            HubRow(title: "Health", systemImage: "heart.text.square", tint: AppTheme.destructive, detail: "Steps and sleep")
+                        }
+                    }
                 }
+                .listRowBackground(AppTheme.surface)
+            }
+            .scrollContentBackground(.hidden)
+            .background(AppTheme.background)
+            .navigationTitle("Family")
+        }
+    }
+
+    private var choresDetail: String {
+        let waiting = choreStore.waitingForApproval.count
+        if waiting > 0 { return "\(waiting) to approve" }
+        if choreStore.kids.isEmpty { return "Points for kids" }
+        return "\(choreStore.chores.count) \(choreStore.chores.count == 1 ? "chore" : "chores")"
+    }
+
+    private var mealsDetail: String {
+        guard let week = WeeklyIngredient.weekRange(containing: Date()) else { return "Plan the week" }
+        let count = organizerStore.plannedMeals.filter { week.contains($0.date) }.count
+        return count == 0 ? "Plan the week" : "\(count) \(count == 1 ? "meal" : "meals") this week"
+    }
+
+    private var recurringDetail: String {
+        let active = organizerStore.visibleRecurringTasks.filter(\.isActive)
+        guard let next = active.min(by: { $0.nextDueDate < $1.nextDueDate }) else { return "Bills and routines" }
+        return "\(next.title) · \(next.nextDueDate.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))"
+    }
+}
+
+/// Ideas and every setting.
+private struct MoreView: View {
+    @EnvironmentObject private var organizerStore: OrganizerStore
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    NavigationLink {
+                        IdeaNotebookView()
+                    } label: {
+                        HubRow(title: "Ideas", systemImage: "lightbulb", tint: AppTheme.warning, detail: ideasDetail)
+                    }
+                }
+                .listRowBackground(AppTheme.surface)
 
                 Section("Settings") {
-                    NavigationLink(value: AppSection.syncSettings) {
-                        Label(AppSection.syncSettings.title, systemImage: AppSection.syncSettings.systemImage)
-                    }
-                    .listRowBackground(AppTheme.surface)
+                    NavigationLink { ProfileView() } label: { Label("Profile", systemImage: "person.crop.circle") }
+                    NavigationLink { SyncSettingsView() } label: { Label("iCloud Sharing", systemImage: "icloud") }
+                    NavigationLink { NotificationSettingsView() } label: { Label("Notifications", systemImage: "bell.badge") }
+                    NavigationLink { CalendarSettingsView() } label: { Label("Calendar", systemImage: "calendar.badge.clock") }
+                    NavigationLink { HealthSettingsView() } label: { Label("Health", systemImage: "heart") }
+                    NavigationLink { ViewSettingsView() } label: { Label("Appearance", systemImage: "slider.horizontal.3") }
+                }
+                .listRowBackground(AppTheme.surface)
 
-                    NavigationLink(value: AppSection.calendarSettings) {
-                        Label(AppSection.calendarSettings.title, systemImage: AppSection.calendarSettings.systemImage)
-                    }
-                    .listRowBackground(AppTheme.surface)
-
-                    NavigationLink(value: AppSection.notificationSettings) {
-                        Label(AppSection.notificationSettings.title, systemImage: AppSection.notificationSettings.systemImage)
-                    }
-                    .listRowBackground(AppTheme.surface)
-
-                    NavigationLink(value: AppSection.healthSettings) {
-                        Label(AppSection.healthSettings.title, systemImage: AppSection.healthSettings.systemImage)
-                    }
-                    .listRowBackground(AppTheme.surface)
-
-                    NavigationLink(value: AppSection.viewSettings) {
-                        Label(AppSection.viewSettings.title, systemImage: AppSection.viewSettings.systemImage)
-                    }
-                    .listRowBackground(AppTheme.surface)
-
-                    NavigationLink(value: AppSection.profile) {
-                        Label(AppSection.profile.title, systemImage: AppSection.profile.systemImage)
-                    }
-                    .listRowBackground(AppTheme.surface)
+                Section {
+                } footer: {
+                    Text("Version \(appVersionDisplay)")
+                        .frame(maxWidth: .infinity)
                 }
             }
             .scrollContentBackground(.hidden)
             .background(AppTheme.background)
-            .safeAreaInset(edge: .bottom) {
-                Text("Version: \(appVersionDisplay)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
-                    .background(AppTheme.background)
-            }
-            .navigationTitle("Menu")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    EditButton()
-                }
-            }
-        } detail: {
-            switch selection ?? .today {
-            case .today:
-                TodayTasksView()
-            case .matrix:
-                TaskBoardView()
-            case .shopping:
-                ShoppingView()
-            case .mealPlan:
-                MealPlanView()
-            case .recurring:
-                RecurringTasksView()
-            case .chores:
-                ChoresView()
-            case .ideas:
-                IdeaNotebookView()
-            case .health:
-                HealthView()
-            case .syncSettings:
-                SyncSettingsView()
-            case .calendarSettings:
-                CalendarSettingsView()
-            case .notificationSettings:
-                NotificationSettingsView()
-            case .healthSettings:
-                HealthSettingsView()
-            case .viewSettings:
-                ViewSettingsView()
-            case .profile:
-                ProfileView()
-            }
+            .navigationTitle("More")
         }
-        .tint(AppTheme.primary)
     }
 
-    private var primarySections: [AppSection] {
-        let savedSections = primarySectionOrder
-            .split(separator: ",")
-            .compactMap { AppSection(rawValue: String($0)) }
-            .filter(\.isPrimary)
-
-        let availableSections = AppSection.defaultPrimarySections(healthEnabled: healthSectionEnabled)
-        let savedAvailableSections = savedSections.filter { availableSections.contains($0) }
-        let missingSections = availableSections.filter { !savedAvailableSections.contains($0) }
-        let orderedSections = savedAvailableSections + missingSections
-        return orderedSections.isEmpty ? availableSections : orderedSections
-    }
-
-    private func movePrimarySections(from source: IndexSet, to destination: Int) {
-        var sections = primarySections
-        sections.move(fromOffsets: source, toOffset: destination)
-        primarySectionOrder = sections.map(\.rawValue).joined(separator: ",")
+    private var ideasDetail: String {
+        let count = organizerStore.ideaNotes.count
+        return count == 0 ? "Notes for later" : "\(count) \(count == 1 ? "idea" : "ideas")"
     }
 
     private var appVersionDisplay: String {
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
         let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String
-        return "\(version?.isEmpty == false ? version! : "1.0")(\(build?.isEmpty == false ? build! : "1"))"
+        return "\(version?.isEmpty == false ? version! : "1.0") (\(build?.isEmpty == false ? build! : "1"))"
     }
 }
 
-private enum AppSection: String, CaseIterable, Identifiable {
-    case today
-    case matrix
-    case shopping
-    case mealPlan
-    case recurring
-    case chores
-    case ideas
-    case health
-    case syncSettings
-    case calendarSettings
-    case notificationSettings
-    case healthSettings
-    case viewSettings
-    case profile
+private struct HubRow: View {
+    let title: String
+    let systemImage: String
+    let tint: Color
+    let detail: String
 
-    var id: String { rawValue }
-
-    static func defaultPrimarySections(healthEnabled: Bool) -> [AppSection] {
-        var sections: [AppSection] = [.today, .matrix, .shopping, .mealPlan, .recurring, .chores, .ideas]
-        if healthEnabled {
-            sections.append(.health)
+    var body: some View {
+        HStack(spacing: 14) {
+            Image(systemName: systemImage)
+                .font(.title3)
+                .foregroundStyle(tint)
+                .frame(width: 40, height: 40)
+                .background(tint.opacity(0.16), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.body.weight(.semibold))
+                Text(detail)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
         }
-        return sections
-    }
-
-    static let defaultPrimarySections = defaultPrimarySections(healthEnabled: false)
-    static let defaultPrimarySectionOrder = defaultPrimarySections.map(\.rawValue).joined(separator: ",")
-
-    var isPrimary: Bool {
-        switch self {
-        case .today, .matrix, .shopping, .mealPlan, .recurring, .chores, .ideas, .health:
-            return true
-        case .syncSettings, .calendarSettings, .notificationSettings, .healthSettings, .viewSettings, .profile:
-            return false
-        }
-    }
-
-    var title: String {
-        switch self {
-        case .today: "Schedule"
-        case .matrix: "Task Matrix"
-        case .shopping: "Shopping"
-        case .mealPlan: "Meal Plan"
-        case .recurring: "Recurring"
-        case .chores: "Chores"
-        case .ideas: "Ideas"
-        case .health: "Health"
-        case .syncSettings: "iCloud Settings"
-        case .calendarSettings: "Calendar Settings"
-        case .notificationSettings: "Notification Settings"
-        case .healthSettings: "Health Settings"
-        case .viewSettings: "View Settings"
-        case .profile: "Profile"
-        }
-    }
-
-    var systemImage: String {
-        switch self {
-        case .today: "calendar"
-        case .matrix: "square.grid.2x2"
-        case .shopping: "cart"
-        case .mealPlan: "fork.knife"
-        case .recurring: "repeat"
-        case .chores: "star.circle"
-        case .ideas: "lightbulb"
-        case .health: "heart.text.square"
-        case .syncSettings: "icloud"
-        case .calendarSettings: "calendar.badge.clock"
-        case .notificationSettings: "bell.badge"
-        case .healthSettings: "heart"
-        case .viewSettings: "slider.horizontal.3"
-        case .profile: "person.crop.circle"
-        }
+        .padding(.vertical, 4)
     }
 }
