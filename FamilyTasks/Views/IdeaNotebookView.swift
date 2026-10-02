@@ -164,6 +164,7 @@ private struct IdeaEditorView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var draft: IdeaDraft
     @State private var showingCustomTagField = false
+    @FocusState private var isTitleFocused: Bool
     let mode: Mode
     let onSave: (IdeaDraft) -> Void
 
@@ -180,52 +181,79 @@ private struct IdeaEditorView: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section("Idea") {
-                    TextField("Title", text: $draft.title)
-                    TextField("Link", text: $draft.link)
-                        .keyboardType(.URL)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                    TextField("Notes", text: $draft.notes, axis: .vertical)
-                        .lineLimit(3...8)
-                }
-
-                Section("Tags") {
-                    TagChipPicker(tags: tagChoices, selectedTags: $draft.tags) {
-                        showingCustomTagField = true
+            ScrollView {
+                VStack(alignment: .leading, spacing: 26) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        TextField("What's the idea?", text: $draft.title, axis: .vertical)
+                            .font(.title2.weight(.bold))
+                            .focused($isTitleFocused)
+                        TextField("Add notes", text: $draft.notes, axis: .vertical)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1...8)
                     }
 
-                    if showingCustomTagField {
-                        HStack {
-                            TextField("Add tag", text: $draft.customTag)
-                                .textInputAutocapitalization(.words)
-                                .submitLabel(.done)
-                                .onSubmit(addCustomTag)
-                            Button("Add") {
-                                addCustomTag()
+                    EditorSection("Link") {
+                        HStack(spacing: 12) {
+                            IconTile(systemImage: "link", tint: AppTheme.coolAccent, size: 36)
+                            TextField("Paste a website or map link", text: $draft.link)
+                                .keyboardType(.URL)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled()
+                        }
+                        .padding(10)
+                        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    }
+
+                    EditorSection("Tags") {
+                        TagChipPicker(tags: tagChoices, selectedTags: $draft.tags) {
+                            showingCustomTagField = true
+                        }
+
+                        if showingCustomTagField {
+                            HStack {
+                                TextField("New tag", text: $draft.customTag)
+                                    .textInputAutocapitalization(.words)
+                                    .submitLabel(.done)
+                                    .onSubmit(addCustomTag)
+                                Button("Add") {
+                                    addCustomTag()
+                                }
+                                .fontWeight(.semibold)
+                                .disabled(draft.customTag.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                             }
-                            .disabled(draft.customTag.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                            .padding(12)
+                            .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                         }
                     }
                 }
+                .padding(20)
             }
-            .navigationTitle(mode.title)
-            .scrollContentBackground(.hidden)
+            .scrollDismissesKeyboard(.interactively)
             .background(AppTheme.background)
+            .navigationTitle(mode.title)
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
+                    Button(isAdding ? "Add" : "Save") {
                         onSave(draft)
                         dismiss()
                     }
+                    .fontWeight(.semibold)
                     .disabled(draft.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
+            .onAppear {
+                if isAdding { isTitleFocused = true }
+            }
         }
+    }
+
+    private var isAdding: Bool {
+        if case .add = mode { return true }
+        return false
     }
 
     private var tagChoices: [String] {
@@ -253,10 +281,10 @@ private struct TagChipPicker: View {
                     toggle(tag)
                 } label: {
                     Text(tag)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(selectedTags.contains(tag) ? .white : ideaTagColor(for: tag))
-                        .padding(.horizontal, 11)
-                        .padding(.vertical, 7)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(selectedTags.contains(tag) ? AppTheme.onAvatar : ideaTagColor(for: tag))
+                        .padding(.horizontal, 14)
+                        .frame(minHeight: 36)
                         .background(selectedTags.contains(tag) ? ideaTagColor(for: tag) : ideaTagColor(for: tag).opacity(0.16), in: Capsule())
                 }
                 .buttonStyle(.plain)
@@ -267,7 +295,7 @@ private struct TagChipPicker: View {
                 Image(systemName: "plus")
                     .font(.caption.weight(.bold))
                     .foregroundStyle(AppTheme.primary)
-                    .frame(width: 30, height: 30)
+                    .frame(width: 36, height: 36)
                     .background(AppTheme.primarySoft, in: Circle())
             }
             .buttonStyle(.plain)

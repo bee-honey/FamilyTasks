@@ -3,7 +3,6 @@ import SwiftUI
 struct HealthView: View {
     @EnvironmentObject private var organizerStore: OrganizerStore
     @AppStorage("profile.email") private var profileEmail = ""
-    @AppStorage("profile.initials") private var profileInitials = ""
     @StateObject private var healthService = HealthMetricsService()
     @State private var selectedScope = HealthMetricScope.day
 
@@ -12,20 +11,23 @@ struct HealthView: View {
         Group {
             List {
                 Section {
-                    Picker("Range", selection: $selectedScope) {
+                    HStack(spacing: 8) {
                         ForEach(HealthMetricScope.allCases) { scope in
-                            Text(scope.title).tag(scope)
+                            ChoiceChip(title: scope.title, isSelected: selectedScope == scope) {
+                                selectedScope = scope
+                            }
                         }
                     }
-                    .pickerStyle(.segmented)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets())
                 }
 
                 Section {
                     if !familySummaries.isEmpty {
                         ForEach(familySummaries) { summary in
                             HealthMemberMetricRow(
-                                initials: summary.initials,
-                                name: summary.memberEmail,
+                                email: summary.memberEmail,
+                                name: memberName(summary.memberEmail),
                                 steps: HealthMetricSummary.stepText(for: summary.steps),
                                 sleep: HealthMetricSummary.sleepText(for: summary.sleepSeconds)
                             )
@@ -34,8 +36,8 @@ struct HealthView: View {
                         ProgressView("Loading health data")
                     } else if let summary = selectedSummary {
                         HealthMemberMetricRow(
-                            initials: displayInitials,
-                            name: profileEmail.isEmpty ? "You" : profileEmail,
+                            email: profileEmail,
+                            name: "You",
                             steps: summary.stepText,
                             sleep: summary.sleepText
                         )
@@ -47,22 +49,27 @@ struct HealthView: View {
                         )
                     }
                 } header: {
-                    Text("Family Summary")
+                    SectionTitle(text: "Family")
                 } footer: {
                     Text("Each member opts in on their own device. Shared Health keeps only daily steps and sleep summaries in family iCloud data.")
                 }
 
-                if !familyDailyGroups.isEmpty {
-                    Section(detailTitle) {
+                // Day has nothing to break down beyond the summary above.
+                if selectedScope == .day {
+                    EmptyView()
+                } else if !familyDailyGroups.isEmpty {
+                    Section {
                         switch selectedScope {
                         case .day, .week, .month:
                             FamilyHealthDetailList(groups: familyDailyGroups)
                         case .year:
                             FamilyHealthDetailList(groups: familyMonthlyGroups)
                         }
+                    } header: {
+                        SectionTitle(text: detailTitle)
                     }
                 } else if let summary = selectedSummary, !summary.points.isEmpty {
-                    Section(detailTitle) {
+                    Section {
                         switch selectedScope {
                         case .day:
                             HealthDetailList(points: summary.points)
@@ -73,9 +80,12 @@ struct HealthView: View {
                         case .year:
                             HealthDetailList(points: summary.points)
                         }
+                    } header: {
+                        SectionTitle(text: detailTitle)
                     }
                 }
             }
+            .listRowBackground(AppTheme.surface)
             .navigationTitle("Health")
             .scrollContentBackground(.hidden)
             .background(AppTheme.background)
@@ -182,16 +192,10 @@ struct HealthView: View {
         }
     }
 
-    private var displayInitials: String {
-        let trimmedInitials = profileInitials.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !trimmedInitials.isEmpty {
-            return String(trimmedInitials.prefix(3)).uppercased()
-        }
-
-        let localPart = profileEmail.split(separator: "@").first.map(String.init) ?? ""
-        let parts = localPart.split(whereSeparator: { $0 == "." || $0 == "_" || $0 == "-" || $0 == " " })
-        let letters = parts.prefix(2).compactMap(\.first)
-        return letters.isEmpty ? "ME" : String(letters).uppercased()
+    private func memberName(_ email: String) -> String {
+        email.caseInsensitiveCompare(profileEmail.trimmingCharacters(in: .whitespacesAndNewlines)) == .orderedSame
+            ? "You"
+            : Assignee.memberName(for: email)
     }
 }
 
@@ -218,7 +222,7 @@ private struct FamilyHealthDetailList: View {
         ForEach(groups) { group in
             VStack(alignment: .leading, spacing: 8) {
                 Text(group.title)
-                    .font(.subheadline.weight(.semibold))
+                    .font(.body.weight(.semibold))
                 ForEach(group.snapshots) { snapshot in
                     HealthSnapshotCompactRow(snapshot: snapshot)
                 }
@@ -266,58 +270,62 @@ private struct HealthSnapshotCompactRow: View {
     let snapshot: HealthSnapshot
 
     var body: some View {
-        HStack(spacing: 8) {
-            Text(snapshot.displayInitials)
-                .font(.caption.weight(.bold))
-                .foregroundStyle(.white)
-                .frame(width: 30, height: 30)
-                .background(AppTheme.primary, in: Circle())
-            Text("\(HealthMetricSummary.stepText(for: snapshot.steps)) steps")
+        HStack(spacing: 10) {
+            AssigneeAvatarView(name: snapshot.memberEmail, size: 28, showsPhoto: false)
+            Label("\(HealthMetricSummary.stepText(for: snapshot.steps)) steps", systemImage: "figure.walk")
                 .font(.subheadline)
+                .labelStyle(.titleAndIcon)
             Spacer()
-            Text("\(HealthMetricSummary.sleepText(for: snapshot.sleepSeconds)) sleep")
-                .font(.caption)
+            Label(HealthMetricSummary.sleepText(for: snapshot.sleepSeconds), systemImage: "bed.double.fill")
+                .font(.footnote)
                 .foregroundStyle(.secondary)
         }
     }
 }
 
+/// A family member's avatar and name, with steps and sleep as colored stats.
 private struct HealthMemberMetricRow: View {
-    let initials: String
+    let email: String
     let name: String
     let steps: String
     let sleep: String
 
     var body: some View {
-        HStack(spacing: 10) {
-            Text(initials)
-                .font(.caption.weight(.bold))
-                .foregroundStyle(.white)
-                .frame(width: 34, height: 34)
-                .background(AppTheme.primary, in: Circle())
-
-            Text(initials)
-                .font(.headline)
-                .lineLimit(1)
-
-            Spacer(minLength: 8)
-
-            VStack(alignment: .trailing, spacing: 3) {
-                Label("\(steps) steps", systemImage: "figure.walk")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(AppTheme.ink)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
-                Label("\(sleep) sleep", systemImage: "bed.double")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 12) {
+                AssigneeAvatarView(name: email, size: 36, showsPhoto: false)
+                Text(name)
+                    .font(.body.weight(.semibold))
                     .lineLimit(1)
             }
-            .labelStyle(.titleAndIcon)
+
+            HStack(spacing: 10) {
+                stat(steps, unit: "steps", systemImage: "figure.walk", tint: AppTheme.warmAccent)
+                stat(sleep, unit: "sleep", systemImage: "bed.double.fill", tint: AppTheme.coolAccent)
+            }
         }
-        .padding(.vertical, 5)
+        .padding(.vertical, 6)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(name), \(steps) steps, \(sleep) sleep")
+    }
+
+    private func stat(_ value: String, unit: String, systemImage: String, tint: Color) -> some View {
+        HStack(spacing: 10) {
+            IconTile(systemImage: systemImage, tint: tint, size: 32)
+            VStack(alignment: .leading, spacing: 0) {
+                Text(value)
+                    .font(.headline)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                Text(unit)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity)
+        .background(tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 }
 

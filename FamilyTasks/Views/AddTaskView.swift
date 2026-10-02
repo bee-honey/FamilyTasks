@@ -211,7 +211,7 @@ struct TaskEditorView: View {
 }
 
 /// A small bold uppercase heading over a group of controls.
-private struct EditorSection<Content: View>: View {
+struct EditorSection<Content: View>: View {
     let title: String
     @ViewBuilder let content: Content
 
@@ -231,7 +231,7 @@ private struct EditorSection<Content: View>: View {
     }
 }
 
-private struct ChoiceChip: View {
+struct ChoiceChip: View {
     let title: String
     let isSelected: Bool
     let action: () -> Void
@@ -250,11 +250,23 @@ private struct ChoiceChip: View {
     }
 }
 
+/// A draft that's for everyone or for specific family members.
+protocol AssignableDraft {
+    var assignedTo: String { get set }
+    var assignedToEmails: [String] { get set }
+    var assignsToEveryone: Bool { get set }
+}
+
+extension TaskDraft: AssignableDraft {}
+extension RecurringTaskDraft: AssignableDraft {}
+
 /// Everyone, or specific family members (you're always included then, so the task stays
 /// on your own list).
-private struct AssigneePicker: View {
-    @Binding var draft: TaskDraft
+struct AssigneePicker<Draft: AssignableDraft>: View {
+    @Binding var draft: Draft
     let familyMembers: [String]
+    /// What's being shared, for the note under the people: "task", "recurring task".
+    var noun = "task"
     @AppStorage("profile.email") private var profileEmail = ""
 
     var body: some View {
@@ -350,7 +362,7 @@ private struct AssigneePicker: View {
 
     private var privacyNote: String {
         if draft.assignsToEveryone {
-            return "Everyone in your family sees this task."
+            return "Everyone in your family sees this \(noun)."
         }
 
         // Tasks still sync to every device in the family share; other members' apps just
@@ -402,7 +414,7 @@ private struct PriorityPicker: View {
 }
 
 /// The task's reminder: the default from notification settings, none, or one lead time.
-private struct ReminderMenu: View {
+struct ReminderMenu: View {
     @Binding var preference: TaskNotificationPreference
 
     private static let quickChoices = [15, 30, 60, 120, 1_440]

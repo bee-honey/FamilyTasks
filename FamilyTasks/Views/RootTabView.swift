@@ -41,6 +41,11 @@ enum TabSection: String, CaseIterable, Identifiable {
     /// The saved tabs: two different sections, filled from the defaults. Anything saved
     /// that is no longer a choice (Family, which is always a tab now) is skipped.
     static func slots(from raw: String) -> [TabSection] {
+        // The earlier three-tab setting always included Family. It was saved by just
+        // opening the old picker, so it's treated as never chosen: the new default applies.
+        if raw.split(separator: ",").contains("family") {
+            return defaultSlots
+        }
         var slots: [TabSection] = []
         for section in raw.split(separator: ",").compactMap({ TabSection(rawValue: String($0)) }) where !slots.contains(section) {
             slots.append(section)

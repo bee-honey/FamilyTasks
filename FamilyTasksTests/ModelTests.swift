@@ -226,10 +226,10 @@ final class ModelTests: XCTestCase {
         XCTAssertEqual(TabSection.slots(from: TabSection.encode([.chores, .ideas])), [.chores, .ideas])
     }
 
-    func testTabsSavedWithFamilyCarryOver() {
-        // Family used to be a choice; it's always a tab now.
-        XCTAssertEqual(TabSection.slots(from: "mealPlan,shopping,family"), [.mealPlan, .shopping])
-        XCTAssertEqual(TabSection.slots(from: "family,tasks,chores"), [.tasks, .chores])
+    func testTheOldThreeTabSettingGivesTheNewDefault() {
+        // The old setting always included Family; Meal Plan and Shopping replace it.
+        XCTAssertEqual(TabSection.slots(from: "tasks,shopping,family"), [.mealPlan, .shopping])
+        XCTAssertEqual(TabSection.slots(from: "family,tasks,chores"), [.mealPlan, .shopping])
     }
 
     func testPickingASectionAlreadyInTheOtherTabSwapsThem() {

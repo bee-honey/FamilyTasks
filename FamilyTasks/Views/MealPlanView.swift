@@ -351,10 +351,15 @@ private struct WeeklyMealPlanGrid: View {
                 .frame(width: 58, height: 1)
 
             ForEach(MealSlot.allCases) { slot in
-                Text(slot.title)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
+                Label(slot.title, systemImage: slot.systemImage)
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(slot.courseColor)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 6)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(slot.courseColor.opacity(0.14), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
         }
         .padding(.horizontal, 6)
@@ -392,7 +397,7 @@ private struct MealPlanGridCell: View {
             if plannedMeals.isEmpty {
                 Button(action: onPlan) {
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .strokeBorder(AppTheme.surfaceMuted, style: StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
+                        .strokeBorder(slot.courseColor.opacity(0.35), style: StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
                         .frame(maxWidth: .infinity, minHeight: 48)
                         .contentShape(Rectangle())
                 }
@@ -418,7 +423,13 @@ private struct MealPlanGridCell: View {
                                 .lineLimit(2)
                                 .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
                                 .padding(.horizontal, 8)
-                                .background(isToday ? AppTheme.surface : AppTheme.surfaceMuted, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                .background(slot.courseColor.opacity(isToday ? 0.3 : 0.2), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                .overlay(alignment: .leading) {
+                                    Capsule()
+                                        .fill(slot.courseColor)
+                                        .frame(width: 3)
+                                        .padding(.vertical, 10)
+                                }
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel("\(slot.title): \(meal.name)")
@@ -519,52 +530,64 @@ struct MealEditorView: View {
         _suggestInGeneratedPlans = State(initialValue: !(meal?.skipInGeneratedPlans ?? false))
     }
 
+    @FocusState private var isNameFocused: Bool
+
     var body: some View {
         NavigationStack {
-            Form {
-                Section("Meal") {
-                    TextField("Name", text: $name)
-                    Picker("Type", selection: $category) {
-                        ForEach(MealCategory.allCases) { category in
-                            Text(category.title).tag(category)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 26) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        TextField("What's the meal?", text: $name, axis: .vertical)
+                            .font(.title2.weight(.bold))
+                            .focused($isNameFocused)
+                        TextField("Add notes or a recipe link", text: $notes, axis: .vertical)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1...5)
+                    }
+
+                    EditorSection("Type") {
+                        WrappingStack(spacing: 8) {
+                            ForEach(MealCategory.allCases) { choice in
+                                ChoiceChip(title: choice.title, isSelected: category == choice) {
+                                    category = choice
+                                }
+                            }
                         }
                     }
-                    TextField("Notes", text: $notes, axis: .vertical)
-                        .lineLimit(2...4)
-                }
 
-                Section {
-                    Toggle(isOn: $suggestInGeneratedPlans) {
-                        Label("Suggest in Generated Plans", systemImage: "wand.and.stars")
-                            .labelStyle(.tile(AppTheme.primary))
+                    EditorSection("Ingredients") {
+                        ingredientsCard
+                        Text("Shop for This Week adds these to the shopping list, at each one's shop.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
                     }
-                    if suggestInGeneratedPlans {
-                        Stepper(value: $timesPerWeek, in: 1...7) {
-                            Label(timesPerWeek == 1 ? "Once a week" : "Up to \(timesPerWeek) times a week", systemImage: "repeat")
-                                .labelStyle(.tile(AppTheme.coolAccent))
+
+                    EditorSection("Generated Plans") {
+                        VStack(spacing: 0) {
+                            Toggle(isOn: $suggestInGeneratedPlans) {
+                                Label("Suggest in Generated Plans", systemImage: "wand.and.stars")
+                                    .labelStyle(.tile(AppTheme.primary))
+                            }
+                            .padding(12)
+                            if suggestInGeneratedPlans {
+                                Divider().padding(.leading, 56)
+                                Stepper(value: $timesPerWeek, in: 1...7) {
+                                    Label(timesPerWeek == 1 ? "Once a week" : "Up to \(timesPerWeek) times a week", systemImage: "repeat")
+                                        .labelStyle(.tile(AppTheme.coolAccent))
+                                }
+                                .padding(12)
+                            }
                         }
-                    }
-                } header: {
-                    Text("Generated Plans")
-                } footer: {
-                    Text("Meals that can repeat let a generated plan fill the week with fewer meals. Turn suggestions off for meals that are out of season.")
-                }
-
-                Section("Ingredients") {
-                    ForEach($ingredients) { $ingredient in
-                        IngredientEditorRow(ingredient: $ingredient)
-                    }
-                    .onDelete { offsets in
-                        ingredients.remove(atOffsets: offsets)
-                    }
-
-                    Button {
-                        ingredients.append(MealIngredient(name: ""))
-                    } label: {
-                        Label("Add Ingredient", systemImage: "plus.circle")
+                        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        Text("Meals that can repeat let a generated plan fill the week with fewer meals. Turn suggestions off for meals that are out of season.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
                     }
                 }
+                .padding(20)
             }
+            .scrollDismissesKeyboard(.interactively)
+            .background(AppTheme.background)
             .navigationTitle(meal == nil ? "New Meal" : "Edit Meal")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -573,7 +596,7 @@ struct MealEditorView: View {
                 }
 
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
+                    Button(meal == nil ? "Add" : "Save") {
                         if let meal {
                             organizerStore.updateMealIdea(meal, name: name, category: category, ingredients: ingredients, notes: notes, timesPerWeek: timesPerWeek, skipInGeneratedPlans: !suggestInGeneratedPlans)
                         } else {
@@ -581,29 +604,85 @@ struct MealEditorView: View {
                         }
                         dismiss()
                     }
+                    .fontWeight(.semibold)
                     .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
+            .onAppear {
+                if meal == nil { isNameFocused = true }
+            }
         }
+    }
+
+    private var ingredientsCard: some View {
+        VStack(spacing: 0) {
+            ForEach($ingredients) { $ingredient in
+                IngredientEditorRow(ingredient: $ingredient) {
+                    ingredients.removeAll { $0.id == ingredient.id }
+                }
+                Divider().padding(.leading, 12)
+            }
+
+            Button {
+                ingredients.append(MealIngredient(name: ""))
+            } label: {
+                Label("Add Ingredient", systemImage: "plus")
+                    .font(.body.weight(.semibold))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(12)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(AppTheme.primary)
+        }
+        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 }
 
+/// An ingredient's name, the shop it's usually bought at, and a button to remove it.
 private struct IngredientEditorRow: View {
     @EnvironmentObject private var organizerStore: OrganizerStore
     @Binding var ingredient: MealIngredient
+    let onRemove: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        HStack(spacing: 8) {
             TextField("Ingredient", text: $ingredient.name)
 
-            Picker("Default Shop", selection: $ingredient.defaultShopID) {
-                Text("Choose later").tag(Optional<UUID>.none)
-                ForEach(organizerStore.shops) { shop in
-                    Text(shop.name).tag(Optional(shop.id))
+            Menu {
+                Picker("Shop", selection: $ingredient.defaultShopID) {
+                    Text("Choose later").tag(Optional<UUID>.none)
+                    ForEach(organizerStore.shops) { shop in
+                        Text(shop.name).tag(Optional(shop.id))
+                    }
                 }
+            } label: {
+                Label(shopName ?? "Shop", systemImage: "storefront")
+                    .font(.caption.weight(.semibold))
+                    .lineLimit(1)
+                    .foregroundStyle(shopName == nil ? Color.secondary : AppTheme.coolAccent)
+                    .padding(.horizontal, 10)
+                    .frame(minHeight: 30)
+                    .background((shopName == nil ? Color.secondary : AppTheme.coolAccent).opacity(0.14), in: Capsule())
             }
-            .font(.caption)
+            .accessibilityLabel("Shop for \(ingredient.name.isEmpty ? "ingredient" : ingredient.name)")
+
+            Button(action: onRemove) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 32, height: 32)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Remove ingredient")
         }
+        .padding(.leading, 12)
+        .padding(.trailing, 6)
+        .padding(.vertical, 6)
+    }
+
+    private var shopName: String? {
+        ingredient.defaultShopID.flatMap { id in organizerStore.shops.first { $0.id == id }?.name }
     }
 }
 
@@ -934,6 +1013,17 @@ private struct ShopForWeekButton: View {
                         }
                     }
             }
+        }
+    }
+}
+
+extension MealSlot {
+    /// Each course's color in the meal plan, so breakfast, lunch and dinner read as columns.
+    var courseColor: Color {
+        switch self {
+        case .breakfast: AppTheme.goldAccent
+        case .lunch: AppTheme.brightAccent
+        case .dinner: AppTheme.coolAccent
         }
     }
 }

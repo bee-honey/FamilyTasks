@@ -819,6 +819,7 @@ private enum NotificationLeadTimeUnit: String, CaseIterable, Identifiable {
 struct SyncSettingsView: View {
     @EnvironmentObject private var taskStore: TaskStore
     @EnvironmentObject private var sharedHouseholdStore: SharedHouseholdStore
+    @AppStorage("profile.email") private var profileEmail = ""
     @State private var preparedCloudShare: PreparedCloudShare?
     @State private var inviteLinkText = ""
 
@@ -826,157 +827,142 @@ struct SyncSettingsView: View {
         // Shown inside a tab's NavigationStack.
         Group {
             Form {
-                Section("Household Sharing") {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Label("How Invites Work", systemImage: "person.crop.circle.badge.questionmark")
-                        Text("The iCloud invite can be sent by iMessage, email, or phone number, but Apple keeps that contact identity private. Each person appears in this app after they accept the share and complete their profile email.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(.vertical, 4)
-
-                    Button {
-                        Task {
-                            do {
-                                preparedCloudShare = try await sharedHouseholdStore.prepareCloudShare()
-                            } catch {
-                                // The store exposes the user-facing error in the sharing status rows.
-                            }
-                        }
-                    } label: {
-                        if sharedHouseholdStore.isSyncing {
-                            HStack {
-                                ProgressView()
-                                Text("Preparing Share")
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        } else {
-                            VStack(alignment: .leading, spacing: 3) {
-                                Label("Invite Household Member", systemImage: "person.2.badge.plus")
-                                Text("Send an iCloud invite. After they join and set up their profile, their email is added here automatically.")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                Section {
+                    HStack(spacing: 14) {
+                        IconTile(systemImage: sharedHouseholdStore.isSharingConfigured ? "icloud.fill" : "icloud", tint: SettingsTint.iCloud, size: 48)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(sharedHouseholdStore.isSharingConfigured ? "Sharing with your family" : "Not sharing yet")
+                                .font(.headline)
+                            Text(sharingDetail)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
                         }
                     }
-                    .buttonStyle(.plain)
-                    .disabled(sharedHouseholdStore.isSyncing)
+                    .padding(.vertical, 6)
 
                     if sharedHouseholdStore.isSharingConfigured {
-                        Button {
-                            Task {
-                                do {
-                                    preparedCloudShare = try await sharedHouseholdStore.prepareCloudShare()
-                                } catch {
-                                    // The store exposes the user-facing error in the sharing status rows.
-                                }
-                            }
-                        } label: {
-                            Label("Manage iCloud Share", systemImage: "person.2.slash")
-                                .frame(maxWidth: .infinity, alignment: .leading)
+                        RefreshRow(
+                            title: "Refresh Shared Data",
+                            busyTitle: "Refreshing Shared Data",
+                            isBusy: sharedHouseholdStore.isSyncing
+                        ) {
+                            await sharedHouseholdStore.refreshFromCloud()
                         }
-                        .buttonStyle(.plain)
-                        .disabled(sharedHouseholdStore.isSyncing)
-                    }
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        Label("Members", systemImage: "person.2")
-
-                        if taskStore.familyMembers.isEmpty {
-                            Text("No members yet. Invite someone or complete your own profile to start the household list.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        } else {
-                            ForEach(taskStore.familyMembers, id: \.self) { member in
-                                HStack(spacing: 10) {
-                                    AssigneeAvatarView(name: member)
-                                        .scaleEffect(0.72)
-                                        .frame(width: 28, height: 28)
-                                    Text(member)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                        .lineLimit(1)
-                                }
-                            }
-                        }
-
-                        Text(memberStatusDetail)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(.vertical, 4)
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        TextField("Paste iCloud invite link", text: $inviteLinkText)
-                            .keyboardType(.URL)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
-
-                        Button {
-                            Task {
-                                await sharedHouseholdStore.acceptShareLink(inviteLinkText)
-                                if sharedHouseholdStore.lastErrorMessage == nil {
-                                    inviteLinkText = ""
-                                }
-                            }
-                        } label: {
-                            if sharedHouseholdStore.isSyncing {
-                                HStack {
-                                    ProgressView()
-                                    Text("Joining Household")
-                                }
-                            } else {
-                                Label("Accept Invite Link", systemImage: "link.badge.plus")
-                            }
-                        }
-                        .disabled(!canAcceptInviteLink || sharedHouseholdStore.isSyncing)
-
-                        Text("Use this if the iCloud invite opens the App Store first. Install the app, copy the original invite link, paste it here, and join the shared household.")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(.vertical, 4)
-
-                    RefreshRow(
-                        title: "Refresh Shared Data",
-                        busyTitle: "Refreshing Shared Data",
-                        detail: sharedHouseholdStore.statusMessage,
-                        isBusy: sharedHouseholdStore.isSyncing
-                    ) {
-                        await sharedHouseholdStore.refreshFromCloud()
-                    }
-                    .disabled(!sharedHouseholdStore.isSharingConfigured)
-
-                    HStack {
-                        Label("Sharing Status", systemImage: "icloud")
-                        Spacer()
-                        Text(sharedHouseholdStore.statusMessage)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.trailing)
                     }
 
                     if let message = sharedHouseholdStore.lastErrorMessage, !message.isEmpty {
-                        Text(message)
-                            .font(.caption)
+                        Label(message, systemImage: "exclamationmark.triangle.fill")
+                            .labelStyle(.tile(AppTheme.destructive))
+                            .font(.subheadline)
                             .foregroundStyle(AppTheme.destructive)
                     }
                 }
 
-                Section("Shared Household Data") {
-                    Label("Tasks and assignees", systemImage: "checklist")
-                    Label("Recurring tasks", systemImage: "repeat")
-                    Label("Shopping lists", systemImage: "cart")
-                    Label("Meal ideas and planned meals", systemImage: "fork.knife")
-                    Label("Profile initials and photos", systemImage: "person.crop.circle")
-
-                    VStack(alignment: .leading, spacing: 6) {
-                        Label("Kept Local", systemImage: "lock")
-                        Text("Calendar access, calendar events, notification preferences, and display settings stay on each person's device.")
-                            .font(.caption)
+                Section {
+                    if taskStore.familyMembers.isEmpty {
+                        Text("No one yet. Invite someone, or finish your own profile to start the family list.")
                             .foregroundStyle(.secondary)
                     }
-                    .padding(.vertical, 4)
+                    ForEach(taskStore.familyMembers, id: \.self) { member in
+                        HStack(spacing: 12) {
+                            AssigneeAvatarView(name: member, size: 36, showsPhoto: false)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(isYou(member) ? "You" : Assignee.memberName(for: member))
+                                    .font(.body.weight(.semibold))
+                                Text(member)
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+                        }
+                        .padding(.vertical, 2)
+                    }
+                } header: {
+                    SectionTitle(text: "Family")
+                } footer: {
+                    Text(memberStatusDetail)
+                }
+
+                Section {
+                    Button {
+                        prepareShare()
+                    } label: {
+                        if sharedHouseholdStore.isSyncing {
+                            HStack(spacing: 12) {
+                                ProgressView()
+                                    .frame(width: 30, height: 30)
+                                Text("Preparing Invite")
+                            }
+                        } else {
+                            Label("Invite Family Member", systemImage: "person.2.badge.plus")
+                                .labelStyle(.tile(SettingsTint.iCloud))
+                                .font(.body.weight(.semibold))
+                        }
+                    }
+                    .disabled(sharedHouseholdStore.isSyncing)
+
+                    if sharedHouseholdStore.isSharingConfigured {
+                        Button {
+                            prepareShare()
+                        } label: {
+                            Label("Manage Who Has Access", systemImage: "person.2.slash")
+                                .labelStyle(.tile(AppTheme.softAccent))
+                        }
+                        .disabled(sharedHouseholdStore.isSyncing)
+                    }
+                } header: {
+                    SectionTitle(text: "Invite")
+                } footer: {
+                    Text("Send the iCloud invite by Messages, email or phone. Each person appears here once they accept it and set up their profile in the app.")
+                }
+
+                Section {
+                    TextField("Paste iCloud invite link", text: $inviteLinkText)
+                        .keyboardType(.URL)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+
+                    Button {
+                        Task {
+                            await sharedHouseholdStore.acceptShareLink(inviteLinkText)
+                            if sharedHouseholdStore.lastErrorMessage == nil {
+                                inviteLinkText = ""
+                            }
+                        }
+                    } label: {
+                        if sharedHouseholdStore.isSyncing {
+                            HStack(spacing: 12) {
+                                ProgressView()
+                                    .frame(width: 30, height: 30)
+                                Text("Joining")
+                            }
+                        } else {
+                            Label("Join With This Link", systemImage: "link.badge.plus")
+                                .labelStyle(.tile(AppTheme.primary))
+                        }
+                    }
+                    .disabled(!canAcceptInviteLink || sharedHouseholdStore.isSyncing)
+                } header: {
+                    SectionTitle(text: "Got an invite?")
+                } footer: {
+                    Text("If the invite opened the App Store instead, install the app, then paste the original invite link here.")
+                }
+
+                Section {
+                    Label("Tasks and who they're for", systemImage: "checklist")
+                        .labelStyle(.tile(AppTheme.warmAccent))
+                    Label("Shopping lists", systemImage: "cart")
+                        .labelStyle(.tile(AppTheme.coolAccent))
+                    Label("Meals and the meal plan", systemImage: "fork.knife")
+                        .labelStyle(.tile(AppTheme.brightAccent))
+                    Label("Recurring tasks and chores", systemImage: "repeat")
+                        .labelStyle(.tile(AppTheme.softAccent))
+                    Label("Profile initials and photos", systemImage: "person.crop.circle")
+                        .labelStyle(.tile(AppTheme.primary))
+                } header: {
+                    SectionTitle(text: "What's Shared")
+                } footer: {
+                    Text("Calendar access and events, notification settings and appearance stay on each phone.")
                 }
             }
             .navigationTitle("iCloud Sharing")
@@ -989,12 +975,35 @@ struct SyncSettingsView: View {
         }
     }
 
+    private func prepareShare() {
+        Task {
+            do {
+                preparedCloudShare = try await sharedHouseholdStore.prepareCloudShare()
+            } catch {
+                // The store exposes the user-facing error in the status card.
+            }
+        }
+    }
+
+    /// The status under the card's title, without repeating it.
+    private var sharingDetail: String {
+        let message = sharedHouseholdStore.statusMessage
+        if message.caseInsensitiveCompare("Not sharing yet") == .orderedSame || message.isEmpty {
+            return "Invite your family to share tasks, meals and shopping."
+        }
+        return message
+    }
+
+    private func isYou(_ member: String) -> Bool {
+        member.caseInsensitiveCompare(profileEmail.trimmingCharacters(in: .whitespacesAndNewlines)) == .orderedSame
+    }
+
     private var memberStatusDetail: String {
         if sharedHouseholdStore.isSharingConfigured {
-            return "After someone accepts the iCloud invite, they appear here when their profile email syncs back to the household."
+            return "New members appear once their profile syncs to the family."
         }
 
-        return "Members are shared after the first iCloud invite is created. Each person confirms their own profile email in this app."
+        return "Each person confirms their own email in their profile. The list is shared once you send the first invite."
     }
 
     private var canAcceptInviteLink: Bool {
