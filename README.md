@@ -6,17 +6,23 @@ Family Task Planner is a SwiftUI iOS app for running a household together. It co
 
 ## Screenshots
 
-| Today | Meal Plan | Shopping |
-| --- | --- | --- |
-| ![Today](docs/screenshots/today.png) | ![Meal Plan](docs/screenshots/meal.png) | ![Shopping](docs/screenshots/shopping.png) |
-
-| Tasks | Recurring | Chores |
-| --- | --- | --- |
-| ![Tasks](docs/screenshots/matrix.png) | ![Recurring](docs/screenshots/recurring.png) | ![Chores](docs/screenshots/chores.png) |
-
-| Health | Ideas | Themes |
-| --- | --- | --- |
-| ![Health](docs/screenshots/health.png) | ![Ideas](docs/screenshots/ideas.png) | ![Themes](docs/screenshots/themes.png) |
+<table>
+  <tr>
+    <td align="center"><img src="docs/screenshots/today.png" alt="Today" width="240"><br><sub>Today</sub></td>
+    <td align="center"><img src="docs/screenshots/meal.png" alt="Meal Plan" width="240"><br><sub>Meal Plan</sub></td>
+    <td align="center"><img src="docs/screenshots/shopping.png" alt="Shopping" width="240"><br><sub>Shopping</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/matrix.png" alt="Tasks" width="240"><br><sub>Tasks</sub></td>
+    <td align="center"><img src="docs/screenshots/recurring.png" alt="Recurring" width="240"><br><sub>Recurring</sub></td>
+    <td align="center"><img src="docs/screenshots/chores.png" alt="Chores" width="240"><br><sub>Chores</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/health.png" alt="Health" width="240"><br><sub>Health</sub></td>
+    <td align="center"><img src="docs/screenshots/ideas.png" alt="Ideas" width="240"><br><sub>Ideas</sub></td>
+    <td align="center"><img src="docs/screenshots/themes.png" alt="Themes" width="240"><br><sub>Themes</sub></td>
+  </tr>
+</table>
 
 ## Features
 
