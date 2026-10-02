@@ -495,6 +495,7 @@ private struct ChoreSettingsView: View {
     @State private var pointsPerUnit = 10
     /// nil means each phone's own currency.
     @State private var currencyCode: String?
+    @State private var hasLoaded = false
 
     var body: some View {
         NavigationStack {
@@ -531,6 +532,10 @@ private struct ChoreSettingsView: View {
                 }
             }
             .onAppear {
+                // onAppear runs again when returning from the currency list; loading the
+                // saved values then would throw away the currency just picked.
+                guard !hasLoaded else { return }
+                hasLoaded = true
                 pointsPerUnit = choreStore.settings.pointsPerCurrencyUnit
                 currencyCode = choreStore.settings.currencyCode
             }
