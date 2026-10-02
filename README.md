@@ -6,27 +6,35 @@ Family Task Planner is a SwiftUI iOS app for running a household together. It co
 
 ## Screenshots
 
-| Menu | Task Matrix | Shopping |
+| Today | Meal Plan | Shopping |
 | --- | --- | --- |
-| ![Menu](docs/screenshots/menu.png) | ![Task Matrix](docs/screenshots/matrix.png) | ![Shopping](docs/screenshots/shopping.png) |
+| ![Today](docs/screenshots/today.png) | ![Meal Plan](docs/screenshots/meal.png) | ![Shopping](docs/screenshots/shopping.png) |
 
-| Ideas | Health Day | Health Year |
+| Tasks | Recurring | Chores |
 | --- | --- | --- |
-| ![Ideas](docs/screenshots/ideas.png) | ![Health Day](docs/screenshots/health-day.png) | ![Health Year](docs/screenshots/health-year.png) |
+| ![Tasks](docs/screenshots/matrix.png) | ![Recurring](docs/screenshots/recurring.png) | ![Chores](docs/screenshots/chores.png) |
+
+| Health | Ideas | Themes |
+| --- | --- | --- |
+| ![Health](docs/screenshots/health.png) | ![Ideas](docs/screenshots/ideas.png) | ![Themes](docs/screenshots/themes.png) |
 
 ## Features
 
-- Today view for scheduled tasks and imported calendar events.
-- Eisenhower-style task matrix with Do, Schedule, Delegate, and Drop sections.
-- Family member assignment using initials/profile avatars.
-- Calendar integration with EventKit, including Google calendars configured on the device.
-- Shopping lists grouped by shop, with shareable bullet-point lists.
-- Recurring tasks for bills, household services, and repeated chores.
-- Meal planning with reusable meal ideas, week/day planning, breakfast/lunch/dinner slots, and ingredient-to-grocery handoff.
-- Ideas notebook for saving links, places, activities, and family finds by tag.
-- Optional Health section for opted-in family steps and sleep summaries.
-- Profile/settings area for identity, family members, notifications, calendar integration, view preferences, and Health settings.
-- App icon, privacy manifest, and App Store release checklist included.
+- **Today:** a greeting header with today's progress, a Week or Month view, tasks with initials avatars and priority tags, calendar events, and recurring items.
+- **Tasks:** a big-title editor with a people picker, quick due dates, reminders, a location with a map pin (opens Apple Maps, Google Maps or Waze), and Do now / Schedule / Delegate / Someday priorities. A task matrix groups them by priority.
+- **"Done by" news:** a notification when a family member finishes a task.
+- **Meal Plan:** a weekly grid with color-coded breakfast, lunch and dinner columns.
+  - **Generate Meal Plan** fills the empty slots from saved meals. You can review it, swap a meal, choose your own, or stop suggesting one.
+  - Each meal can repeat up to a set number of times a week.
+  - **Shop for This Week** turns the week's ingredients into shopping items at each one's shop.
+- **Shopping:** lists grouped by shop, a notification when someone finishes shopping, and lists you can share.
+- **Chores:** chores for kids with points, parent approval, conversion to money in your currency, and a running total.
+- **Recurring tasks:** bills, services and chores that come round again, with pause and resume.
+- **Ideas:** saved links, places and activities, with colored tags.
+- **Health (optional):** family steps and sleep summaries, opted in on each device.
+- **Personalize:** six color themes (Sunday Morning by default), light or dark mode, and your choice of the two middle tabs.
+- **Widgets and Siri:** Today and Shopping widgets, plus Shortcuts actions.
+- **Family sharing:** through iCloud (CloudKit), with each item synced as its own record.
 
 ## Project Structure
 
@@ -44,7 +52,7 @@ The app uses EventKit. If a Google account is added under iOS Settings > Calenda
 
 ## Family Sharing
 
-The app uses CloudKit sharing for a shared household workspace. Tasks, family member emails, profiles, shopping lists, recurring tasks, meal ideas, planned meals, ideas, and opted-in health summaries are stored as one shared household payload after the owner shares it from iCloud Settings.
+The app uses CloudKit sharing for a shared household workspace. After the owner shares it from iCloud Sharing settings, tasks, family members, shopping lists, recurring tasks, meals, planned meals, chores, ideas, and opted-in health summaries sync as individual records in the shared zone, with push notifications for changes.
 
 Health sharing is opt-in per device. The app stores only small daily steps and sleep summaries in the family iCloud payload; raw HealthKit data stays on each family member's device.
 
