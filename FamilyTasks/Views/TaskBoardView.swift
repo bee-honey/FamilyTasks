@@ -2,6 +2,8 @@ import SwiftUI
 
 struct TaskBoardView: View {
     @EnvironmentObject private var taskStore: TaskStore
+    /// Opened from More rather than as a tab, so it needs the bar's back button.
+    var showsNavigationBar = false
     @State private var isAddingTask = false
     @State private var analyticsRange: TaskAnalyticsRange = .week
 
@@ -12,7 +14,8 @@ struct TaskBoardView: View {
             range: analyticsRange
         )
 
-        NavigationStack {
+        // Shown inside a tab's NavigationStack, or pushed from More.
+        Group {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     header
@@ -54,7 +57,8 @@ struct TaskBoardView: View {
             }
             .background(AppTheme.background)
             .navigationTitle("Tasks")
-            .toolbar(.hidden, for: .navigationBar)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar(showsNavigationBar ? .automatic : .hidden, for: .navigationBar)
             .sheet(isPresented: $isAddingTask) {
                 AddTaskView()
             }

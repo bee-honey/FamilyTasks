@@ -141,9 +141,19 @@ struct ViewSettingsView: View {
     @AppStorage("schedule.taskSortOrder") private var taskSortOrder = ScheduleTaskSortOrder.priority.rawValue
     @AppStorage("tasks.showPriorityMarkers") private var showTaskPriorityMarkers = false
     @AppStorage("view.appearance") private var appearance = AppAppearance.system.rawValue
-    @AppStorage(ThemePalette.storageKey) private var themeID = ThemePalette.sageLinen.id
+    @AppStorage(ThemePalette.storageKey) private var themeID = ThemePalette.defaultTheme.id
+    @AppStorage(TabSection.storageKey) private var tabSlotsRaw = ""
     @AppStorage("calendar.integration.enabled") private var calendarIntegrationEnabled = false
     @AppStorage("schedule.contentPriority") private var scheduleContentPriority = ScheduleContentPriority.tasksFirst.rawValue
+
+    private func tabSlotBinding(_ index: Int) -> Binding<TabSection> {
+        Binding(
+            get: { TabSection.slots(from: tabSlotsRaw)[index] },
+            set: { section in
+                tabSlotsRaw = TabSection.encode(TabSection.replacing(TabSection.slots(from: tabSlotsRaw), at: index, with: section))
+            }
+        )
+    }
 
     var body: some View {
         // Shown inside a tab's NavigationStack.
@@ -162,6 +172,27 @@ struct ViewSettingsView: View {
                     Text("Theme")
                 } footer: {
                     Text(ThemePalette.named(themeID).summary)
+                }
+
+                Section {
+                    ForEach(0..<TabSection.slotCount, id: \.self) { index in
+                        Picker(selection: tabSlotBinding(index)) {
+                            ForEach(TabSection.allCases) { section in
+                                Label(section.title, systemImage: section.systemImage).tag(section)
+                            }
+                        } label: {
+                            Label("Tab \(index + 2)", systemImage: TabSection.slots(from: tabSlotsRaw)[index].systemImage)
+                                .labelStyle(.tile(AppTheme.primary))
+                        }
+                    }
+                    Button("Reset to Default") {
+                        tabSlotsRaw = TabSection.encode(TabSection.defaultSlots)
+                    }
+                    .disabled(TabSection.slots(from: tabSlotsRaw) == TabSection.defaultSlots)
+                } header: {
+                    Text("Tab Bar")
+                } footer: {
+                    Text("Today and More always stay. Picking a section already in another tab swaps the two; sections not in the tab bar are in More.")
                 }
 
                 Section("Appearance") {

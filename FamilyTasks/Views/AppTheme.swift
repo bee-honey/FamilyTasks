@@ -166,12 +166,13 @@ struct ThemePalette: Identifiable, Sendable {
         destructive: Swatch(0xB4504D, 0xFF8A86)
     )
 
-    /// Sage & Linen first: it's the default.
-    static let all: [ThemePalette] = [sageLinen, sundayMorning, eveningHarbor, honeyOak, lavenderDusk, classic]
+    /// The default first.
+    static let all: [ThemePalette] = [sundayMorning, sageLinen, eveningHarbor, honeyOak, lavenderDusk, classic]
+    static let defaultTheme = sundayMorning
     static let storageKey = "view.theme"
 
     static func named(_ id: String?) -> ThemePalette {
-        all.first { $0.id == id } ?? sageLinen
+        all.first { $0.id == id } ?? defaultTheme
     }
 }
 

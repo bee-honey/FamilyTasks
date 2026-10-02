@@ -2,6 +2,8 @@ import SwiftUI
 
 struct ShoppingView: View {
     @EnvironmentObject private var organizerStore: OrganizerStore
+    /// Opened from More rather than as a tab, so it needs the bar's back button.
+    var showsNavigationBar = false
     @AppStorage("shopping.selectedShopID") private var selectedShopID = ""
     @State private var newItemName = ""
     @State private var showsAllUsualItems = false
@@ -11,7 +13,8 @@ struct ShoppingView: View {
     @State private var itemToMove: ShoppingItem?
 
     var body: some View {
-        NavigationStack {
+        // Shown inside a tab's NavigationStack, or pushed from More.
+        Group {
             List {
                 Section {
                     header
@@ -58,7 +61,8 @@ struct ShoppingView: View {
             .scrollDismissesKeyboard(.interactively)
             .background(AppTheme.background)
             .navigationTitle("Shopping")
-            .toolbar(.hidden, for: .navigationBar)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar(showsNavigationBar ? .automatic : .hidden, for: .navigationBar)
             .sheet(isPresented: $isAddingShop) {
                 AddShopView()
             }

@@ -181,10 +181,10 @@ final class ModelTests: XCTestCase {
         return (max(l1, l2) + 0.05) / (min(l1, l2) + 0.05)
     }
 
-    func testSageAndLinenIsTheDefaultAndThemeIDsAreUnique() {
-        XCTAssertEqual(ThemePalette.all.first?.id, ThemePalette.sageLinen.id)
-        XCTAssertEqual(ThemePalette.named(nil).id, ThemePalette.sageLinen.id)
-        XCTAssertEqual(ThemePalette.named("no-such-theme").id, ThemePalette.sageLinen.id)
+    func testSundayMorningIsTheDefaultAndThemeIDsAreUnique() {
+        XCTAssertEqual(ThemePalette.all.first?.id, ThemePalette.sundayMorning.id)
+        XCTAssertEqual(ThemePalette.named(nil).id, ThemePalette.sundayMorning.id)
+        XCTAssertEqual(ThemePalette.named("no-such-theme").id, ThemePalette.sundayMorning.id)
         XCTAssertEqual(Set(ThemePalette.all.map(\.id)).count, ThemePalette.all.count)
     }
 
@@ -211,5 +211,24 @@ final class ModelTests: XCTestCase {
                 }
             }
         }
+    }
+
+    // MARK: Tab bar
+
+    func testTabBarDefaultsToMealPlanShoppingAndFamily() {
+        XCTAssertEqual(TabSection.slots(from: ""), [.mealPlan, .shopping, .family])
+        XCTAssertEqual(TabSection.slots(from: "garbage"), [.mealPlan, .shopping, .family])
+    }
+
+    func testSavedTabsAreKeptUniqueAndFilledToThree() {
+        XCTAssertEqual(TabSection.slots(from: "tasks,ideas,chores"), [.tasks, .ideas, .chores])
+        XCTAssertEqual(TabSection.slots(from: "tasks,tasks"), [.tasks, .mealPlan, .shopping])
+        XCTAssertEqual(TabSection.slots(from: TabSection.encode([.chores, .tasks, .ideas])), [.chores, .tasks, .ideas])
+    }
+
+    func testPickingASectionAlreadyInAnotherTabSwapsThem() {
+        let slots: [TabSection] = [.mealPlan, .shopping, .family]
+        XCTAssertEqual(TabSection.replacing(slots, at: 0, with: .family), [.family, .shopping, .mealPlan])
+        XCTAssertEqual(TabSection.replacing(slots, at: 1, with: .tasks), [.mealPlan, .tasks, .family])
     }
 }
