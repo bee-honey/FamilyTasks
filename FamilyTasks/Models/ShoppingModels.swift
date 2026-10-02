@@ -4,6 +4,10 @@ struct Shop: Identifiable, Codable, Equatable {
     var id: UUID
     var name: String
     var usualItems: [String]
+    /// The last "Done Shopping": when, by whom (email) and how many items were bought.
+    var lastTripDoneAt: Date?
+    var lastTripDoneBy: String?
+    var lastTripItemCount: Int?
     var createdAt: Date
     var updatedAt: Date
 
@@ -113,6 +117,10 @@ struct MealIdea: Identifiable, Codable, Equatable {
     var category: MealCategory
     var ingredients: [MealIngredient]
     var notes: String
+    /// How many times a generated plan may use this meal in one week.
+    var timesPerWeek: Int
+    /// Left out of generated plans (it can still be planned by hand).
+    var skipInGeneratedPlans: Bool
     var createdAt: Date
     var updatedAt: Date
 
@@ -122,6 +130,8 @@ struct MealIdea: Identifiable, Codable, Equatable {
         category: MealCategory = .mainCourse,
         ingredients: [MealIngredient] = [],
         notes: String = "",
+        timesPerWeek: Int = 1,
+        skipInGeneratedPlans: Bool = false,
         createdAt: Date = Date(),
         updatedAt: Date = Date()
     ) {
@@ -130,6 +140,8 @@ struct MealIdea: Identifiable, Codable, Equatable {
         self.category = category
         self.ingredients = ingredients
         self.notes = notes
+        self.timesPerWeek = timesPerWeek
+        self.skipInGeneratedPlans = skipInGeneratedPlans
         self.createdAt = createdAt
         self.updatedAt = updatedAt
     }
@@ -140,6 +152,8 @@ struct MealIdea: Identifiable, Codable, Equatable {
         case category
         case ingredients
         case notes
+        case timesPerWeek
+        case skipInGeneratedPlans
         case createdAt
         case updatedAt
     }
@@ -148,6 +162,8 @@ struct MealIdea: Identifiable, Codable, Equatable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(UUID.self, forKey: .id)
         name = try container.decode(String.self, forKey: .name)
+        timesPerWeek = min(max((try? container.decode(Int.self, forKey: .timesPerWeek)) ?? 1, 1), 7)
+        skipInGeneratedPlans = (try? container.decode(Bool.self, forKey: .skipInGeneratedPlans)) ?? false
         category = (try? container.decode(MealCategory.self, forKey: .category)) ?? .mainCourse
         if let decodedIngredients = try? container.decode([MealIngredient].self, forKey: .ingredients) {
             ingredients = decodedIngredients
@@ -361,5 +377,33 @@ struct RecurringTask: Identifiable, Codable, Equatable {
         if creator.isEmpty { return true }
         if creator == email { return true }
         return assigneeEmails.contains { $0.caseInsensitiveCompare(email) == .orderedSame }
+    }
+}
+
+/// Another family member finishing a shop's trip, for "Sam finished shopping at Costco".
+struct ShoppingTripNews: Equatable, Sendable {
+    var who: String
+    var shopName: String
+    var itemCount: Int
+
+    /// Trips someone else finished since `before`, recently enough to be news.
+    static func newlyDone(before: [Shop], after: [Shop], viewerEmail: String, now: Date = Date()) -> [ShoppingTripNews] {
+        let viewer = viewerEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let previous = Dictionary(before.map { ($0.id, $0.lastTripDoneAt) }, uniquingKeysWith: { first, _ in first })
+        return after.compactMap { shop in
+            guard let doneAt = shop.lastTripDoneAt,
+                  doneAt != previous[shop.id] ?? nil,
+                  now.timeIntervalSince(doneAt) < 86_400,
+                  let by = shop.lastTripDoneBy?.lowercased(), !by.isEmpty, by != viewer else { return nil }
+            return ShoppingTripNews(who: Assignee.memberName(for: by), shopName: shop.name, itemCount: shop.lastTripItemCount ?? 0)
+        }
+    }
+
+    var notificationBody: String {
+        switch itemCount {
+        case 0: "\(who) finished shopping at \(shopName)."
+        case 1: "\(who) finished shopping at \(shopName) (1 item)."
+        default: "\(who) finished shopping at \(shopName) (\(itemCount) items)."
+        }
     }
 }

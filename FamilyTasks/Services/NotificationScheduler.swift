@@ -14,6 +14,7 @@ final class NotificationScheduler: ObservableObject {
     private var changeObserver: NSObjectProtocol?
     private var sharedTaskObserver: NSObjectProtocol?
     private var completionObserver: NSObjectProtocol?
+    private var shoppingObserver: NSObjectProtocol?
     private let defaults = UserDefaults.standard
 
     private enum DefaultsKey {
@@ -26,6 +27,7 @@ final class NotificationScheduler: ObservableObject {
         static let dueSoonLeadMinutesList = "notifications.dueSoonLeadMinutesList"
         static let digestCatchupDay = "notifications.digestCatchupDay"
         static let familyCompletions = "notifications.familyCompletions"
+        static let familyShopping = "notifications.familyShopping"
     }
 
     /// iOS keeps at most 64 pending local notifications per app; leave room for
@@ -38,6 +40,7 @@ final class NotificationScheduler: ObservableObject {
         static let recurringDueSoon = "familytasks.recurringDueSoon."
         static let sharedTaskArrival = "familytasks.sharedTaskArrival."
         static let sharedTaskCompletion = "familytasks.sharedTaskCompletion."
+        static let shoppingDone = "familytasks.shoppingDone."
     }
 
     private init() {
@@ -70,6 +73,19 @@ final class NotificationScheduler: ObservableObject {
                 let title = notification.userInfo?["title"] as? String
                 Task { @MainActor in
                     await self?.scheduleSharedTaskArrival(count: count, title: title)
+                }
+            }
+        }
+
+        if shoppingObserver == nil {
+            shoppingObserver = NotificationCenter.default.addObserver(
+                forName: .sharedShoppingTripsDone,
+                object: nil,
+                queue: .main
+            ) { [weak self] notification in
+                let trips = notification.userInfo?["trips"] as? [ShoppingTripNews] ?? []
+                Task { @MainActor in
+                    await self?.scheduleShoppingDone(trips)
                 }
             }
         }
@@ -183,6 +199,7 @@ final class NotificationScheduler: ObservableObject {
             DefaultsKey.todayDigest: true,
             DefaultsKey.dueSoon: true,
             DefaultsKey.familyCompletions: true,
+            DefaultsKey.familyShopping: true,
             DefaultsKey.todayDigestHour: 8,
             DefaultsKey.todayDigestMinute: 0,
             DefaultsKey.dueSoonLeadMinutes: 60,
@@ -198,7 +215,8 @@ final class NotificationScheduler: ObservableObject {
                 $0.hasPrefix(IdentifierPrefix.dueSoon) ||
                 $0.hasPrefix(IdentifierPrefix.recurringDueSoon) ||
                 $0.hasPrefix(IdentifierPrefix.sharedTaskArrival) ||
-                $0.hasPrefix(IdentifierPrefix.sharedTaskCompletion)
+                $0.hasPrefix(IdentifierPrefix.sharedTaskCompletion) ||
+                $0.hasPrefix(IdentifierPrefix.shoppingDone)
             }
     }
 
@@ -458,6 +476,29 @@ final class NotificationScheduler: ObservableObject {
             trigger: UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
         )
         try? await center.add(request)
+    }
+
+    /// "Sam finished shopping at Costco (5 items)."
+    private func scheduleShoppingDone(_ trips: [ShoppingTripNews]) async {
+        guard !trips.isEmpty,
+              defaults.bool(forKey: DefaultsKey.enabled),
+              defaults.bool(forKey: DefaultsKey.familyShopping) else { return }
+
+        let settings = await center.notificationSettings()
+        guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else { return }
+
+        for trip in trips {
+            let content = UNMutableNotificationContent()
+            content.title = "Shopping Done"
+            content.body = trip.notificationBody
+            content.sound = .default
+            let request = UNNotificationRequest(
+                identifier: "\(IdentifierPrefix.shoppingDone)\(UUID().uuidString)",
+                content: content,
+                trigger: UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+            )
+            try? await center.add(request)
+        }
     }
 
     private func digestBody(for tasks: [FamilyTask]) -> String {

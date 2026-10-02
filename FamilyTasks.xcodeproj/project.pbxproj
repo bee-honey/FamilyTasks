@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		17E9A20CA488A705BD001A56 /* FamilyTasksWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 8F254A3D5BB9563227948625 /* FamilyTasksWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		2661FD78FC3C8E13C2CF26C8 /* GenerateMealPlanView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CBF9125B07E0C1F783596E5 /* GenerateMealPlanView.swift */; };
 		26A57217B63A6D03B4F5955C /* ChoresView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB53E2CCC7AFC0F5493E24C0 /* ChoresView.swift */; };
 		2C0A000B2C0A000000000001 /* FamilyTasksApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A000A2C0A000000000001 /* FamilyTasksApp.swift */; };
 		2C0A000D2C0A000000000001 /* FamilyTask.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A000C2C0A000000000001 /* FamilyTask.swift */; };
@@ -46,8 +47,10 @@
 		3A13BD42E01E2675D9D5CFA1 /* IconTile.swift in Sources */ = {isa = PBXBuildFile; fileRef = D62DC77D66754F9AC86E222E /* IconTile.swift */; };
 		3DD28E028918977E37FF9148 /* HealthAggregationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF4226E63FDF989D31BEA8BF /* HealthAggregationTests.swift */; };
 		441BB0E0F9BAD9779AF2D01F /* WidgetDataTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1959E02C60CB8BEF62319D0D /* WidgetDataTests.swift */; };
+		4E09B57482F13A855F83A401 /* MealPlanGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B0EC2604850424CAB3067DC /* MealPlanGenerator.swift */; };
 		56D116660832334365FC31BD /* ChoreStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE8CC412E6186E109604CD94 /* ChoreStore.swift */; };
 		58575D5FE2A2819E9B667AB9 /* AppShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91319003F12F08AE59850B1D /* AppShortcuts.swift */; };
+		6062FFDBAC250836B207C41A /* MealPlanGeneratorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB6B27E570B66274E040165F /* MealPlanGeneratorTests.swift */; };
 		856BE0EDE794EBF3FA833A20 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C51423B6E96D10EBE473AD60 /* Foundation.framework */; };
 		8A7D6A75097E58441267258A /* TodayWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0AD9AC5EA77F9FBA94997D1 /* TodayWidget.swift */; };
 		A0D6248961D596E2C5FF32D5 /* TaskIntentsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 747F46D17D2A6BEB99E04FF4 /* TaskIntentsTests.swift */; };
@@ -145,9 +148,11 @@
 		38838F69E4D0761A7610CF61 /* FamilyTasksTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FamilyTasksTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		5EDC30D6C9571B5F9D9D3CFC /* TaskIntents.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TaskIntents.swift; sourceTree = "<group>"; };
 		5F9A5C2AF95CCEBDA865F6B7 /* FamilyTasksWidgets.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = FamilyTasksWidgets.entitlements; sourceTree = "<group>"; };
+		6CBF9125B07E0C1F783596E5 /* GenerateMealPlanView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GenerateMealPlanView.swift; sourceTree = "<group>"; };
 		725ABA626AD119FC773FD265 /* SyncMergeTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SyncMergeTests.swift; sourceTree = "<group>"; };
 		747F46D17D2A6BEB99E04FF4 /* TaskIntentsTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TaskIntentsTests.swift; sourceTree = "<group>"; };
 		761B26379876621A407E3F95 /* WidgetIntents.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WidgetIntents.swift; sourceTree = "<group>"; };
+		8B0EC2604850424CAB3067DC /* MealPlanGenerator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MealPlanGenerator.swift; sourceTree = "<group>"; };
 		8F254A3D5BB9563227948625 /* FamilyTasksWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = FamilyTasksWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		91319003F12F08AE59850B1D /* AppShortcuts.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppShortcuts.swift; sourceTree = "<group>"; };
 		A1B2C3D40000000000000001 /* HouseholdRecords.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HouseholdRecords.swift; sourceTree = "<group>"; };
@@ -168,6 +173,7 @@
 		DBF42F5D8704345FA15A373D /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		E612F06E9C75226BD229FC11 /* ModelTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ModelTests.swift; sourceTree = "<group>"; };
 		EC9AE0823AA92C2177793719 /* WrappingStack.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WrappingStack.swift; sourceTree = "<group>"; };
+		FB6B27E570B66274E040165F /* MealPlanGeneratorTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MealPlanGeneratorTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -253,6 +259,7 @@
 				2C0A000E2C0A000000000001 /* TaskStore.swift */,
 				2C0A003E2C0A000000000001 /* OrganizerStore.swift */,
 				AE8CC412E6186E109604CD94 /* ChoreStore.swift */,
+				8B0EC2604850424CAB3067DC /* MealPlanGenerator.swift */,
 			);
 			path = Stores;
 			sourceTree = "<group>";
@@ -298,6 +305,7 @@
 				EC9AE0823AA92C2177793719 /* WrappingStack.swift */,
 				D62DC77D66754F9AC86E222E /* IconTile.swift */,
 				D6685EC41B313E3C8155F5CF /* LocationSearchView.swift */,
+				6CBF9125B07E0C1F783596E5 /* GenerateMealPlanView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -338,6 +346,7 @@
 				1959E02C60CB8BEF62319D0D /* WidgetDataTests.swift */,
 				747F46D17D2A6BEB99E04FF4 /* TaskIntentsTests.swift */,
 				2AB649E7E7354FE110CDFCA7 /* ChoreTests.swift */,
+				FB6B27E570B66274E040165F /* MealPlanGeneratorTests.swift */,
 			);
 			path = FamilyTasksTests;
 			sourceTree = "<group>";
@@ -513,6 +522,8 @@
 				C3C5421C98381E6DD2DE3A19 /* WrappingStack.swift in Sources */,
 				3A13BD42E01E2675D9D5CFA1 /* IconTile.swift in Sources */,
 				D198952C0F5F93FDAF79F69F /* LocationSearchView.swift in Sources */,
+				4E09B57482F13A855F83A401 /* MealPlanGenerator.swift in Sources */,
+				2661FD78FC3C8E13C2CF26C8 /* GenerateMealPlanView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -543,6 +554,7 @@
 				441BB0E0F9BAD9779AF2D01F /* WidgetDataTests.swift in Sources */,
 				A0D6248961D596E2C5FF32D5 /* TaskIntentsTests.swift in Sources */,
 				B1E2AA5145911A15F49052F0 /* ChoreTests.swift in Sources */,
+				6062FFDBAC250836B207C41A /* MealPlanGeneratorTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

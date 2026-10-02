@@ -412,6 +412,8 @@ extension Notification.Name {
     static let sharedTasksDidArrive = Notification.Name("SharedTasksDidArrive")
     /// userInfo["completions"] holds the [TaskCompletion] another family member finished.
     static let sharedTasksWereCompleted = Notification.Name("SharedTasksWereCompleted")
+    /// userInfo["trips"] holds the [ShoppingTripNews] another family member finished.
+    static let sharedShoppingTripsDone = Notification.Name("SharedShoppingTripsDone")
 }
 
 struct PreparedCloudShare: Identifiable {
@@ -800,6 +802,11 @@ final class SharedHouseholdStore: ObservableObject, HouseholdDataSource {
             after: payload.tasks,
             viewerEmail: defaults.string(forKey: "profile.email") ?? ""
         )
+        let trips = ShoppingTripNews.newlyDone(
+            before: organizerStore?.shops ?? [],
+            after: payload.shopping.shops,
+            viewerEmail: defaults.string(forKey: "profile.email") ?? ""
+        )
         SyncLedger.shared.apply(deletions: payload.deletions, memberAdditions: payload.memberAdditions)
         SharedMemberProfile.mergeAndSave(payload.profiles)
         taskStore?.applySharedData(tasks: payload.tasks, familyMembers: payload.familyMembers)
@@ -814,6 +821,9 @@ final class SharedHouseholdStore: ObservableObject, HouseholdDataSource {
         postSharedTaskArrival(arrival)
         if !completions.isEmpty {
             NotificationCenter.default.post(name: .sharedTasksWereCompleted, object: self, userInfo: ["completions": completions])
+        }
+        if !trips.isEmpty {
+            NotificationCenter.default.post(name: .sharedShoppingTripsDone, object: self, userInfo: ["trips": trips])
         }
     }
 
@@ -1201,7 +1211,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
 
         if identifier.hasPrefix("familytasks.test.") ||
             identifier.hasPrefix("familytasks.sharedTaskArrival.") ||
-            identifier.hasPrefix("familytasks.sharedTaskCompletion.") {
+            identifier.hasPrefix("familytasks.sharedTaskCompletion.") ||
+            identifier.hasPrefix("familytasks.shoppingDone.") {
             return [.banner, .list, .sound, .badge]
         }
 

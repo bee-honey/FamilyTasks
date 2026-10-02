@@ -209,29 +209,71 @@ final class OrganizerStore: ObservableObject {
         addUsualItem(item.name, to: shop)
     }
 
-    func closeTrip(for shop: Shop) {
+    /// Clears the cart and records the trip, which tells the rest of the family.
+    func closeTrip(for shop: Shop, at date: Date = Date()) {
+        let bought = shoppingItems.filter { $0.shopID == shop.id && $0.isPurchased }.count
+        if bought > 0, let index = shops.firstIndex(where: { $0.id == shop.id }) {
+            var updated = shops[index]
+            updated.lastTripDoneAt = date
+            updated.lastTripDoneBy = Self.currentProfileEmailValue()
+            updated.lastTripItemCount = bought
+            updated.updatedAt = date
+            shops[index] = updated
+        }
         shoppingItems.removeAll { $0.shopID == shop.id && $0.isPurchased }
     }
 
-    func addMealIdea(name: String, category: MealCategory, ingredients: [MealIngredient], notes: String) {
+    func addMealIdea(name: String, category: MealCategory, ingredients: [MealIngredient], notes: String, timesPerWeek: Int = 1, skipInGeneratedPlans: Bool = false) {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedName.isEmpty else { return }
         let cleanedIngredients = cleanedIngredients(ingredients)
         let cleanedNotes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
-        mealIdeas.append(MealIdea(name: trimmedName, category: category, ingredients: cleanedIngredients, notes: cleanedNotes))
+        mealIdeas.append(MealIdea(
+            name: trimmedName,
+            category: category,
+            ingredients: cleanedIngredients,
+            notes: cleanedNotes,
+            timesPerWeek: min(max(timesPerWeek, 1), 7),
+            skipInGeneratedPlans: skipInGeneratedPlans
+        ))
         mealIdeas.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 
-    func updateMealIdea(_ meal: MealIdea, name: String, category: MealCategory, ingredients: [MealIngredient], notes: String) {
+    func updateMealIdea(_ meal: MealIdea, name: String, category: MealCategory, ingredients: [MealIngredient], notes: String, timesPerWeek: Int? = nil, skipInGeneratedPlans: Bool? = nil) {
         guard let index = mealIdeas.firstIndex(where: { $0.id == meal.id }) else { return }
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedName.isEmpty else { return }
-        mealIdeas[index].name = trimmedName
-        mealIdeas[index].category = category
-        mealIdeas[index].ingredients = cleanedIngredients(ingredients)
-        mealIdeas[index].notes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
-        mealIdeas[index].updatedAt = Date()
+        var updated = mealIdeas[index]
+        updated.name = trimmedName
+        updated.category = category
+        updated.ingredients = cleanedIngredients(ingredients)
+        updated.notes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let timesPerWeek { updated.timesPerWeek = min(max(timesPerWeek, 1), 7) }
+        if let skipInGeneratedPlans { updated.skipInGeneratedPlans = skipInGeneratedPlans }
+        updated.updatedAt = Date()
+        mealIdeas[index] = updated
         mealIdeas.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
+    /// "Don't suggest this again" from the meal plan generator.
+    func setSkipInGeneratedPlans(_ skip: Bool, for mealID: UUID) {
+        guard let index = mealIdeas.firstIndex(where: { $0.id == mealID }), mealIdeas[index].skipInGeneratedPlans != skip else { return }
+        var updated = mealIdeas[index]
+        updated.skipInGeneratedPlans = skip
+        updated.updatedAt = Date()
+        mealIdeas[index] = updated
+    }
+
+    /// Adds several planned meals at once (one save and one sync).
+    func planMeals(_ entries: [(mealID: UUID, date: Date, slot: MealSlot)]) {
+        guard !entries.isEmpty else { return }
+        let now = Date()
+        var updated = plannedMeals
+        for entry in entries where mealIdeas.contains(where: { $0.id == entry.mealID }) {
+            updated.append(PlannedMeal(mealID: entry.mealID, date: entry.date, slot: entry.slot, createdAt: now, updatedAt: now))
+        }
+        updated.sort { $0.date < $1.date }
+        plannedMeals = updated
     }
 
     func deleteMealIdea(_ meal: MealIdea) {
@@ -266,18 +308,6 @@ final class OrganizerStore: ObservableObject {
                   let shop = shops.first(where: { $0.id == shopID }) else { continue }
             addNeededItem(ingredient.name, to: shop)
         }
-    }
-
-    /// One planned meal's ingredients, each marked if it is already on the shopping list.
-    func ingredients(for plannedMeal: PlannedMeal) -> [WeeklyIngredient] {
-        Self.weeklyIngredients(
-            plannedMeals: [plannedMeal],
-            mealIdeas: mealIdeas,
-            shops: shops,
-            shoppingItems: shoppingItems,
-            from: .distantPast,
-            to: .distantFuture
-        )
     }
 
     /// Every ingredient of the meals planned between `start` and `end`, combined.

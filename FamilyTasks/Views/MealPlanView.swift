@@ -12,6 +12,8 @@ struct MealPlanView: View {
     @State private var planningDate = Date()
     @State private var planningSlot: MealSlot = .dinner
     @State private var isShoppingForWeek = false
+    @State private var isGenerating = false
+    @State private var shopAfterGenerating = false
 
     var body: some View {
         // Shown inside a tab's NavigationStack.
@@ -90,6 +92,16 @@ struct MealPlanView: View {
             .sheet(item: $planningMeal) { meal in
                 PlanMealView(meal: meal, initialDate: planningDate, initialSlot: planningSlot)
             }
+            .sheet(isPresented: $isGenerating, onDismiss: {
+                if shopAfterGenerating {
+                    shopAfterGenerating = false
+                    isShoppingForWeek = true
+                }
+            }) {
+                GenerateMealPlanView(days: generationDays) { shopNext in
+                    shopAfterGenerating = shopNext
+                }
+            }
             .sheet(isPresented: $isShoppingForWeek) {
                 WeeklyShoppingView(title: shopForWeekTitle, range: shoppingRange)
             }
@@ -104,10 +116,17 @@ struct MealPlanView: View {
             } else {
                 weekHeader
 
-                if daysToShow.contains(where: { Calendar.current.isDateInToday($0) }) {
-                    TonightCard(dinners: plannedMeals(on: Date(), slot: .dinner)) {
-                        planSlot(day: Date(), slot: .dinner)
+                if !generationDays.isEmpty {
+                    Button {
+                        isGenerating = true
+                    } label: {
+                        Label("Generate Meal Plan", systemImage: "wand.and.stars")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity, minHeight: 48)
                     }
+                    .buttonStyle(.borderedProminent)
+                    .tint(AppTheme.primary)
+                    .foregroundStyle(AppTheme.onPrimary)
                 }
 
                 WeeklyMealPlanGrid(days: daysToShow) { day, slot in
@@ -122,6 +141,12 @@ struct MealPlanView: View {
             }
         }
         .padding(14)
+    }
+
+    /// The days a generated plan fills: the week shown, from today on.
+    private var generationDays: [Date] {
+        let today = Calendar.current.startOfDay(for: Date())
+        return daysToShow.filter { $0 >= today }
     }
 
     /// Opens the meal library on the right category, ready to plan `slot` on `day`.
@@ -472,7 +497,7 @@ private struct MealIdeaCard: View {
     }
 }
 
-private struct MealEditorView: View {
+struct MealEditorView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var organizerStore: OrganizerStore
     let meal: MealIdea?
@@ -480,6 +505,8 @@ private struct MealEditorView: View {
     @State private var category: MealCategory
     @State private var notes: String
     @State private var ingredients: [MealIngredient]
+    @State private var timesPerWeek: Int
+    @State private var suggestInGeneratedPlans: Bool
 
     init(meal: MealIdea? = nil, initialCategory: MealCategory = .mainCourse) {
         self.meal = meal
@@ -488,6 +515,8 @@ private struct MealEditorView: View {
         _notes = State(initialValue: meal?.notes ?? "")
         let existing = meal?.ingredients ?? []
         _ingredients = State(initialValue: existing.isEmpty ? [MealIngredient(name: "")] : existing)
+        _timesPerWeek = State(initialValue: meal?.timesPerWeek ?? 1)
+        _suggestInGeneratedPlans = State(initialValue: !(meal?.skipInGeneratedPlans ?? false))
     }
 
     var body: some View {
@@ -502,6 +531,23 @@ private struct MealEditorView: View {
                     }
                     TextField("Notes", text: $notes, axis: .vertical)
                         .lineLimit(2...4)
+                }
+
+                Section {
+                    Toggle(isOn: $suggestInGeneratedPlans) {
+                        Label("Suggest in Generated Plans", systemImage: "wand.and.stars")
+                            .labelStyle(.tile(AppTheme.primary))
+                    }
+                    if suggestInGeneratedPlans {
+                        Stepper(value: $timesPerWeek, in: 1...7) {
+                            Label(timesPerWeek == 1 ? "Once a week" : "Up to \(timesPerWeek) times a week", systemImage: "repeat")
+                                .labelStyle(.tile(AppTheme.coolAccent))
+                        }
+                    }
+                } header: {
+                    Text("Generated Plans")
+                } footer: {
+                    Text("Meals that can repeat let a generated plan fill the week with fewer meals. Turn suggestions off for meals that are out of season.")
                 }
 
                 Section("Ingredients") {
@@ -529,9 +575,9 @@ private struct MealEditorView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
                         if let meal {
-                            organizerStore.updateMealIdea(meal, name: name, category: category, ingredients: ingredients, notes: notes)
+                            organizerStore.updateMealIdea(meal, name: name, category: category, ingredients: ingredients, notes: notes, timesPerWeek: timesPerWeek, skipInGeneratedPlans: !suggestInGeneratedPlans)
                         } else {
-                            organizerStore.addMealIdea(name: name, category: category, ingredients: ingredients, notes: notes)
+                            organizerStore.addMealIdea(name: name, category: category, ingredients: ingredients, notes: notes, timesPerWeek: timesPerWeek, skipInGeneratedPlans: !suggestInGeneratedPlans)
                         }
                         dismiss()
                     }
@@ -857,100 +903,6 @@ private struct WeeklyShoppingView: View {
 
     private func shopName(for ingredient: WeeklyIngredient) -> String {
         organizerStore.shops.first { $0.id == shopIDs[ingredient.id] }?.name ?? "Choose Shop"
-    }
-}
-
-/// Tonight's dinner, its ingredients and whether they are on the shopping list.
-private struct TonightCard: View {
-    @EnvironmentObject private var organizerStore: OrganizerStore
-    let dinners: [PlannedMeal]
-    let onPlanDinner: () -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("TONIGHT")
-                .font(.footnote.weight(.bold))
-                .tracking(1)
-                .foregroundStyle(AppTheme.warmAccent)
-
-            if let dinner = dinners.first, let meal = organizerStore.mealIdea(for: dinner) {
-                let ingredients = dinners.flatMap { organizerStore.ingredients(for: $0) }
-                let missing = ingredients.filter { !$0.isAlreadyNeeded }
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(meal.name)
-                        .font(.title2.weight(.bold))
-                    if dinners.count > 1 {
-                        Text("and \(dinners.count - 1) more")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                if !ingredients.isEmpty {
-                    FlowChips(ingredients: ingredients)
-                }
-
-                if !missing.isEmpty {
-                    Button {
-                        let fallbackShopID = organizerStore.shops.first?.id
-                        organizerStore.addNeededItems(missing.compactMap { ingredient in
-                            (ingredient.shopID ?? fallbackShopID).map { (ingredient.name, $0) }
-                        })
-                    } label: {
-                        Text("Add \(missing.count) to shopping")
-                            .font(.headline)
-                            .frame(maxWidth: .infinity, minHeight: 44)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(AppTheme.warmAccent)
-                    .foregroundStyle(.black)
-                    .disabled(organizerStore.shops.isEmpty)
-                } else if !ingredients.isEmpty {
-                    Label("Everything is on your list", systemImage: "checkmark.circle.fill")
-                        .font(.subheadline)
-                        .foregroundStyle(AppTheme.success)
-                }
-            } else {
-                Text("Nothing planned for dinner")
-                    .font(.title3.weight(.semibold))
-                Button(action: onPlanDinner) {
-                    Text("Plan dinner")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity, minHeight: 44)
-                }
-                .buttonStyle(.bordered)
-            }
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-    }
-}
-
-/// Ingredient chips that wrap onto new lines; ones not on the list are highlighted.
-private struct FlowChips: View {
-    let ingredients: [WeeklyIngredient]
-
-    var body: some View {
-        WrappingStack(spacing: 6) {
-            ForEach(ingredients) { ingredient in
-                HStack(spacing: 4) {
-                    if ingredient.isAlreadyNeeded {
-                        Image(systemName: "checkmark")
-                            .font(.caption2.weight(.bold))
-                            .foregroundStyle(AppTheme.success)
-                    }
-                    Text(ingredient.name)
-                }
-                .font(.footnote)
-                .foregroundStyle(ingredient.isAlreadyNeeded ? AppTheme.ink : AppTheme.warning)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(AppTheme.surfaceMuted, in: Capsule())
-                .accessibilityLabel(ingredient.isAlreadyNeeded ? "\(ingredient.name), on your list" : "\(ingredient.name), not on your list")
-            }
-        }
     }
 }
 

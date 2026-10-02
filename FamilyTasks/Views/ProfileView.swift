@@ -159,6 +159,19 @@ struct ViewSettingsView: View {
         // Shown inside a tab's NavigationStack.
         Group {
             Form {
+                Section("Appearance") {
+                    Picker("Mode", selection: $appearance) {
+                        ForEach(AppAppearance.allCases) { option in
+                            Text(option.title).tag(option.rawValue)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+
+                    Text("System follows the iPhone appearance setting.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
                 Section {
                     LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
                         ForEach(ThemePalette.all) { theme in
@@ -193,19 +206,6 @@ struct ViewSettingsView: View {
                     Text("Tab Bar")
                 } footer: {
                     Text("Today, Family and Settings always stay. Picking a section already in the other tab swaps them; everything not in the tab bar is in Family.")
-                }
-
-                Section("Appearance") {
-                    Picker("Mode", selection: $appearance) {
-                        ForEach(AppAppearance.allCases) { option in
-                            Text(option.title).tag(option.rawValue)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-
-                    Text("System follows the iPhone appearance setting.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
                 }
 
                 Section("Today") {
@@ -398,6 +398,7 @@ struct NotificationSettingsView: View {
     @AppStorage("notifications.todayDigest") private var todayDigestEnabled = true
     @AppStorage("notifications.dueSoon") private var dueSoonEnabled = true
     @AppStorage("notifications.familyCompletions") private var familyCompletionsEnabled = true
+    @AppStorage("notifications.familyShopping") private var familyShoppingEnabled = true
     @AppStorage("notifications.todayDigestHour") private var todayDigestHour = 8
     @AppStorage("notifications.todayDigestMinute") private var todayDigestMinute = 0
     @AppStorage("notifications.dueSoonLeadMinutes") private var dueSoonLeadMinutes = 60
@@ -467,6 +468,12 @@ struct NotificationSettingsView: View {
                     Toggle(isOn: $familyCompletionsEnabled) {
                         Label("When Family Finishes a Task", systemImage: "checkmark.circle.fill")
                             .labelStyle(.tile(AppTheme.success))
+                    }
+                        .disabled(!notificationsEnabled)
+
+                    Toggle(isOn: $familyShoppingEnabled) {
+                        Label("When Shopping Is Done", systemImage: "cart.fill.badge.plus")
+                            .labelStyle(.tile(AppTheme.coolAccent))
                     }
                         .disabled(!notificationsEnabled)
 
