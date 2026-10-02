@@ -79,6 +79,8 @@ struct RootTabView: View {
                 MealPlanView()
             case .recurring:
                 RecurringTasksView()
+            case .chores:
+                ChoresView()
             case .ideas:
                 IdeaNotebookView()
             case .health:
@@ -132,6 +134,7 @@ private enum AppSection: String, CaseIterable, Identifiable {
     case shopping
     case mealPlan
     case recurring
+    case chores
     case ideas
     case health
     case syncSettings
@@ -144,7 +147,7 @@ private enum AppSection: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 
     static func defaultPrimarySections(healthEnabled: Bool) -> [AppSection] {
-        var sections: [AppSection] = [.today, .matrix, .shopping, .mealPlan, .recurring, .ideas]
+        var sections: [AppSection] = [.today, .matrix, .shopping, .mealPlan, .recurring, .chores, .ideas]
         if healthEnabled {
             sections.append(.health)
         }
@@ -156,7 +159,7 @@ private enum AppSection: String, CaseIterable, Identifiable {
 
     var isPrimary: Bool {
         switch self {
-        case .today, .matrix, .shopping, .mealPlan, .recurring, .ideas, .health:
+        case .today, .matrix, .shopping, .mealPlan, .recurring, .chores, .ideas, .health:
             return true
         case .syncSettings, .calendarSettings, .notificationSettings, .healthSettings, .viewSettings, .profile:
             return false
@@ -170,6 +173,7 @@ private enum AppSection: String, CaseIterable, Identifiable {
         case .shopping: "Shopping"
         case .mealPlan: "Meal Plan"
         case .recurring: "Recurring"
+        case .chores: "Chores"
         case .ideas: "Ideas"
         case .health: "Health"
         case .syncSettings: "iCloud Settings"
@@ -188,6 +192,7 @@ private enum AppSection: String, CaseIterable, Identifiable {
         case .shopping: "cart"
         case .mealPlan: "fork.knife"
         case .recurring: "repeat"
+        case .chores: "star.circle"
         case .ideas: "lightbulb"
         case .health: "heart.text.square"
         case .syncSettings: "icloud"

@@ -5,6 +5,7 @@ struct FamilyTasksApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var taskStore = TaskStore.shared
     @StateObject private var organizerStore = OrganizerStore.shared
+    @StateObject private var choreStore = ChoreStore.shared
     @StateObject private var calendarSync = CalendarSyncService()
     @StateObject private var sharedHouseholdStore = SharedHouseholdStore.shared
     @StateObject private var notificationScheduler = NotificationScheduler.shared
@@ -25,6 +26,7 @@ struct FamilyTasksApp: App {
             }
             .environmentObject(taskStore)
             .environmentObject(organizerStore)
+            .environmentObject(choreStore)
             .environmentObject(calendarSync)
             .environmentObject(sharedHouseholdStore)
             .environmentObject(notificationScheduler)

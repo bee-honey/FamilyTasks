@@ -16,6 +16,11 @@ struct SyncRecord: Codable, Equatable {
         case profile
         case health
         case household
+        case kid
+        case chore
+        case choreCompletion
+        case chorePayout
+        case choreSettings
         /// The item was deleted at `updatedAt`; kept so older copies cannot bring it back.
         case deleted
     }
@@ -34,6 +39,7 @@ struct HouseholdInfo: Codable, Equatable {
 
 enum HouseholdRecords {
     static let householdRecordName = "household"
+    static let choreSettingsRecordName = "chore-settings"
     /// Stands in for "no known date", such as a family member added before additions were recorded.
     static let unknownDate = Date(timeIntervalSince1970: 0)
 
@@ -59,6 +65,20 @@ enum HouseholdRecords {
         add(payload.mealPlan.mealIdeas, as: .mealIdea)
         add(payload.mealPlan.plannedMeals, as: .plannedMeal)
         add(payload.ideas, as: .idea)
+        add(payload.chores.kids, as: .kid)
+        add(payload.chores.chores, as: .chore)
+        add(payload.chores.completions, as: .choreCompletion)
+        add(payload.chores.payouts, as: .chorePayout)
+
+        if payload.chores.settings.updatedAt > unknownDate, let data = try? JSONEncoder().encode(payload.chores.settings) {
+            records[choreSettingsRecordName] = SyncRecord(
+                name: choreSettingsRecordName,
+                kind: .choreSettings,
+                payload: data,
+                updatedAt: payload.chores.settings.updatedAt,
+                updatedBy: updatedBy
+            )
+        }
 
         for email in payload.familyMembers {
             let key = SyncLedger.memberKey(email)
@@ -138,6 +158,16 @@ enum HouseholdRecords {
                 decode(PlannedMeal.self, record).map { payload.mealPlan.plannedMeals.append($0) }
             case .idea:
                 decode(IdeaNote.self, record).map { payload.ideas.append($0) }
+            case .kid:
+                decode(KidProfile.self, record).map { payload.chores.kids.append($0) }
+            case .chore:
+                decode(Chore.self, record).map { payload.chores.chores.append($0) }
+            case .choreCompletion:
+                decode(ChoreCompletion.self, record).map { payload.chores.completions.append($0) }
+            case .chorePayout:
+                decode(ChorePayout.self, record).map { payload.chores.payouts.append($0) }
+            case .choreSettings:
+                decode(ChoreSettings.self, record).map { payload.chores.settings = $0 }
             case .member:
                 guard let email = decode(String.self, record) else { continue }
                 payload.familyMembers.append(email)

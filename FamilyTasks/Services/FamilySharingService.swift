@@ -20,6 +20,7 @@ struct SharedHouseholdPayload: Codable {
     var healthSnapshots: [HealthSnapshot]
     var deletions: [String: Date]
     var memberAdditions: [String: Date]
+    var chores: ChoresPayload
 
     init(
         schemaVersion: Int = SharedHouseholdPayload.currentSchemaVersion,
@@ -34,7 +35,8 @@ struct SharedHouseholdPayload: Codable {
         ideas: [IdeaNote] = [],
         healthSnapshots: [HealthSnapshot] = [],
         deletions: [String: Date] = [:],
-        memberAdditions: [String: Date] = [:]
+        memberAdditions: [String: Date] = [:],
+        chores: ChoresPayload = ChoresPayload()
     ) {
         self.schemaVersion = schemaVersion
         self.updatedAt = updatedAt
@@ -49,6 +51,7 @@ struct SharedHouseholdPayload: Codable {
         self.healthSnapshots = healthSnapshots
         self.deletions = deletions
         self.memberAdditions = memberAdditions
+        self.chores = chores
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -65,6 +68,7 @@ struct SharedHouseholdPayload: Codable {
         case healthSnapshots
         case deletions
         case memberAdditions
+        case chores
     }
 
     init(from decoder: Decoder) throws {
@@ -82,6 +86,7 @@ struct SharedHouseholdPayload: Codable {
         healthSnapshots = (try? container.decode([HealthSnapshot].self, forKey: .healthSnapshots)) ?? []
         deletions = (try? container.decode([String: Date].self, forKey: .deletions)) ?? [:]
         memberAdditions = (try? container.decode([String: Date].self, forKey: .memberAdditions)) ?? [:]
+        chores = (try? container.decode(ChoresPayload.self, forKey: .chores)) ?? ChoresPayload()
     }
 
     /// Merges two copies of the household item by item: the newer `updatedAt` wins,
@@ -117,7 +122,14 @@ struct SharedHouseholdPayload: Codable {
             ideas: mergeItems(local.ideas, remote.ideas, deletions: deletions, localOrderWins: keepLocalOrder),
             healthSnapshots: mergeItems(local.healthSnapshots, remote.healthSnapshots, deletions: deletions, localOrderWins: keepLocalOrder),
             deletions: deletions,
-            memberAdditions: memberAdditions
+            memberAdditions: memberAdditions,
+            chores: ChoresPayload(
+                kids: mergeItems(local.chores.kids, remote.chores.kids, deletions: deletions, localOrderWins: keepLocalOrder),
+                chores: mergeItems(local.chores.chores, remote.chores.chores, deletions: deletions, localOrderWins: keepLocalOrder),
+                completions: mergeItems(local.chores.completions, remote.chores.completions, deletions: deletions, localOrderWins: keepLocalOrder),
+                payouts: mergeItems(local.chores.payouts, remote.chores.payouts, deletions: deletions, localOrderWins: keepLocalOrder),
+                settings: local.chores.settings.updatedAt > remote.chores.settings.updatedAt ? local.chores.settings : remote.chores.settings
+            )
         )
     }
 
@@ -179,6 +191,10 @@ extension MealIdea: SyncMergeable { var syncID: String { id.uuidString } }
 extension PlannedMeal: SyncMergeable { var syncID: String { id.uuidString } }
 extension IdeaNote: SyncMergeable { var syncID: String { id.uuidString } }
 extension HealthSnapshot: SyncMergeable { var syncID: String { id } }
+extension KidProfile: SyncMergeable { var syncID: String { id.uuidString } }
+extension Chore: SyncMergeable { var syncID: String { id.uuidString } }
+extension ChoreCompletion: SyncMergeable { var syncID: String { id.uuidString } }
+extension ChorePayout: SyncMergeable { var syncID: String { id.uuidString } }
 
 /// Remembers what this device deleted (and which family members it re-added) so a
 /// merge with an older copy of the household does not bring removed items back.
@@ -772,7 +788,8 @@ final class SharedHouseholdStore: ObservableObject, HouseholdDataSource {
             ideas: organizerStore.exportIdeas(),
             healthSnapshots: organizerStore.exportHealthSnapshots(),
             deletions: SyncLedger.shared.deletions,
-            memberAdditions: SyncLedger.shared.memberAdditions
+            memberAdditions: SyncLedger.shared.memberAdditions,
+            chores: ChoreStore.shared.exportPayload()
         )
     }
 
@@ -793,6 +810,7 @@ final class SharedHouseholdStore: ObservableObject, HouseholdDataSource {
             ideas: payload.ideas,
             healthSnapshots: payload.healthSnapshots
         )
+        ChoreStore.shared.applySharedData(payload.chores)
         postSharedTaskArrival(arrival)
         if !completions.isEmpty {
             NotificationCenter.default.post(name: .sharedTasksWereCompleted, object: self, userInfo: ["completions": completions])
