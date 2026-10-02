@@ -35,6 +35,8 @@ struct FamilyTask: Identifiable, Codable, Equatable {
     var createdBy: String
     var calendarEventIdentifier: String?
     var notificationPreference: TaskNotificationPreference?
+    /// Where the task happens, if anywhere.
+    var location: TaskLocation?
     /// Email of the family member who marked the task done, and when.
     var completedBy: String?
     var completedAt: Date?
@@ -54,6 +56,7 @@ struct FamilyTask: Identifiable, Codable, Equatable {
         createdBy: String = "",
         calendarEventIdentifier: String? = nil,
         notificationPreference: TaskNotificationPreference? = nil,
+        location: TaskLocation? = nil,
         completedBy: String? = nil,
         completedAt: Date? = nil,
         createdAt: Date = Date(),
@@ -71,6 +74,7 @@ struct FamilyTask: Identifiable, Codable, Equatable {
         self.createdBy = createdBy.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         self.calendarEventIdentifier = calendarEventIdentifier
         self.notificationPreference = notificationPreference
+        self.location = location
         self.completedBy = completedBy
         self.completedAt = completedAt
         self.createdAt = createdAt
@@ -90,6 +94,7 @@ struct FamilyTask: Identifiable, Codable, Equatable {
         case createdBy
         case calendarEventIdentifier
         case notificationPreference
+        case location
         case completedBy
         case completedAt
         case createdAt
@@ -113,6 +118,7 @@ struct FamilyTask: Identifiable, Codable, Equatable {
             .lowercased()
         calendarEventIdentifier = try? container.decodeIfPresent(String.self, forKey: .calendarEventIdentifier)
         notificationPreference = try? container.decodeIfPresent(TaskNotificationPreference.self, forKey: .notificationPreference)
+        location = try? container.decodeIfPresent(TaskLocation.self, forKey: .location)
         completedBy = try? container.decodeIfPresent(String.self, forKey: .completedBy)
         completedAt = try? container.decodeIfPresent(Date.self, forKey: .completedAt)
         createdAt = (try? container.decode(Date.self, forKey: .createdAt)) ?? Date()
@@ -133,6 +139,7 @@ struct FamilyTask: Identifiable, Codable, Equatable {
         try container.encode(createdBy, forKey: .createdBy)
         try container.encodeIfPresent(calendarEventIdentifier, forKey: .calendarEventIdentifier)
         try container.encodeIfPresent(notificationPreference, forKey: .notificationPreference)
+        try container.encodeIfPresent(location, forKey: .location)
         try container.encodeIfPresent(completedBy, forKey: .completedBy)
         try container.encodeIfPresent(completedAt, forKey: .completedAt)
         try container.encode(createdAt, forKey: .createdAt)
@@ -376,5 +383,80 @@ extension TaskBucket {
         case .delegate: "Delegate"
         case .delete: "Someday"
         }
+    }
+}
+
+/// A place for a task: picked from map search (with an address and coordinates) or typed.
+struct TaskLocation: Codable, Equatable, Sendable {
+    var name: String
+    var address: String?
+    var latitude: Double?
+    var longitude: Double?
+
+    var hasCoordinates: Bool {
+        latitude != nil && longitude != nil
+    }
+
+    /// The name and address, for searching by text.
+    var searchText: String {
+        [name, address].compactMap { $0?.isEmpty == false ? $0 : nil }.joined(separator: ", ")
+    }
+}
+
+/// The maps apps a task's location can be opened in.
+enum MapApp: String, CaseIterable, Identifiable {
+    case apple
+    case google
+    case waze
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .apple: "Apple Maps"
+        case .google: "Google Maps"
+        case .waze: "Waze"
+        }
+    }
+
+    /// A scheme to check whether the app is installed; nil when it can always be offered
+    /// (Apple Maps is built in, and Google Maps falls back to the web).
+    var installCheckURL: URL? {
+        switch self {
+        case .apple, .google: nil
+        case .waze: URL(string: "waze://")
+        }
+    }
+
+    /// Opens the location in this app. Google Maps and Waze links open their app when it's
+    /// installed and the website otherwise.
+    func url(for location: TaskLocation) -> URL? {
+        var components: URLComponents
+        switch self {
+        case .apple:
+            components = URLComponents(string: "https://maps.apple.com/")!
+            if let latitude = location.latitude, let longitude = location.longitude {
+                components.queryItems = [
+                    URLQueryItem(name: "ll", value: "\(latitude),\(longitude)"),
+                    URLQueryItem(name: "q", value: location.name)
+                ]
+            } else {
+                components.queryItems = [URLQueryItem(name: "q", value: location.searchText)]
+            }
+        case .google:
+            components = URLComponents(string: "https://www.google.com/maps/search/")!
+            let query = location.address == nil
+                ? (location.latitude.flatMap { lat in location.longitude.map { "\(lat),\($0)" } } ?? location.searchText)
+                : location.searchText
+            components.queryItems = [URLQueryItem(name: "api", value: "1"), URLQueryItem(name: "query", value: query)]
+        case .waze:
+            components = URLComponents(string: "https://waze.com/ul")!
+            if let latitude = location.latitude, let longitude = location.longitude {
+                components.queryItems = [URLQueryItem(name: "ll", value: "\(latitude),\(longitude)"), URLQueryItem(name: "navigate", value: "yes")]
+            } else {
+                components.queryItems = [URLQueryItem(name: "q", value: location.searchText), URLQueryItem(name: "navigate", value: "yes")]
+            }
+        }
+        return components.url
     }
 }

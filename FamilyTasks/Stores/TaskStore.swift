@@ -104,7 +104,8 @@ final class TaskStore: ObservableObject {
                 assignedTo: assignment.primaryValue,
                 assignedToEmails: assignment.emails,
                 createdBy: Self.currentProfileEmailValue(),
-                notificationPreference: draft.notificationPreference
+                notificationPreference: draft.notificationPreference,
+                location: draft.location
             )
         )
     }
@@ -123,6 +124,7 @@ final class TaskStore: ObservableObject {
             changed.createdBy = Self.currentProfileEmailValue()
         }
         changed.notificationPreference = draft.notificationPreference
+        changed.location = draft.location
         update(changed)
     }
 
@@ -402,6 +404,7 @@ struct TaskDraft {
     var isUrgent = true
     var isImportant = true
     var notificationPreference = TaskNotificationPreference()
+    var location: TaskLocation?
 
     init() {}
 
@@ -416,6 +419,7 @@ struct TaskDraft {
         isUrgent = task.isUrgent
         isImportant = task.isImportant
         notificationPreference = task.notificationPreference ?? TaskNotificationPreference()
+        location = task.location
     }
 }
 

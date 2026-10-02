@@ -231,4 +231,41 @@ final class ModelTests: XCTestCase {
         XCTAssertEqual(TabSection.replacing(slots, at: 0, with: .family), [.family, .shopping, .mealPlan])
         XCTAssertEqual(TabSection.replacing(slots, at: 1, with: .tasks), [.mealPlan, .tasks, .family])
     }
+
+    // MARK: Locations
+
+    func testTaskLocationIsSavedAndSynced() throws {
+        let place = TaskLocation(name: "Costco", address: "1000 N Rengstorff Ave, Mountain View", latitude: 37.42, longitude: -122.09)
+        let task = FamilyTask(title: "Pick up order", location: place)
+
+        let decoded = try JSONDecoder().decode(FamilyTask.self, from: JSONEncoder().encode(task))
+        XCTAssertEqual(decoded.location, place)
+
+        let old = try JSONDecoder().decode(FamilyTask.self, from: Data(#"{"title":"No place"}"#.utf8))
+        XCTAssertNil(old.location)
+    }
+
+    func testMapLinksUseCoordinatesWhenKnown() throws {
+        let place = TaskLocation(name: "Costco", address: "1000 N Rengstorff Ave", latitude: 37.42, longitude: -122.09)
+
+        let apple = try XCTUnwrap(MapApp.apple.url(for: place)).absoluteString
+        XCTAssertTrue(apple.hasPrefix("https://maps.apple.com/"))
+        XCTAssertTrue(apple.contains("ll=37.42,-122.09"))
+        XCTAssertTrue(apple.contains("q=Costco"))
+
+        let waze = try XCTUnwrap(MapApp.waze.url(for: place)).absoluteString
+        XCTAssertEqual(waze, "https://waze.com/ul?ll=37.42,-122.09&navigate=yes")
+
+        let google = try XCTUnwrap(MapApp.google.url(for: place)).absoluteString
+        XCTAssertTrue(google.hasPrefix("https://www.google.com/maps/search/?api=1&query="))
+        XCTAssertTrue(google.contains("Costco"))
+    }
+
+    func testTypedPlacesAreSearchedByName() throws {
+        let place = TaskLocation(name: "Grandma's house")
+
+        XCTAssertEqual(try XCTUnwrap(MapApp.apple.url(for: place)).absoluteString, "https://maps.apple.com/?q=Grandma's%20house")
+        XCTAssertEqual(try XCTUnwrap(MapApp.waze.url(for: place)).absoluteString, "https://waze.com/ul?q=Grandma's%20house&navigate=yes")
+        XCTAssertEqual(try XCTUnwrap(MapApp.google.url(for: place)).absoluteString, "https://www.google.com/maps/search/?api=1&query=Grandma's%20house")
+    }
 }

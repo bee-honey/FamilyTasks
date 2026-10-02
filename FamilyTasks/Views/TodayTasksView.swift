@@ -658,6 +658,10 @@ private struct TodayTaskRow: View {
 
             Spacer(minLength: 8)
 
+            if let location = task.location {
+                MapPinButton(location: location)
+            }
+
             AssigneeAvatarView(name: task.primaryAssigneeForAvatar, size: 28, showsPhoto: false)
         }
         .contentShape(Rectangle())
@@ -888,5 +892,48 @@ private struct FamilyAvatarStack: View {
             }
         }
         .accessibilityHidden(true)
+    }
+}
+
+/// A task's location pin: asks which maps app to open it in.
+private struct MapPinButton: View {
+    let location: TaskLocation
+    @Environment(\.openURL) private var openURL
+    @State private var isChoosingApp = false
+
+    var body: some View {
+        Button {
+            isChoosingApp = true
+        } label: {
+            Image(systemName: "mappin.circle.fill")
+                .font(.title2)
+                .foregroundStyle(AppTheme.coolAccent)
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Directions to \(location.name)")
+        .confirmationDialog("Open \(location.name) in", isPresented: $isChoosingApp, titleVisibility: .visible) {
+            ForEach(availableApps) { app in
+                Button(app.title) {
+                    if let url = app.url(for: location) {
+                        openURL(url)
+                    }
+                }
+            }
+        } message: {
+            if let address = location.address, !address.isEmpty {
+                Text(address)
+            }
+        }
+    }
+
+    /// Apple and Google Maps always (Google opens its website when the app isn't
+    /// installed); Waze only when it is.
+    private var availableApps: [MapApp] {
+        MapApp.allCases.filter { app in
+            guard let check = app.installCheckURL else { return true }
+            return UIApplication.shared.canOpenURL(check)
+        }
     }
 }

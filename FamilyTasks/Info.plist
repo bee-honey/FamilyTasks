@@ -40,6 +40,11 @@
 	<array>
 		<string>com.naveenkeerthy.FamilyTasks.healthDailySync</string>
 	</array>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>waze</string>
+		<string>comgooglemaps</string>
+	</array>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>fetch</string>

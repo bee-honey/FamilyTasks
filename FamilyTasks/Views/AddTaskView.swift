@@ -19,6 +19,7 @@ struct TaskEditorView: View {
     let mode: Mode
     @State private var draft: TaskDraft
     @State private var dueChoice: TaskDueChoice
+    @State private var isChoosingLocation = false
     @FocusState private var isTitleFocused: Bool
 
     init(mode: Mode) {
@@ -56,6 +57,10 @@ struct TaskEditorView: View {
                         whenPicker
                     }
 
+                    EditorSection("Where") {
+                        locationRow
+                    }
+
                     EditorSection("Priority") {
                         PriorityPicker(draft: $draft)
                     }
@@ -83,12 +88,63 @@ struct TaskEditorView: View {
             .onAppear {
                 if isNew { isTitleFocused = true }
             }
+            .sheet(isPresented: $isChoosingLocation) {
+                LocationSearchView { location in
+                    draft.location = location
+                }
+            }
         }
     }
 
     private var isNew: Bool {
         if case .new = mode { return true }
         return false
+    }
+
+    @ViewBuilder
+    private var locationRow: some View {
+        if let location = draft.location {
+            HStack(spacing: 12) {
+                IconTile(systemImage: "mappin", tint: AppTheme.coolAccent, size: 36)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(location.name)
+                        .font(.body.weight(.semibold))
+                        .lineLimit(1)
+                    if let address = location.address, !address.isEmpty {
+                        Text(address)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    }
+                }
+                Spacer(minLength: 8)
+                Button("Change") { isChoosingLocation = true }
+                    .font(.subheadline.weight(.semibold))
+                Button {
+                    draft.location = nil
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Remove location")
+            }
+            .padding(12)
+            .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        } else {
+            Button {
+                isChoosingLocation = true
+            } label: {
+                Label("Add Location", systemImage: "mappin.and.ellipse")
+                    .labelStyle(.tile(AppTheme.coolAccent))
+                    .font(.body.weight(.semibold))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(10)
+                    .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            }
+            .buttonStyle(.plain)
+        }
     }
 
     private func save() {
