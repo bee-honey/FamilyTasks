@@ -2,180 +2,133 @@ import SwiftUI
 
 struct MealPlanView: View {
     @EnvironmentObject private var organizerStore: OrganizerStore
-    @State private var selectedTab: MealPlanTab = .plan
-    @State private var selectedMealCategory: MealCategory = .breakfast
-    @State private var mealSearchText = ""
+    var isPushed = false
     @State private var selectedDay = Date()
-    @State private var isAddingMeal = false
-    @State private var planningMeal: MealIdea?
-    @State private var editingMeal: MealIdea?
-    @State private var planningDate = Date()
-    @State private var planningSlot: MealSlot = .dinner
+    @State private var choosingSlot: SlotChoice?
     @State private var isShoppingForWeek = false
     @State private var isGenerating = false
-    @State private var shopAfterGenerating = false
+
+    /// An empty slot being filled.
+    struct SlotChoice: Identifiable {
+        let day: Date
+        let slot: MealSlot
+        var id: String { "\(day.timeIntervalSince1970)-\(slot.rawValue)" }
+    }
 
     var body: some View {
-        // Shown inside a tab's NavigationStack.
-        Group {
-            VStack(spacing: 0) {
-                if selectedTab == .meals {
-                    Picker("Meal type", selection: $selectedMealCategory) {
-                        ForEach(MealCategory.allCases) { category in
-                            Text(category.title).tag(category)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .padding(.horizontal, 16)
-                    .padding(.top, 10)
-
-                    HStack(spacing: 8) {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundStyle(.secondary)
-                        TextField("Search meals", text: $mealSearchText)
-                            .textInputAutocapitalization(.words)
-                    }
-                    .font(.footnote)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 12))
-                    .padding(.horizontal, 16)
-                    .padding(.top, 10)
-                }
-
-                ScrollView {
-                    if selectedTab == .plan {
-                        planContent
-                    } else {
-                        mealsContent
-                    }
-                }
-            }
-            .background(AppTheme.background)
-            .navigationTitle(selectedTab == .plan ? "Meal Plan" : "Meals")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                if selectedTab == .plan {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        let toBuy = weekIngredientsToBuy
-                        ShopForWeekButton(count: toBuy) {
-                            isShoppingForWeek = true
-                        }
-                        .accessibilityLabel(toBuy > 0 ? "\(shopForWeekTitle), \(toBuy) to buy" : shopForWeekTitle)
-                    }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        selectedTab = selectedTab == .plan ? .meals : .plan
+        // Shown inside a tab's NavigationStack, or pushed from Family.
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 14) {
+                ScreenHeader(eyebrow: weekTitle, title: "Meal Plan") {
+                    NavigationLink {
+                        MealLibraryView()
                     } label: {
-                        Label(selectedTab == .plan ? "Meals" : "Plan", systemImage: selectedTab == .plan ? "book" : "calendar")
-                            .labelStyle(.titleAndIcon)
+                        PillButtonLabel(title: "Meals", systemImage: "book")
                     }
+                    .buttonStyle(.plain)
                 }
-                if selectedTab == .meals {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button {
-                            isAddingMeal = true
+                .padding(.horizontal, 4)
+
+                if organizerStore.mealIdeas.isEmpty {
+                    ContentUnavailableView {
+                        Label("No Meals Yet", systemImage: "fork.knife")
+                    } description: {
+                        Text("Add the meals your family makes, then plan them for breakfast, lunch or dinner.")
+                    } actions: {
+                        NavigationLink {
+                            MealLibraryView()
                         } label: {
-                            Image(systemName: "plus")
+                            PillButtonLabel(title: "Add Your Meals", systemImage: "plus", isProminent: true)
                         }
-                        .accessibilityLabel("Add meal")
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.top, 60)
+                } else {
+                    weekSwitcher
+
+                    HStack(spacing: 10) {
+                        if !generationDays.isEmpty {
+                            Button {
+                                isGenerating = true
+                            } label: {
+                                PillButtonLabel(title: "Generate", systemImage: "wand.and.stars", isProminent: true)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        Button {
+                            isShoppingForWeek = true
+                        } label: {
+                            PillButtonLabel(title: "Shop for Week", systemImage: "cart", badge: weekIngredientsToBuy, fillsWidth: true)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(weekIngredientsToBuy > 0 ? "\(shopForWeekTitle), \(weekIngredientsToBuy) to buy" : shopForWeekTitle)
+                    }
+
+                    WeeklyMealPlanGrid(days: daysToShow) { day, slot in
+                        plannedMeals(on: day, slot: slot)
+                    } mealForPlannedMeal: { plannedMeal in
+                        organizerStore.mealIdea(for: plannedMeal)
+                    } onPlanSlot: { day, slot in
+                        choosingSlot = SlotChoice(day: day, slot: slot)
+                    } onDelete: { plannedMeal in
+                        organizerStore.deletePlannedMeal(plannedMeal)
                     }
                 }
             }
-            .sheet(isPresented: $isAddingMeal) {
-                MealEditorView(initialCategory: selectedMealCategory)
+            .padding(14)
+        }
+        .background(AppTheme.background)
+        .mainScreenNavigationBar(title: "Meal Plan", isPushed: isPushed)
+        .sheet(item: $choosingSlot) { choice in
+            ChooseMealView(
+                category: MealPlanGenerator.category(for: choice.slot),
+                title: "\(choice.day.formatted(.dateTime.weekday(.wide))) \(choice.slot.title)"
+            ) { mealID in
+                plan(mealID, on: choice.day, slot: choice.slot)
             }
-            .sheet(item: $editingMeal) { meal in
-                MealEditorView(meal: meal)
-            }
-            .sheet(item: $planningMeal) { meal in
-                PlanMealView(meal: meal, initialDate: planningDate, initialSlot: planningSlot)
-            }
-            .sheet(isPresented: $isGenerating, onDismiss: {
-                if shopAfterGenerating {
-                    shopAfterGenerating = false
+        }
+        .sheet(isPresented: $isGenerating) {
+            GenerateMealPlanView(days: generationDays) { added in
+                ToastCenter.shared.show(
+                    "Added \(added) \(added == 1 ? "meal" : "meals") to the plan",
+                    actionTitle: "Shop for Week"
+                ) {
                     isShoppingForWeek = true
                 }
-            }) {
-                GenerateMealPlanView(days: generationDays) { shopNext in
-                    shopAfterGenerating = shopNext
-                }
             }
-            .sheet(isPresented: $isShoppingForWeek) {
-                WeeklyShoppingView(title: shopForWeekTitle, range: shoppingRange)
-            }
+        }
+        .sheet(isPresented: $isShoppingForWeek) {
+            WeeklyShoppingView(title: shopForWeekTitle, range: shoppingRange)
         }
     }
 
-    private var planContent: some View {
-        LazyVStack(spacing: 12) {
-            if organizerStore.mealIdeas.isEmpty {
-                ContentUnavailableView("No Meals Yet", systemImage: "fork.knife", description: Text("Tap Meals to add the meals you make, then plan them for breakfast, lunch, or dinner."))
-                    .padding(.top, 80)
-            } else {
-                weekHeader
+    private func plan(_ mealID: UUID, on day: Date, slot: MealSlot) {
+        let noon = Calendar.current.startOfDay(for: day).addingTimeInterval(12 * 3_600)
+        organizerStore.planMeals([(mealID, noon, slot)])
+        let name = organizerStore.mealIdeas.first { $0.id == mealID }?.name ?? "Meal"
+        ToastCenter.shared.show("\(name) added to \(day.formatted(.dateTime.weekday(.abbreviated))) \(slot.title.lowercased())")
+    }
 
-                if !generationDays.isEmpty {
-                    Button {
-                        isGenerating = true
-                    } label: {
-                        Label("Generate Meal Plan", systemImage: "wand.and.stars")
-                            .font(.headline)
-                            .frame(maxWidth: .infinity, minHeight: 48)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(AppTheme.primary)
-                    .foregroundStyle(AppTheme.onPrimary)
-                }
-
-                WeeklyMealPlanGrid(days: daysToShow) { day, slot in
-                    plannedMeals(on: day, slot: slot)
-                } mealForPlannedMeal: { plannedMeal in
-                    organizerStore.mealIdea(for: plannedMeal)
-                } onPlanSlot: { day, slot in
-                    planSlot(day: day, slot: slot)
-                } onDelete: { plannedMeal in
-                    organizerStore.deletePlannedMeal(plannedMeal)
-                }
+    /// "‹ This Week ›" to move between weeks.
+    private var weekSwitcher: some View {
+        HStack(spacing: 6) {
+            weekArrow("chevron.left", label: "Previous week", offset: -7)
+            Text(weekRelativeTitle)
+                .font(.headline)
+                .frame(minWidth: 110)
+            weekArrow("chevron.right", label: "Next week", offset: 7)
+            Spacer()
+            if !Calendar.current.isDate(selectedDay, equalTo: Date(), toGranularity: .weekOfYear) {
+                Button("Back to This Week") { selectedDay = Date() }
+                    .font(.subheadline.weight(.semibold))
             }
         }
-        .padding(14)
     }
 
     /// The days a generated plan fills: the week shown, from today on.
     private var generationDays: [Date] {
         let today = Calendar.current.startOfDay(for: Date())
         return daysToShow.filter { $0 >= today }
-    }
-
-    /// Opens the meal library on the right category, ready to plan `slot` on `day`.
-    private func planSlot(day: Date, slot: MealSlot) {
-        planningDate = day
-        planningSlot = slot
-        selectedMealCategory = mealCategory(for: slot)
-        selectedDay = day
-        selectedTab = .meals
-    }
-
-    /// "SEP 27 – OCT 3 / This week" with small arrows to change week.
-    private var weekHeader: some View {
-        HStack(alignment: .center) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(weekTitle.uppercased())
-                    .font(.footnote.weight(.semibold))
-                    .tracking(1)
-                    .foregroundStyle(AppTheme.primary)
-                Text(weekRelativeTitle)
-                    .font(.title2.weight(.bold))
-            }
-            Spacer()
-            HStack(spacing: 6) {
-                weekArrow("chevron.left", label: "Previous week", offset: -7)
-                weekArrow("chevron.right", label: "Next week", offset: 7)
-            }
-        }
-        .padding(.horizontal, 4)
     }
 
     private func weekArrow(_ systemImage: String, label: String, offset: Int) -> some View {
@@ -213,31 +166,6 @@ struct MealPlanView: View {
             .count
     }
 
-    private var mealsContent: some View {
-        LazyVStack(spacing: 12) {
-            if organizerStore.mealIdeas.isEmpty {
-                ContentUnavailableView("No Saved Meals", systemImage: "fork.knife.circle", description: Text("Add meals once and reuse them while planning the week."))
-                    .padding(.top, 80)
-            } else if filteredMealIdeas.isEmpty {
-                ContentUnavailableView("No Matches", systemImage: "magnifyingglass", description: Text("Try another search or add a \(selectedMealCategory.title.lowercased()) meal."))
-                    .padding(.top, 80)
-            } else {
-                ForEach(filteredMealIdeas) { meal in
-                    MealIdeaCard(meal: meal) {
-                        planningDate = selectedTab == .meals ? planningDate : selectedDay
-                        planningMeal = meal
-                        selectedTab = .plan
-                    } onEdit: {
-                        editingMeal = meal
-                    } onDelete: {
-                        organizerStore.deleteMealIdea(meal)
-                    }
-                }
-            }
-        }
-        .padding(14)
-    }
-
     private var daysToShow: [Date] {
         let interval = Calendar.current.dateInterval(of: .weekOfYear, for: selectedDay)
         let start = interval?.start ?? Calendar.current.startOfDay(for: selectedDay)
@@ -268,40 +196,6 @@ struct MealPlanView: View {
             .sorted { $0.date < $1.date }
     }
 
-    private var filteredMealIdeas: [MealIdea] {
-        let query = mealSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        return organizerStore.mealIdeas
-            .filter { $0.category == selectedMealCategory }
-            .filter { meal in
-                query.isEmpty
-                || meal.name.localizedCaseInsensitiveContains(query)
-                || meal.ingredients.contains { $0.name.localizedCaseInsensitiveContains(query) }
-            }
-            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-    }
-
-    private func mealCategory(for slot: MealSlot) -> MealCategory {
-        switch slot {
-        case .breakfast:
-            return .breakfast
-        case .lunch, .dinner:
-            return .mainCourse
-        }
-    }
-}
-
-private enum MealPlanTab: String, CaseIterable, Identifiable {
-    case plan
-    case meals
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .plan: "Plan"
-        case .meals: "Meals"
-        }
-    }
 }
 
 private struct WeeklyMealPlanGrid: View {
@@ -583,6 +477,13 @@ struct MealEditorView: View {
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
+
+                    if let meal {
+                        EditorDeleteButton(title: "Delete Meal", message: "It's taken off the plan and removed for everyone in the family.") {
+                            organizerStore.deleteMealIdea(meal)
+                            dismiss()
+                        }
+                    }
                 }
                 .padding(20)
             }
@@ -782,6 +683,13 @@ private struct PlanMealView: View {
                             addIngredientsToShopping: addIngredientsToShopping
                         )
                         dismiss()
+                        if addIngredientsToShopping && !meal.ingredients.isEmpty {
+                            ToastCenter.shared.show("\(meal.name) planned, ingredients added to Shopping", actionTitle: "View") {
+                                AppNavigator.shared.open(.section(.shopping))
+                            }
+                        } else {
+                            ToastCenter.shared.show("\(meal.name) added to \(date.formatted(.dateTime.weekday(.abbreviated))) \(slot.title.lowercased())")
+                        }
                     }
                     .disabled(addIngredientsToShopping && !meal.ingredients.isEmpty && groceryAssignments.isEmpty)
                 }
@@ -892,8 +800,16 @@ private struct WeeklyShoppingView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(addTitle) {
+                        let count = itemsToAdd.count
                         organizerStore.addNeededItems(itemsToAdd)
                         dismiss()
+                        ToastCenter.shared.show(
+                            "\(count) \(count == 1 ? "item" : "items") added to Shopping",
+                            systemImage: "cart.fill.badge.plus",
+                            actionTitle: "View"
+                        ) {
+                            AppNavigator.shared.open(.section(.shopping))
+                        }
                     }
                     .disabled(itemsToAdd.isEmpty)
                 }
@@ -988,35 +904,6 @@ private struct WeeklyShoppingView: View {
 /// The cart button with how many of the week's ingredients are not on the list yet.
 /// iOS 26 draws toolbar buttons in glass that clips anything outside them, so there the
 /// system toolbar badge is used; earlier versions draw the count on the icon.
-private struct ShopForWeekButton: View {
-    let count: Int
-    let action: () -> Void
-
-    var body: some View {
-        if #available(iOS 26, *) {
-            Button(action: action) {
-                Image(systemName: "cart")
-            }
-            .badge(count)
-        } else {
-            Button(action: action) {
-                Image(systemName: "cart")
-                    .overlay(alignment: .topTrailing) {
-                        if count > 0 {
-                            Text("\(count)")
-                                .font(.caption2.weight(.bold))
-                                .foregroundStyle(.black)
-                                .padding(.horizontal, 4)
-                                .frame(minWidth: 16, minHeight: 16)
-                                .background(AppTheme.warning, in: Capsule())
-                                .offset(x: 10, y: -8)
-                        }
-                    }
-            }
-        }
-    }
-}
-
 extension MealSlot {
     /// Each course's color in the meal plan, so breakfast, lunch and dinner read as columns.
     var courseColor: Color {
@@ -1025,5 +912,93 @@ extension MealSlot {
         case .lunch: AppTheme.brightAccent
         case .dinner: AppTheme.coolAccent
         }
+    }
+}
+
+/// Every saved meal, by type, to plan, edit or add to. Pushed from Meal Plan.
+struct MealLibraryView: View {
+    @EnvironmentObject private var organizerStore: OrganizerStore
+    @State private var category: MealCategory = .breakfast
+    @State private var searchText = ""
+    @State private var isAddingMeal = false
+    @State private var planningMeal: MealIdea?
+    @State private var editingMeal: MealIdea?
+
+    var body: some View {
+        ScrollView {
+            LazyVStack(spacing: 12) {
+                HStack(spacing: 8) {
+                    ForEach(MealCategory.allCases) { choice in
+                        ChoiceChip(title: choice.title, isSelected: category == choice) {
+                            category = choice
+                        }
+                    }
+                    Spacer()
+                }
+
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(.secondary)
+                    TextField("Search meals or ingredients", text: $searchText)
+                        .textInputAutocapitalization(.words)
+                }
+                .padding(12)
+                .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+                if meals.isEmpty {
+                    ContentUnavailableView {
+                        Label(searchText.isEmpty ? "No \(category.title) Meals" : "No Matches", systemImage: "fork.knife.circle")
+                    } description: {
+                        Text(searchText.isEmpty ? "Add meals once and reuse them every week." : "Try another search.")
+                    } actions: {
+                        Button("Add \(category.title) Meal") { isAddingMeal = true }
+                            .buttonStyle(.borderedProminent)
+                    }
+                    .padding(.top, 40)
+                } else {
+                    ForEach(meals) { meal in
+                        MealIdeaCard(meal: meal) {
+                            planningMeal = meal
+                        } onEdit: {
+                            editingMeal = meal
+                        } onDelete: {
+                            organizerStore.deleteMealIdea(meal)
+                        }
+                    }
+                }
+            }
+            .padding(14)
+        }
+        .scrollDismissesKeyboard(.interactively)
+        .background(AppTheme.background)
+        .navigationTitle("Your Meals")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("Add Meal", systemImage: "plus") { isAddingMeal = true }
+                    .labelStyle(.titleAndIcon)
+            }
+        }
+        .sheet(isPresented: $isAddingMeal) {
+            MealEditorView(initialCategory: category)
+        }
+        .sheet(item: $editingMeal) { meal in
+            MealEditorView(meal: meal)
+        }
+        .sheet(item: $planningMeal) { meal in
+            PlanMealView(meal: meal, initialDate: Date(), initialSlot: meal.category == .breakfast ? .breakfast : .dinner)
+        }
+    }
+
+    private var meals: [MealIdea] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        return organizerStore.mealIdeas
+            .filter { $0.category == category }
+            .filter { meal in
+                query.isEmpty
+                || meal.name.localizedCaseInsensitiveContains(query)
+                || meal.ingredients.contains { $0.name.localizedCaseInsensitiveContains(query) }
+            }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 }

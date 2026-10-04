@@ -315,7 +315,7 @@ struct HealthSettingsView: View {
                             }
                         }
 
-                    Text(healthSectionEnabled ? "Health appears in the Family Tasks menu. This device can read steps and sleep after Health permission is allowed." : "Enable Health to add it to the Family Tasks menu and request access to steps and sleep.")
+                    Text(healthSectionEnabled ? "Your steps and sleep show in Family → Health once Health access is allowed." : "Turn on to see steps and sleep in Family → Health. You'll be asked for Health access.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -374,7 +374,7 @@ struct HealthSettingsView: View {
                     }
                 }
             }
-            .navigationTitle("Health")
+            .navigationTitle("Health Settings")
             .labelStyle(.tile(SettingsTint.health))
             .scrollContentBackground(.hidden)
             .background(AppTheme.background)

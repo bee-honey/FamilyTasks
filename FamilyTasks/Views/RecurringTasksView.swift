@@ -2,51 +2,37 @@ import SwiftUI
 
 struct RecurringTasksView: View {
     @EnvironmentObject private var organizerStore: OrganizerStore
+    var isPushed = false
     @State private var isAdding = false
     @State private var editingTask: RecurringTask?
 
     var body: some View {
-        // Shown inside a tab's NavigationStack.
-        Group {
-            if organizerStore.visibleRecurringTasks.isEmpty {
-                ContentUnavailableView {
-                    Label("No Recurring Tasks", systemImage: "repeat")
-                } description: {
-                    Text("Bills, filters, birthdays: anything that comes round again.")
-                } actions: {
-                    Button("Add Recurring Task") { isAdding = true }
-                        .buttonStyle(.borderedProminent)
-                }
-            } else {
-                list
-            }
-        }
-        .background(AppTheme.background)
-        .navigationTitle("Recurring")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    isAdding = true
-                } label: {
-                    Image(systemName: "plus")
-                }
-                .accessibilityLabel("Add recurring task")
-            }
-        }
-        .sheet(isPresented: $isAdding) {
-            RecurringTaskEditorView()
-        }
-        .sheet(item: $editingTask) { task in
-            RecurringTaskEditorView(task: task)
-        }
-    }
-
-    private var list: some View {
+        // Shown inside a tab's NavigationStack, or pushed from Family.
         let sorted = organizerStore.visibleRecurringTasks.sorted { $0.nextDueDate < $1.nextDueDate }
         let active = sorted.filter(\.isActive)
         let paused = sorted.filter { !$0.isActive }
-        return List {
+        List {
+            Section {
+                ScreenHeader(eyebrow: summary(active: active.count, paused: paused.count), title: "Recurring") {
+                    HeaderAddButton(accessibilityLabel: "Add recurring task") { isAdding = true }
+                }
+            }
+            .listRowInsets(EdgeInsets(top: 8, leading: 4, bottom: 0, trailing: 4))
+            .listRowBackground(Color.clear)
+
+            if sorted.isEmpty {
+                Section {
+                    ContentUnavailableView {
+                        Label("No Recurring Tasks", systemImage: "repeat")
+                    } description: {
+                        Text("Bills, filters, birthdays: anything that comes round again.")
+                    } actions: {
+                        Button("Add Recurring Task") { isAdding = true }
+                            .buttonStyle(.borderedProminent)
+                    }
+                }
+                .listRowBackground(Color.clear)
+            }
             if !active.isEmpty {
                 Section {
                     ForEach(active) { task in row(task) }
@@ -60,12 +46,25 @@ struct RecurringTasksView: View {
                 } header: {
                     SectionTitle(text: "Paused")
                 } footer: {
-                    Text("Paused tasks don't remind anyone or show on Today. Swipe to resume.")
+                    Text("Paused tasks don't remind anyone or show on Today. Open one to resume it.")
                 }
             }
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
+        .background(AppTheme.background)
+        .mainScreenNavigationBar(title: "Recurring", isPushed: isPushed)
+        .sheet(isPresented: $isAdding) {
+            RecurringTaskEditorView()
+        }
+        .sheet(item: $editingTask) { task in
+            RecurringTaskEditorView(task: task)
+        }
+    }
+
+    private func summary(active: Int, paused: Int) -> String {
+        let activeText = "\(active) active"
+        return paused > 0 ? "\(activeText) · \(paused) paused" : activeText
     }
 
     private func row(_ task: RecurringTask) -> some View {
@@ -182,6 +181,11 @@ private struct RecurringTaskEditorView: View {
     @State private var draft: RecurringTaskDraft
     @FocusState private var isTitleFocused: Bool
 
+    /// The latest copy, so pausing shows straight away.
+    private var currentTask: RecurringTask? {
+        task.flatMap { task in organizerStore.recurringTasks.first { $0.id == task.id } }
+    }
+
     init(task: RecurringTask? = nil) {
         self.task = task
         _draft = State(initialValue: task.map(RecurringTaskDraft.init(task:)) ?? RecurringTaskDraft())
@@ -227,6 +231,23 @@ private struct RecurringTaskEditorView: View {
                         TextField("Optional, like $45 or 2 bags", text: $draft.amount)
                             .padding(12)
                             .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    }
+
+                    if let task {
+                        Toggle(isOn: Binding(
+                            get: { !(currentTask?.isActive ?? task.isActive) },
+                            set: { _ in organizerStore.toggleRecurringActive(currentTask ?? task) }
+                        )) {
+                            Label("Paused", systemImage: "pause.circle")
+                                .labelStyle(.tile(AppTheme.goldAccent))
+                        }
+                        .padding(12)
+                        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+                        EditorDeleteButton(title: "Delete Recurring Task", message: "It's removed for everyone in the family.") {
+                            organizerStore.deleteRecurringTask(task)
+                            dismiss()
+                        }
                     }
                 }
                 .padding(20)

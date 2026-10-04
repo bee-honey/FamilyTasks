@@ -5,11 +5,65 @@ struct HealthView: View {
     @AppStorage("profile.email") private var profileEmail = ""
     @StateObject private var healthService = HealthMetricsService()
     @State private var selectedScope = HealthMetricScope.day
+    @AppStorage("health.section.enabled") private var healthSectionEnabled = false
+    @State private var isShowingSettings = false
 
     var body: some View {
-        // Shown inside a tab's NavigationStack.
+        // Pushed from Family.
         Group {
             List {
+                Section {
+                    ScreenHeader(eyebrow: "Steps and sleep", title: "Health") {
+                        if healthSectionEnabled {
+                            Button {
+                                Task { await healthService.refresh() }
+                            } label: {
+                                Group {
+                                    if healthService.isLoading {
+                                        ProgressView()
+                                    } else {
+                                        Image(systemName: "arrow.clockwise")
+                                            .font(.headline)
+                                    }
+                                }
+                                .foregroundStyle(AppTheme.ink)
+                                .frame(width: 44, height: 44)
+                                .background(AppTheme.surface, in: Circle())
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(healthService.isLoading)
+                            .accessibilityLabel(healthService.isLoading ? "Refreshing health data" : "Refresh health data")
+                        }
+                        Button {
+                            isShowingSettings = true
+                        } label: {
+                            PillButtonLabel(title: "Settings", systemImage: "gearshape")
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .listRowInsets(EdgeInsets(top: 8, leading: 4, bottom: 0, trailing: 4))
+                .listRowBackground(Color.clear)
+
+                if !healthSectionEnabled {
+                    Section {
+                        VStack(alignment: .leading, spacing: 12) {
+                            IconTile(systemImage: "heart.fill", tint: SettingsTint.health, size: 44)
+                            Text("Health is off")
+                                .font(.headline)
+                            Text("Turn it on to see your steps and sleep, and share a daily summary with your family if you like. Each person turns it on on their own phone.")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                            Button {
+                                isShowingSettings = true
+                            } label: {
+                                PillButtonLabel(title: "Set Up Health", systemImage: "heart", isProminent: true)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        .padding(.vertical, 6)
+                    }
+                } else {
                 Section {
                     HStack(spacing: 8) {
                         ForEach(HealthMetricScope.allCases) { scope in
@@ -84,28 +138,19 @@ struct HealthView: View {
                         SectionTitle(text: detailTitle)
                     }
                 }
-            }
-            .listRowBackground(AppTheme.surface)
-            .navigationTitle("Health")
-            .scrollContentBackground(.hidden)
-            .background(AppTheme.background)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        Task { await healthService.refresh() }
-                    } label: {
-                        if healthService.isLoading {
-                            ProgressView()
-                        } else {
-                            Image(systemName: "arrow.clockwise")
-                        }
-                    }
-                    .disabled(healthService.isLoading)
-                    .accessibilityLabel(healthService.isLoading ? "Refreshing health data" : "Refresh health data")
                 }
             }
+            .listRowBackground(AppTheme.surface)
+            .scrollContentBackground(.hidden)
+            .background(AppTheme.background)
+            .mainScreenNavigationBar(title: "Health", isPushed: true)
+            .navigationDestination(isPresented: $isShowingSettings) {
+                HealthSettingsView()
+            }
             .task {
-                await healthService.refresh()
+                if healthSectionEnabled {
+                    await healthService.refresh()
+                }
             }
         }
     }

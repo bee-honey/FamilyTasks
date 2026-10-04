@@ -165,7 +165,9 @@ private struct MatrixTaskRowView: View {
             .frame(width: 28)
         }
         .contentShape(Rectangle())
-        .onTapGesture(count: 2, perform: onEdit)
+        // One tap opens the task; the circle marks it done.
+        .onTapGesture(perform: onEdit)
+        .accessibilityAction(named: "Edit", onEdit)
         .contextMenu {
             Button {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {

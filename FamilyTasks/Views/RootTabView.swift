@@ -78,6 +78,9 @@ struct RootTabView: View {
     /// Kept across the rebuild that follows a theme change.
     @SceneStorage("root.selectedTab") private var selection = "today"
     @AppStorage(TabSection.storageKey) private var slotsRaw = ""
+    @State private var familyPath: [FamilyDestination] = []
+    @ObservedObject private var toasts = ToastCenter.shared
+    @ObservedObject private var navigator = AppNavigator.shared
 
     var body: some View {
         let slots = TabSection.slots(from: slotsRaw)
@@ -94,7 +97,7 @@ struct RootTabView: View {
                 .tag(section.rawValue)
             }
 
-            NavigationStack {
+            NavigationStack(path: $familyPath) {
                 FamilyHubView()
             }
             .tabItem { Label("Family", systemImage: "person.2") }
@@ -105,6 +108,19 @@ struct RootTabView: View {
                 .tag("settings")
         }
         .tint(AppTheme.primary)
+        .overlay(alignment: .bottom) {
+            if let toast = toasts.current {
+                ToastView(toast: toast) { toasts.dismiss() }
+                    .padding(.bottom, 76)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .id(toast.id)
+            }
+        }
+        .onChange(of: navigator.request) { _, request in
+            guard let request else { return }
+            navigator.request = nil
+            open(request, slots: slots)
+        }
         .onAppear {
             // The tab saved last time may no longer be in the tab bar.
             if !validTabs(slotsRaw).contains(selection) {
@@ -116,6 +132,16 @@ struct RootTabView: View {
             if !validTabs(newValue).contains(selection) {
                 selection = "family"
             }
+        }
+    }
+
+    /// A section in the tab bar opens its tab; anything else opens inside Family.
+    private func open(_ destination: FamilyDestination, slots: [TabSection]) {
+        if case .section(let section) = destination, slots.contains(section) {
+            selection = section.rawValue
+        } else {
+            familyPath = [destination]
+            selection = "family"
         }
     }
 
@@ -133,48 +159,116 @@ struct TabSectionScreen: View {
         switch section {
         case .tasks: TaskBoardView(showsNavigationBar: isPushed)
         case .shopping: ShoppingView(showsNavigationBar: isPushed)
-        case .mealPlan: MealPlanView()
-        case .chores: ChoresView()
-        case .recurring: RecurringTasksView()
-        case .ideas: IdeaNotebookView()
+        case .mealPlan: MealPlanView(isPushed: isPushed)
+        case .chores: ChoresView(isPushed: isPushed)
+        case .recurring: RecurringTasksView(isPushed: isPushed)
+        case .ideas: IdeaNotebookView(isPushed: isPushed)
         }
     }
 }
 
-/// Every section that isn't its own tab, plus Health, each with a live summary.
+/// The family's faces and invites, then every section that isn't its own tab, plus Health,
+/// each with a live summary.
 struct FamilyHubView: View {
     @EnvironmentObject private var organizerStore: OrganizerStore
     @EnvironmentObject private var choreStore: ChoreStore
     @EnvironmentObject private var taskStore: TaskStore
+    @EnvironmentObject private var sharedHouseholdStore: SharedHouseholdStore
     @AppStorage(TabSection.storageKey) private var slotsRaw = ""
     @AppStorage("health.section.enabled") private var healthSectionEnabled = false
+    @AppStorage("profile.email") private var profileEmail = ""
 
     var body: some View {
         // Shown inside the Family tab's NavigationStack.
-        Group {
-            List {
-                Section {
-                    ForEach(hubSections) { section in
-                        NavigationLink {
-                            TabSectionScreen(section: section, isPushed: true)
-                        } label: {
-                            HubRow(title: section.title, systemImage: section.systemImage, tint: tint(for: section), detail: detail(for: section))
-                        }
-                    }
-                    if healthSectionEnabled {
-                        NavigationLink {
-                            HealthView()
-                        } label: {
-                            HubRow(title: "Health", systemImage: "heart.text.square", tint: SettingsTint.health, detail: "Steps and sleep")
-                        }
+        List {
+            Section {
+                ScreenHeader(eyebrow: peopleSummary, title: "Family")
+            }
+            .listRowInsets(EdgeInsets(top: 8, leading: 4, bottom: 0, trailing: 4))
+            .listRowBackground(Color.clear)
+
+            Section {
+                peopleRow
+            }
+            .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12))
+            .listRowBackground(AppTheme.surface)
+
+            Section {
+                ForEach(hubSections) { section in
+                    NavigationLink(value: FamilyDestination.section(section)) {
+                        HubRow(title: section.title, systemImage: section.systemImage, tint: tint(for: section), detail: detail(for: section))
                     }
                 }
-                .listRowBackground(AppTheme.surface)
+                NavigationLink(value: FamilyDestination.health) {
+                    HubRow(title: "Health", systemImage: "heart.text.square", tint: SettingsTint.health, detail: healthSectionEnabled ? "Steps and sleep" : "Off · tap to set up")
+                }
+            } header: {
+                SectionTitle(text: "Everything Else")
             }
-            .scrollContentBackground(.hidden)
-            .background(AppTheme.background)
-            .navigationTitle("Family")
+            .listRowBackground(AppTheme.surface)
         }
+        .scrollContentBackground(.hidden)
+        .background(AppTheme.background)
+        .mainScreenNavigationBar(title: "Family", isPushed: false)
+        .navigationDestination(for: FamilyDestination.self) { destination in
+            switch destination {
+            case .section(let section): TabSectionScreen(section: section, isPushed: true)
+            case .health: HealthView()
+            case .sharing: SyncSettingsView()
+            }
+        }
+    }
+
+    private var members: [String] {
+        let me = profileEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let others = taskStore.familyMembers
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+            .filter { !$0.isEmpty && $0 != me }
+        return (me.isEmpty ? [] : [me]) + others
+    }
+
+    private var peopleSummary: String {
+        let count = members.count
+        let people = count == 1 ? "1 person" : "\(count) people"
+        return sharedHouseholdStore.isSharingConfigured ? "\(people) · sharing" : people
+    }
+
+    /// Everyone in the family, then Invite.
+    private var peopleRow: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(alignment: .top, spacing: 16) {
+                ForEach(members, id: \.self) { member in
+                    VStack(spacing: 6) {
+                        AssigneeAvatarView(name: member, size: 48, showsPhoto: false)
+                        Text(member.caseInsensitiveCompare(profileEmail) == .orderedSame ? "You" : firstName(member))
+                            .font(.caption.weight(.semibold))
+                            .lineLimit(1)
+                    }
+                    .frame(minWidth: 56)
+                }
+                Button {
+                    AppNavigator.shared.open(.sharing)
+                } label: {
+                    VStack(spacing: 6) {
+                        Image(systemName: "person.badge.plus")
+                            .font(.title3.weight(.semibold))
+                            .foregroundStyle(AppTheme.primary)
+                            .frame(width: 48, height: 48)
+                            .background(AppTheme.primary.opacity(0.14), in: Circle())
+                        Text("Invite")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(AppTheme.primary)
+                    }
+                    .frame(minWidth: 56)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private func firstName(_ email: String) -> String {
+        let name = Assignee.memberName(for: email)
+        return name.split(separator: " ").first.map(String.init) ?? name
     }
 
     /// Sections already in the tab bar aren't listed again.
@@ -229,8 +323,6 @@ private struct SettingsHomeView: View {
     @AppStorage("profile.name") private var profileName = ""
     @AppStorage("notifications.enabled") private var notificationsEnabled = false
     @AppStorage("calendar.integration.enabled") private var calendarEnabled = false
-    @AppStorage("health.section.enabled") private var healthEnabled = false
-    @AppStorage("health.share.enabled") private var healthSharing = false
     @AppStorage("view.appearance") private var appearance = AppAppearance.system.rawValue
 
     var body: some View {
@@ -248,9 +340,6 @@ private struct SettingsHomeView: View {
                     }
                     NavigationLink { CalendarSettingsView() } label: {
                         HubRow(title: "Calendar", systemImage: "calendar.badge.clock", tint: SettingsTint.calendar, detail: calendarEnabled ? "Showing your calendar events" : "Off")
-                    }
-                    NavigationLink { HealthSettingsView() } label: {
-                        HubRow(title: "Health", systemImage: "heart", tint: SettingsTint.health, detail: healthDetail)
                     }
                     NavigationLink { ViewSettingsView() } label: {
                         HubRow(title: "Appearance", systemImage: "paintbrush", tint: SettingsTint.appearance, detail: appearanceDetail)
@@ -278,11 +367,6 @@ private struct SettingsHomeView: View {
         case (true, false): return email
         default: return "Set up your profile"
         }
-    }
-
-    private var healthDetail: String {
-        guard healthEnabled else { return "Off" }
-        return healthSharing ? "Sharing steps and sleep with family" : "On, not shared"
     }
 
     private var appearanceDetail: String {

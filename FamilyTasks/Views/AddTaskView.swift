@@ -64,6 +64,13 @@ struct TaskEditorView: View {
                     EditorSection("Priority") {
                         PriorityPicker(draft: $draft)
                     }
+
+                    if case .edit(let task) = mode {
+                        EditorDeleteButton(title: "Delete Task", message: "It's removed for everyone in the family.") {
+                            taskStore.delete(task)
+                            dismiss()
+                        }
+                    }
                 }
                 .padding(20)
             }

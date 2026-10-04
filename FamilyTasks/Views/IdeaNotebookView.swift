@@ -2,67 +2,85 @@ import SwiftUI
 
 struct IdeaNotebookView: View {
     @EnvironmentObject private var organizerStore: OrganizerStore
+    var isPushed = false
     @State private var selectedTag = IdeaTagFilter.all
     @State private var searchText = ""
     @State private var showingAddIdea = false
     @State private var editingIdea: IdeaNote?
 
     var body: some View {
-        // Shown inside a tab's NavigationStack.
-        Group {
-            List {
-                Section {
-                    Picker("Tag", selection: $selectedTag) {
-                        ForEach(tagFilters) { filter in
-                            Text(filter.title).tag(filter)
-                        }
-                    }
-                    .pickerStyle(.menu)
+        // Shown inside a tab's NavigationStack, or pushed from Family.
+        List {
+            Section {
+                ScreenHeader(eyebrow: organizerStore.ideaNotes.count == 1 ? "1 idea" : "\(organizerStore.ideaNotes.count) ideas", title: "Ideas") {
+                    HeaderAddButton(accessibilityLabel: "Add idea") { showingAddIdea = true }
                 }
+            }
+            .listRowInsets(EdgeInsets(top: 8, leading: 4, bottom: 0, trailing: 4))
+            .listRowBackground(Color.clear)
 
-                if filteredIdeas.isEmpty {
-                    ContentUnavailableView(
-                        "No Ideas Yet",
-                        systemImage: "lightbulb",
-                        description: Text("Save places, links, activities, and family finds here without dates or reminders.")
-                    )
-                    .listRowBackground(AppTheme.surface)
-                } else {
-                    Section("Ideas") {
-                        ForEach(filteredIdeas) { idea in
-                            IdeaNoteRow(idea: idea)
-                                .contentShape(Rectangle())
-                                .onTapGesture {
-                                    editingIdea = idea
+            Section {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundStyle(.secondary)
+                        TextField("Search ideas", text: $searchText)
+                    }
+                    .padding(12)
+                    .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+                    if !allTags.isEmpty {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach(tagFilters) { filter in
+                                    ChoiceChip(title: filter.title, isSelected: selectedTag == filter) {
+                                        selectedTag = filter
+                                    }
                                 }
+                            }
                         }
-                        .onDelete(perform: deleteIdeas)
                     }
                 }
             }
-            .searchable(text: $searchText, prompt: "Search ideas")
-            .navigationTitle("Ideas")
-            .scrollContentBackground(.hidden)
-            .background(AppTheme.background)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showingAddIdea = true
-                    } label: {
-                        Image(systemName: "plus")
+            .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
+            .listRowBackground(Color.clear)
+
+            if filteredIdeas.isEmpty {
+                ContentUnavailableView(
+                    organizerStore.ideaNotes.isEmpty ? "No Ideas Yet" : "No Matches",
+                    systemImage: "lightbulb",
+                    description: Text(organizerStore.ideaNotes.isEmpty
+                        ? "Save places, links, activities, and family finds here without dates or reminders."
+                        : "Try another search or tag.")
+                )
+                .listRowBackground(Color.clear)
+            } else {
+                Section {
+                    ForEach(filteredIdeas) { idea in
+                        IdeaNoteRow(idea: idea)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                editingIdea = idea
+                            }
                     }
-                    .accessibilityLabel("Add idea")
+                    .onDelete(perform: deleteIdeas)
                 }
             }
-            .sheet(isPresented: $showingAddIdea) {
-                IdeaEditorView(mode: .add) { draft in
-                    organizerStore.addIdea(draft)
-                }
+        }
+        .scrollContentBackground(.hidden)
+        .scrollDismissesKeyboard(.interactively)
+        .background(AppTheme.background)
+        .mainScreenNavigationBar(title: "Ideas", isPushed: isPushed)
+        .sheet(isPresented: $showingAddIdea) {
+            IdeaEditorView(mode: .add) { draft in
+                organizerStore.addIdea(draft)
             }
-            .sheet(item: $editingIdea) { idea in
-                IdeaEditorView(mode: .edit(idea)) { draft in
-                    organizerStore.updateIdea(idea, with: draft)
-                }
+        }
+        .sheet(item: $editingIdea) { idea in
+            IdeaEditorView(mode: .edit(idea)) { draft in
+                organizerStore.updateIdea(idea, with: draft)
+            } onDelete: {
+                organizerStore.deleteIdea(idea)
             }
         }
     }
@@ -167,10 +185,12 @@ private struct IdeaEditorView: View {
     @FocusState private var isTitleFocused: Bool
     let mode: Mode
     let onSave: (IdeaDraft) -> Void
+    let onDelete: (() -> Void)?
 
-    init(mode: Mode, onSave: @escaping (IdeaDraft) -> Void) {
+    init(mode: Mode, onSave: @escaping (IdeaDraft) -> Void, onDelete: (() -> Void)? = nil) {
         self.mode = mode
         self.onSave = onSave
+        self.onDelete = onDelete
         switch mode {
         case .add:
             _draft = State(initialValue: IdeaDraft())
@@ -223,6 +243,13 @@ private struct IdeaEditorView: View {
                             }
                             .padding(12)
                             .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        }
+                    }
+
+                    if let onDelete {
+                        EditorDeleteButton(title: "Delete Idea", message: "It's removed for everyone in the family.") {
+                            onDelete()
+                            dismiss()
                         }
                     }
                 }

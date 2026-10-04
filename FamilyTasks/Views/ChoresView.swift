@@ -2,79 +2,100 @@ import SwiftUI
 
 struct ChoresView: View {
     @EnvironmentObject private var choreStore: ChoreStore
+    var isPushed = false
     @State private var editingChore: ChoreEditorTarget?
     @State private var isAddingKid = false
-    @State private var selectedKid: KidProfile?
     @State private var isEditingSettings = false
 
     var body: some View {
-        // Shown inside a tab's NavigationStack.
-        Group {
-            List {
-                if choreStore.kids.isEmpty {
-                    ContentUnavailableView {
-                        Label("No Kids Yet", systemImage: "figure.and.child.holdinghands")
-                    } description: {
-                        Text("Add your kids by name, then give them chores worth points.")
-                    } actions: {
-                        Button("Add a Kid") { isAddingKid = true }
-                            .buttonStyle(.borderedProminent)
-                    }
-                    .listRowBackground(Color.clear)
-                } else {
-                    balancesSection
-                    waitingSection
-                    toDoSections
-                    allChoresSection
-                }
-            }
-            .scrollContentBackground(.hidden)
-            .background(AppTheme.background)
-            .navigationTitle("Chores")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        isEditingSettings = true
-                    } label: {
-                        Image(systemName: "gearshape")
-                    }
-                    .accessibilityLabel("Points settings")
-                }
-                ToolbarItem(placement: .topBarTrailing) {
+        // Shown inside a tab's NavigationStack, or pushed from Family.
+        List {
+            Section {
+                ScreenHeader(eyebrow: summary, title: "Chores") {
                     Menu {
                         Button("Add Chore", systemImage: "star") { editingChore = .new }
                             .disabled(choreStore.kids.isEmpty)
                         Button("Add Kid", systemImage: "person.badge.plus") { isAddingKid = true }
                     } label: {
-                        Image(systemName: "plus")
+                        HeaderAddLabel()
                     }
-                    .accessibilityLabel("Add")
+                    .accessibilityLabel("Add chore or kid")
                 }
             }
-            .sheet(item: $editingChore) { target in
-                ChoreEditorView(target: target)
+            .listRowInsets(EdgeInsets(top: 8, leading: 4, bottom: 0, trailing: 4))
+            .listRowBackground(Color.clear)
+
+            if choreStore.kids.isEmpty {
+                ContentUnavailableView {
+                    Label("No Kids Yet", systemImage: "figure.and.child.holdinghands")
+                } description: {
+                    Text("Add your kids by name, then give them chores worth points.")
+                } actions: {
+                    Button("Add a Kid") { isAddingKid = true }
+                        .buttonStyle(.borderedProminent)
+                }
+                .listRowBackground(Color.clear)
+            } else {
+                balancesSection
+                waitingSection
+                toDoSections
+                allChoresSection
             }
-            .sheet(isPresented: $isAddingKid) {
-                KidNameEditor(kid: nil)
+
+            Section {
+                Button {
+                    isEditingSettings = true
+                } label: {
+                    HStack(spacing: 14) {
+                        IconTile(systemImage: "dollarsign.circle", tint: AppTheme.success, size: 40)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Points & Money")
+                                .font(.body.weight(.semibold))
+                                .foregroundStyle(AppTheme.ink)
+                            Text("\(choreStore.settings.pointsPerCurrencyUnit * 10) points = \(ChoreMath.formattedMoney(for: choreStore.settings.pointsPerCurrencyUnit * 10, settings: choreStore.settings))")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Text("Change")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(AppTheme.primary)
+                    }
+                }
+                .listRowBackground(AppTheme.surface)
             }
-            .sheet(item: $selectedKid) { kid in
-                KidDetailView(kidID: kid.id)
-            }
-            .sheet(isPresented: $isEditingSettings) {
-                ChoreSettingsView()
-            }
+        }
+        .scrollContentBackground(.hidden)
+        .background(AppTheme.background)
+        .mainScreenNavigationBar(title: "Chores", isPushed: isPushed)
+        .sheet(item: $editingChore) { target in
+            ChoreEditorView(target: target)
+        }
+        .sheet(isPresented: $isAddingKid) {
+            KidNameEditor(kid: nil)
+        }
+        .sheet(isPresented: $isEditingSettings) {
+            ChoreSettingsView()
         }
     }
 
+    private var summary: String {
+        let waiting = choreStore.waitingForApproval.count
+        if waiting > 0 { return "\(waiting) to approve" }
+        let kids = choreStore.kids.count
+        return kids == 1 ? "1 kid" : "\(kids) kids"
+    }
+
     private var balancesSection: some View {
-        Section("Points") {
+        Section {
             ForEach(choreStore.kids) { kid in
-                Button {
-                    selectedKid = kid
+                NavigationLink {
+                    KidDetailView(kidID: kid.id)
                 } label: {
-                    HStack {
+                    HStack(spacing: 12) {
+                        AssigneeAvatarView(name: kid.name, size: 36, showsPhoto: false)
                         Text(kid.name)
+                            .font(.body.weight(.semibold))
                             .foregroundStyle(.primary)
                         Spacer()
                         let balance = choreStore.balance(for: kid)
@@ -86,13 +107,12 @@ struct ChoresView: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
-                        Image(systemName: "chevron.right")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
                     }
                 }
                 .listRowBackground(AppTheme.surface)
             }
+        } header: {
+            SectionTitle(text: "Points")
         }
     }
 
@@ -111,29 +131,23 @@ struct ChoresView: View {
                                 .foregroundStyle(.secondary)
                         }
                         Spacer()
-                        Button {
+                        Button("Not Yet") {
                             choreStore.reject(completion)
-                        } label: {
-                            Image(systemName: "xmark.circle")
-                                .font(.title3)
-                                .foregroundStyle(.secondary)
                         }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Not done")
-                        Button {
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        Button("Approve") {
                             choreStore.approve(completion)
-                        } label: {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.title3)
-                                .foregroundStyle(AppTheme.success)
+                            ToastCenter.shared.show("+\(completion.points) points for \(kidName(completion.kidID))", systemImage: "star.circle.fill")
                         }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Approve")
+                        .buttonStyle(.borderedProminent)
+                        .tint(AppTheme.success)
+                        .controlSize(.small)
                     }
                     .listRowBackground(AppTheme.surface)
                 }
             } header: {
-                Text("Waiting for Approval")
+                SectionTitle(text: "Waiting for Approval")
             } footer: {
                 Text("Points count once a parent approves.")
             }
@@ -146,7 +160,7 @@ struct ChoresView: View {
             let assigned = choreStore.chores(for: kid)
             if !assigned.isEmpty {
                 let toDo = assigned.filter { choreStore.status(of: $0, for: kid) == .toDo }
-                Section("\(kid.name) to Do") {
+                Section {
                     if toDo.isEmpty {
                         Label("All done for now", systemImage: "checkmark.seal")
                             .font(.subheadline)
@@ -171,6 +185,8 @@ struct ChoresView: View {
                         }
                         .listRowBackground(AppTheme.surface)
                     }
+                } header: {
+                    SectionTitle(text: "\(kid.name) to Do")
                 }
             }
         }
@@ -178,7 +194,7 @@ struct ChoresView: View {
 
     @ViewBuilder
     private var allChoresSection: some View {
-        Section("All Chores") {
+        Section {
             if choreStore.chores.isEmpty {
                 Button("Add a Chore") { editingChore = .new }
                     .listRowBackground(AppTheme.surface)
@@ -202,6 +218,8 @@ struct ChoresView: View {
                     }
                 }
             }
+        } header: {
+            SectionTitle(text: "All Chores")
         }
     }
 
@@ -236,35 +254,62 @@ private struct ChoreEditorView: View {
     @State private var points = 5
     @State private var frequency: RecurrenceFrequency = .daily
     @State private var kidIDs: Set<UUID> = []
+    @FocusState private var isTitleFocused: Bool
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section("Chore") {
-                    TextField("Make your bed", text: $title)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 26) {
+                    TextField("What's the chore?", text: $title, axis: .vertical)
+                        .font(.title2.weight(.bold))
                         .textInputAutocapitalization(.sentences)
-                    Stepper("\(points) points", value: $points, in: 1...100)
-                    Text("Worth \(ChoreMath.formattedMoney(for: points, settings: choreStore.settings))")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Picker("Repeats", selection: $frequency) {
-                        ForEach([RecurrenceFrequency.daily, .weekly, .monthly]) { frequency in
-                            Text(frequency.title).tag(frequency)
+                        .focused($isTitleFocused)
+
+                    EditorSection("For") {
+                        WrappingStack(spacing: 8) {
+                            ForEach(choreStore.kids) { kid in
+                                ChoiceChip(title: kid.name, isSelected: kidIDs.contains(kid.id)) {
+                                    if kidIDs.contains(kid.id) { kidIDs.remove(kid.id) } else { kidIDs.insert(kid.id) }
+                                }
+                            }
+                        }
+                    }
+
+                    EditorSection("Points") {
+                        Stepper(value: $points, in: 1...100) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("\(points) points")
+                                    .font(.body.weight(.semibold))
+                                Text("Worth \(ChoreMath.formattedMoney(for: points, settings: choreStore.settings))")
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding(12)
+                        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    }
+
+                    EditorSection("Repeats") {
+                        WrappingStack(spacing: 8) {
+                            ForEach([RecurrenceFrequency.daily, .weekly, .monthly]) { choice in
+                                ChoiceChip(title: choice.title, isSelected: frequency == choice) {
+                                    frequency = choice
+                                }
+                            }
+                        }
+                    }
+
+                    if case .existing(let chore) = target {
+                        EditorDeleteButton(title: "Delete Chore", message: "Points already approved stay with each kid.") {
+                            choreStore.deleteChore(chore)
+                            dismiss()
                         }
                     }
                 }
-
-                Section("For") {
-                    ForEach(choreStore.kids) { kid in
-                        Toggle(kid.name, isOn: Binding(
-                            get: { kidIDs.contains(kid.id) },
-                            set: { isOn in
-                                if isOn { kidIDs.insert(kid.id) } else { kidIDs.remove(kid.id) }
-                            }
-                        ))
-                    }
-                }
+                .padding(20)
             }
+            .scrollDismissesKeyboard(.interactively)
+            .background(AppTheme.background)
             .navigationTitle(isNew ? "New Chore" : "Edit Chore")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -272,14 +317,18 @@ private struct ChoreEditorView: View {
                     Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
+                    Button(isNew ? "Add" : "Save") {
                         save()
                         dismiss()
                     }
+                    .fontWeight(.semibold)
                     .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || kidIDs.isEmpty)
                 }
             }
-            .onAppear(perform: load)
+            .onAppear {
+                load()
+                if isNew { isTitleFocused = true }
+            }
         }
     }
 
@@ -359,7 +408,8 @@ private struct KidDetailView: View {
     @State private var isConfirmingDelete = false
 
     var body: some View {
-        NavigationStack {
+        // Pushed from Chores.
+        Group {
             if let kid {
                 List {
                     Section {
@@ -405,13 +455,10 @@ private struct KidDetailView: View {
                         Button("Remove \(kid.name)", role: .destructive) { isConfirmingDelete = true }
                     }
                 }
+                .scrollContentBackground(.hidden)
+                .background(AppTheme.background)
                 .navigationTitle(kid.name)
                 .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("Done") { dismiss() }
-                    }
-                }
                 .sheet(isPresented: $isPayingOut) {
                     PayOutView(kid: kid, balance: choreStore.balance(for: kid))
                 }

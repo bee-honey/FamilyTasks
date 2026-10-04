@@ -7,12 +7,11 @@ struct GenerateMealPlanView: View {
     @EnvironmentObject private var organizerStore: OrganizerStore
     /// The days to fill: the rest of the week shown.
     let days: [Date]
-    /// Called after adding, with whether to go on to Shop for This Week.
-    let onAdded: (_ shopNext: Bool) -> Void
+    /// Called after adding, with how many meals went on the plan.
+    let onAdded: (_ count: Int) -> Void
 
     @State private var slots: Set<MealSlot> = [.breakfast, .dinner]
     @State private var proposals: [MealPlanGenerator.Proposal]?
-    @State private var shopNext = true
     @State private var addingCategory: MealCategory?
     @State private var editingMeal: MealIdea?
     @State private var choosingFor: MealPlanGenerator.Proposal?
@@ -195,16 +194,6 @@ struct GenerateMealPlanView: View {
             }
             .listRowBackground(AppTheme.surface)
         }
-
-        Section {
-            Toggle(isOn: $shopNext) {
-                Label("Then Shop for This Week", systemImage: "cart.badge.plus")
-                    .labelStyle(.tile(AppTheme.coolAccent))
-            }
-        } footer: {
-            Text("Gathers the ingredients of every meal this week, grouped by shop, to add to the shopping list.")
-        }
-        .listRowBackground(AppTheme.surface)
     }
 
     private func proposalRow(_ proposal: MealPlanGenerator.Proposal) -> some View {
@@ -274,11 +263,12 @@ struct GenerateMealPlanView: View {
     }
 
     private func add(_ proposals: [MealPlanGenerator.Proposal]) {
-        organizerStore.planMeals(proposals.compactMap { proposal in
+        let entries = proposals.compactMap { proposal in
             proposal.mealID.map { ($0, proposal.day.addingTimeInterval(12 * 3_600), proposal.slot) }
-        })
-        onAdded(shopNext)
+        }
+        organizerStore.planMeals(entries)
         dismiss()
+        onAdded(entries.count)
     }
 
     private func dayTitle(_ day: Date) -> String {
@@ -286,16 +276,19 @@ struct GenerateMealPlanView: View {
     }
 }
 
-/// Every meal of one type, to pick for a slot.
-private struct ChooseMealView: View {
+/// Every meal of one type, to pick for a slot, with a way to add a new one.
+struct ChooseMealView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var organizerStore: OrganizerStore
     let category: MealCategory
+    /// "Wednesday Breakfast"; the meal type when not given.
+    var title: String? = nil
     let onChoose: (UUID) -> Void
+    @State private var isAddingMeal = false
 
     var body: some View {
         NavigationStack {
-            List(organizerStore.mealIdeas.filter { $0.category == category }) { meal in
+            List(organizerStore.mealIdeas.filter { $0.category == category }.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }) { meal in
                 Button {
                     onChoose(meal.id)
                     dismiss()
@@ -314,12 +307,24 @@ private struct ChooseMealView: View {
             }
             .scrollContentBackground(.hidden)
             .background(AppTheme.background)
-            .navigationTitle(category.title)
+            .overlay {
+                if !organizerStore.mealIdeas.contains(where: { $0.category == category }) {
+                    ContentUnavailableView("No \(category.title) Meals", systemImage: "fork.knife", description: Text("Add one with New Meal."))
+                }
+            }
+            .navigationTitle(title ?? category.title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                 }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("New Meal", systemImage: "plus") { isAddingMeal = true }
+                        .labelStyle(.titleAndIcon)
+                }
+            }
+            .sheet(isPresented: $isAddingMeal) {
+                MealEditorView(initialCategory: category)
             }
         }
         .presentationDetents([.medium, .large])

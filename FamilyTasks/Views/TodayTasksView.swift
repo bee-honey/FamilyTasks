@@ -665,7 +665,9 @@ private struct TodayTaskRow: View {
             AssigneeAvatarView(name: task.primaryAssigneeForAvatar, size: 28, showsPhoto: false)
         }
         .contentShape(Rectangle())
-        .onTapGesture(count: 2, perform: onEdit)
+        // One tap opens the task; the circle marks it done.
+        .onTapGesture(perform: onEdit)
+        .accessibilityAction(named: "Edit", onEdit)
         .contextMenu {
             Button {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {

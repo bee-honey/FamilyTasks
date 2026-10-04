@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ShoppingView: View {
     @EnvironmentObject private var organizerStore: OrganizerStore
+    @EnvironmentObject private var sharedHouseholdStore: SharedHouseholdStore
     /// Opened from Family rather than as a tab, so it needs the bar's back button.
     var showsNavigationBar = false
     @AppStorage("shopping.selectedShopID") private var selectedShopID = ""
@@ -60,9 +61,7 @@ struct ShoppingView: View {
             .scrollContentBackground(.hidden)
             .scrollDismissesKeyboard(.interactively)
             .background(AppTheme.background)
-            .navigationTitle("Shopping")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar(showsNavigationBar ? .automatic : .hidden, for: .navigationBar)
+            .mainScreenNavigationBar(title: "Shopping", isPushed: showsNavigationBar)
             .sheet(isPresented: $isAddingShop) {
                 AddShopView()
             }
@@ -320,6 +319,12 @@ struct ShoppingView: View {
                     Spacer()
                     Button("Done Shopping") {
                         withAnimation { organizerStore.closeTrip(for: shop) }
+                        ToastCenter.shared.show(
+                            sharedHouseholdStore.isSharingConfigured
+                                ? "\(shop.name) trip done · shared with your family"
+                                : "\(shop.name) trip done · \(items.count) \(items.count == 1 ? "item" : "items") bought",
+                            systemImage: "bag.fill"
+                        )
                     }
                     .font(.footnote.weight(.semibold))
                     .foregroundStyle(AppTheme.primary)

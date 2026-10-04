@@ -56,9 +56,7 @@ struct TaskBoardView: View {
                 .padding(.bottom, 24)
             }
             .background(AppTheme.background)
-            .navigationTitle("Tasks")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar(showsNavigationBar ? .automatic : .hidden, for: .navigationBar)
+            .mainScreenNavigationBar(title: "Tasks", isPushed: showsNavigationBar)
             .sheet(isPresented: $isAddingTask) {
                 AddTaskView()
             }
