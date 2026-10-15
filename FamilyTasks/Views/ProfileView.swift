@@ -401,6 +401,10 @@ struct NotificationSettingsView: View {
     @AppStorage("notifications.familyShopping") private var familyShoppingEnabled = true
     @AppStorage("notifications.todayDigestHour") private var todayDigestHour = 8
     @AppStorage("notifications.todayDigestMinute") private var todayDigestMinute = 0
+    @AppStorage("notifications.eveningDigest") private var eveningDigestEnabled = true
+    @AppStorage("notifications.eveningDigestHour") private var eveningDigestHour = 20
+    @AppStorage("notifications.eveningDigestMinute") private var eveningDigestMinute = 0
+    @AppStorage("notifications.taskChanges") private var taskChangesEnabled = true
     @AppStorage("notifications.dueSoonLeadMinutes") private var dueSoonLeadMinutes = 60
     @AppStorage("notifications.dueSoonLeadMinutesList") private var dueSoonLeadMinutesList = "60"
 
@@ -419,34 +423,8 @@ struct NotificationSettingsView: View {
                             } else {
                                 rescheduleNotifications()
                             }
+                            updateFamilyAlerts()
                         }
-
-                    Toggle(isOn: $todayDigestEnabled) {
-                        Label("Today Digest", systemImage: "sun.max.fill")
-                            .labelStyle(.tile(AppTheme.warning))
-                    }
-                        .disabled(!notificationsEnabled)
-                        .onChange(of: todayDigestEnabled) { _, _ in
-                            rescheduleNotifications()
-                        }
-
-                    if todayDigestEnabled {
-                        Picker(selection: Binding(
-                            get: { todayDigestTime },
-                            set: { todayDigestTime = $0 }
-                        )) {
-                            ForEach(NotificationDigestTimeOption.options) { option in
-                                Text(option.title).tag(option.id)
-                            }
-                        } label: {
-                            Label("Digest Time", systemImage: "alarm")
-                                .labelStyle(.tile(AppTheme.warning))
-                        }
-                        .disabled(!notificationsEnabled)
-                        .onChange(of: todayDigestTime) { _, _ in
-                            rescheduleNotifications()
-                        }
-                    }
 
                     Toggle(isOn: $dueSoonEnabled) {
                         Label("Due Soon Alerts", systemImage: "clock.badge.exclamationmark")
@@ -465,21 +443,81 @@ struct NotificationSettingsView: View {
                             }
                     }
 
+                    Text(notificationDetail)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Section {
+                    Toggle(isOn: $todayDigestEnabled) {
+                        Label("Morning List", systemImage: "sun.max.fill")
+                            .labelStyle(.tile(AppTheme.warning))
+                    }
+                        .disabled(!notificationsEnabled)
+                        .onChange(of: todayDigestEnabled) { _, _ in
+                            rescheduleNotifications()
+                        }
+
+                    if todayDigestEnabled {
+                        DatePicker(
+                            "Morning Time",
+                            selection: timeBinding(hour: $todayDigestHour, minute: $todayDigestMinute),
+                            displayedComponents: .hourAndMinute
+                        )
+                        .disabled(!notificationsEnabled)
+                    }
+
+                    Toggle(isOn: $eveningDigestEnabled) {
+                        Label("Evening List", systemImage: "moon.stars.fill")
+                            .labelStyle(.tile(AppTheme.primary))
+                    }
+                        .disabled(!notificationsEnabled)
+                        .onChange(of: eveningDigestEnabled) { _, _ in
+                            rescheduleNotifications()
+                        }
+
+                    if eveningDigestEnabled {
+                        DatePicker(
+                            "Evening Time",
+                            selection: timeBinding(hour: $eveningDigestHour, minute: $eveningDigestMinute),
+                            displayedComponents: .hourAndMinute
+                        )
+                        .disabled(!notificationsEnabled)
+                    }
+                } header: {
+                    Text("Your Daily Tasks")
+                } footer: {
+                    Text("Lists your open tasks: overdue ones, ones due that day, recurring ones and ones with no date. Skipped on days with nothing to do.")
+                }
+
+                Section {
+                    Toggle(isOn: $taskChangesEnabled) {
+                        Label("New & Changed Tasks", systemImage: "square.and.pencil")
+                            .labelStyle(.tile(AppTheme.taskSchedule))
+                    }
+                        .disabled(!notificationsEnabled)
+                        .onChange(of: taskChangesEnabled) { _, _ in
+                            updateFamilyAlerts()
+                        }
+
                     Toggle(isOn: $familyCompletionsEnabled) {
                         Label("When Family Finishes a Task", systemImage: "checkmark.circle.fill")
                             .labelStyle(.tile(AppTheme.success))
                     }
                         .disabled(!notificationsEnabled)
+                        .onChange(of: familyCompletionsEnabled) { _, _ in
+                            updateFamilyAlerts()
+                        }
 
                     Toggle(isOn: $familyShoppingEnabled) {
                         Label("When Shopping Is Done", systemImage: "cart.fill.badge.plus")
                             .labelStyle(.tile(AppTheme.coolAccent))
                     }
                         .disabled(!notificationsEnabled)
-
-                    Text(notificationDetail)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                } header: {
+                    Text("From Your Family")
+                } footer: {
+                    Text("Nudges always come through. Tap the bell on a task to nudge everyone else on it.")
                 }
 
                 Section("Status") {
@@ -535,23 +573,29 @@ struct NotificationSettingsView: View {
         }
     }
 
-    private var todayDigestTime: String {
-        get {
-            NotificationDigestTimeOption.id(hour: todayDigestHour, minute: todayDigestMinute)
+    private func updateFamilyAlerts() {
+        Task {
+            await FamilyAlertService.shared.updateSubscription()
         }
-        nonmutating set {
-            guard let option = NotificationDigestTimeOption.options.first(where: { $0.id == newValue }) else { return }
-            todayDigestHour = option.hour
-            todayDigestMinute = option.minute
-        }
+    }
+
+    /// A time of day stored as an hour and a minute; changing it reschedules.
+    private func timeBinding(hour: Binding<Int>, minute: Binding<Int>) -> Binding<Date> {
+        Binding(
+            get: {
+                Calendar.current.date(bySettingHour: hour.wrappedValue, minute: minute.wrappedValue, second: 0, of: Date()) ?? Date()
+            },
+            set: { date in
+                let components = Calendar.current.dateComponents([.hour, .minute], from: date)
+                hour.wrappedValue = components.hour ?? hour.wrappedValue
+                minute.wrappedValue = components.minute ?? minute.wrappedValue
+                rescheduleNotifications()
+            }
+        )
     }
 
     private var notificationDetail: String {
         var details: [String] = []
-
-        if todayDigestEnabled {
-            details.append("Digest at \(NotificationDigestTimeOption.title(hour: todayDigestHour, minute: todayDigestMinute)) for tasks scheduled that day.")
-        }
 
         if dueSoonEnabled {
             let descriptions = selectedDueSoonLeadMinutes.compactMap { minutes in
@@ -563,7 +607,7 @@ struct NotificationSettingsView: View {
         }
 
         if details.isEmpty {
-            return "Turn on a notification type to schedule local alerts for this device."
+            return "Turn on Due Soon Alerts to get reminders before tasks are due."
         }
 
         return details.joined(separator: " ")
@@ -601,33 +645,6 @@ struct NotificationSettingsView: View {
         default:
             return "\(descriptions.dropLast().joined(separator: ", ")), and \(descriptions.last ?? "")"
         }
-    }
-}
-
-private struct NotificationDigestTimeOption: Identifiable {
-    let hour: Int
-    let minute: Int
-    let title: String
-
-    var id: String {
-        Self.id(hour: hour, minute: minute)
-    }
-
-    static let options = [
-        NotificationDigestTimeOption(hour: 6, minute: 0, title: "6:00 AM"),
-        NotificationDigestTimeOption(hour: 7, minute: 0, title: "7:00 AM"),
-        NotificationDigestTimeOption(hour: 8, minute: 0, title: "8:00 AM"),
-        NotificationDigestTimeOption(hour: 9, minute: 0, title: "9:00 AM"),
-        NotificationDigestTimeOption(hour: 18, minute: 0, title: "6:00 PM"),
-        NotificationDigestTimeOption(hour: 20, minute: 0, title: "8:00 PM")
-    ]
-
-    static func id(hour: Int, minute: Int) -> String {
-        "\(hour):\(minute)"
-    }
-
-    static func title(hour: Int, minute: Int) -> String {
-        options.first(where: { $0.hour == hour && $0.minute == minute })?.title ?? String(format: "%02d:%02d", hour, minute)
     }
 }
 

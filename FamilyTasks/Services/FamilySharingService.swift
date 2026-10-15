@@ -409,9 +409,6 @@ struct SharedMemberProfile: Codable, Identifiable, Equatable {
 
 extension Notification.Name {
     static let familyDataDidChange = Notification.Name("FamilyDataDidChange")
-    static let sharedTasksDidArrive = Notification.Name("SharedTasksDidArrive")
-    /// userInfo["completions"] holds the [TaskCompletion] another family member finished.
-    static let sharedTasksWereCompleted = Notification.Name("SharedTasksWereCompleted")
     /// userInfo["trips"] holds the [ShoppingTripNews] another family member finished.
     static let sharedShoppingTripsDone = Notification.Name("SharedShoppingTripsDone")
 }
@@ -447,7 +444,6 @@ final class SharedHouseholdStore: ObservableObject, HouseholdDataSource {
     private weak var organizerStore: OrganizerStore?
     private var changeObserver: NSObjectProtocol?
     private var pendingUploadTask: Task<Void, Never>?
-    private var suppressNextSharedTaskArrivalNotification = false
     private var syncChain: Task<Void, Never>?
     private var subscribedScopes = Set<Int>()
     private var engine: HouseholdSyncEngine?
@@ -659,7 +655,6 @@ final class SharedHouseholdStore: ObservableObject, HouseholdDataSource {
                 try await accept(metadata)
                 store(recordID: try Self.rootRecordID(of: metadata), databaseScope: .shared)
                 statusMessage = "Joined shared family list"
-                suppressNextSharedTaskArrivalNotification = true
                 await synchronize(mode: .adoptRemote)
             } catch {
                 lastErrorMessage = userFacingMessage(for: error)
@@ -687,7 +682,6 @@ final class SharedHouseholdStore: ObservableObject, HouseholdDataSource {
             try await accept(metadata)
             store(recordID: try Self.rootRecordID(of: metadata), databaseScope: .shared)
             statusMessage = "Joined shared family list"
-            suppressNextSharedTaskArrivalNotification = true
             await synchronize(mode: .adoptRemote)
         } catch {
             lastErrorMessage = userFacingMessage(for: error)
@@ -796,12 +790,8 @@ final class SharedHouseholdStore: ObservableObject, HouseholdDataSource {
     }
 
     func apply(_ payload: SharedHouseholdPayload, changedRecords: [SyncRecord]) {
-        let arrival = sharedTaskArrival(from: changedRecords)
-        let completions = TaskCompletion.newlyCompleted(
-            before: taskStore?.exportTasks() ?? [],
-            after: payload.tasks,
-            viewerEmail: defaults.string(forKey: "profile.email") ?? ""
-        )
+        // New, changed and finished tasks reach the people they're for as pushes from
+        // FamilyAlertService, sent by whoever made the change.
         let trips = ShoppingTripNews.newlyDone(
             before: organizerStore?.shops ?? [],
             after: payload.shopping.shops,
@@ -818,52 +808,9 @@ final class SharedHouseholdStore: ObservableObject, HouseholdDataSource {
             healthSnapshots: payload.healthSnapshots
         )
         ChoreStore.shared.applySharedData(payload.chores)
-        postSharedTaskArrival(arrival)
-        if !completions.isEmpty {
-            NotificationCenter.default.post(name: .sharedTasksWereCompleted, object: self, userInfo: ["completions": completions])
-        }
         if !trips.isEmpty {
             NotificationCenter.default.post(name: .sharedShoppingTripsDone, object: self, userInfo: ["trips": trips])
         }
-    }
-
-    /// New tasks for this member that someone else added since the last sync.
-    private func sharedTaskArrival(from changed: [SyncRecord]) -> (count: Int, title: String?)? {
-        if suppressNextSharedTaskArrivalNotification {
-            suppressNextSharedTaskArrivalNotification = false
-            return nil
-        }
-
-        guard let taskStore else { return nil }
-
-        let currentEmail = (defaults.string(forKey: "profile.email") ?? "")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .lowercased()
-        let fromOthers = changed.filter { record in
-            record.kind == .task &&
-                record.updatedBy.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() != currentEmail
-        }
-
-        let existingTaskIDs = Set(taskStore.exportTasks().map(\.id))
-        let newTasks = HouseholdRecords.payload(from: fromOthers).tasks.filter { task in
-            !existingTaskIDs.contains(task.id) && task.isVisible(to: currentEmail)
-        }
-        guard !newTasks.isEmpty else { return nil }
-
-        return (newTasks.count, newTasks.first?.title)
-    }
-
-    private func postSharedTaskArrival(_ arrival: (count: Int, title: String?)?) {
-        guard let arrival else { return }
-
-        NotificationCenter.default.post(
-            name: .sharedTasksDidArrive,
-            object: self,
-            userInfo: [
-                "count": arrival.count,
-                "title": arrival.title ?? ""
-            ]
-        )
     }
 
     private func userFacingMessage(for error: Error) -> String {
@@ -1169,6 +1116,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         MainActor.assumeIsolated {
             SharedHouseholdStore.shared.configure(taskStore: .shared, organizerStore: .shared)
             NotificationScheduler.shared.configure(taskStore: .shared, organizerStore: .shared)
+            FamilyAlertService.shared.configure(taskStore: .shared)
             WidgetBridge.shared.configure(taskStore: .shared, organizerStore: .shared)
         }
         FamilyTasksShortcuts.updateAppShortcutParameters()
@@ -1210,8 +1158,6 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         let identifier = notification.request.identifier
 
         if identifier.hasPrefix("familytasks.test.") ||
-            identifier.hasPrefix("familytasks.sharedTaskArrival.") ||
-            identifier.hasPrefix("familytasks.sharedTaskCompletion.") ||
             identifier.hasPrefix("familytasks.shoppingDone.") {
             return [.banner, .list, .sound, .badge]
         }

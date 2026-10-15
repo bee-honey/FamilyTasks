@@ -134,6 +134,8 @@ private struct MatrixTaskRowView: View {
                 .lineLimit(2)
                 .multilineTextAlignment(.trailing)
 
+            NudgeButton(item: task, dueDate: task.dueDate, isDone: task.isDone)
+
             AssigneeAvatarView(name: task.primaryAssigneeForAvatar, size: 28, showsPhoto: false)
 
             Menu {

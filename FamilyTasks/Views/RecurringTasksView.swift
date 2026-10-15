@@ -148,6 +148,8 @@ private struct RecurringTaskRow: View {
 
             Spacer(minLength: 8)
 
+            NudgeButton(item: task, dueDate: task.nextDueDate, isDone: !task.isActive)
+
             AssigneeAvatarView(name: task.primaryAssigneeForAvatar, size: 28, showsPhoto: false)
         }
         .opacity(task.isActive ? 1 : 0.5)
