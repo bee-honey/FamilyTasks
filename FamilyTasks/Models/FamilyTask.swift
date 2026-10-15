@@ -339,48 +339,6 @@ extension FamilyTask {
     }
 }
 
-/// A task another family member finished, for the "Sam finished Take out bins" notification.
-struct TaskCompletion: Equatable {
-    var who: String
-    var title: String
-
-    /// Tasks that were open here and that someone else has since finished, recently
-    /// enough to be news. Tasks this device never saw open (for example when first
-    /// joining a share) are left out.
-    static func newlyCompleted(before: [FamilyTask], after: [FamilyTask], viewerEmail: String, now: Date = Date()) -> [TaskCompletion] {
-        let viewer = viewerEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        let wasOpen = Set(before.filter { !$0.isDone }.map(\.id))
-        let recent = now.addingTimeInterval(-86_400)
-
-        return after.compactMap { task in
-            guard task.isDone,
-                  wasOpen.contains(task.id),
-                  let completedBy = task.completedBy?.lowercased(), !completedBy.isEmpty, completedBy != viewer,
-                  let completedAt = task.completedAt, completedAt >= recent,
-                  task.isVisible(to: viewer) else { return nil }
-            return TaskCompletion(who: Assignee.memberName(for: completedBy), title: task.title)
-        }
-    }
-
-    /// One notification for everything finished in a sync.
-    static func notificationBody(for completions: [TaskCompletion]) -> String {
-        let people = completions.reduce(into: [String]()) { names, completion in
-            if !names.contains(completion.who) { names.append(completion.who) }
-        }
-        let titles = completions.map(\.title)
-        let tasks = switch titles.count {
-        case 1: titles[0]
-        case 2: "\(titles[0]) and \(titles[1])"
-        default: "\(titles[0]), \(titles[1]) and \(titles.count - 2) more"
-        }
-
-        if people.count == 1 {
-            return "\(people[0]) finished \(tasks)."
-        }
-        return "\(ListFormatter.localizedString(byJoining: people)) finished \(tasks)."
-    }
-}
-
 extension TaskBucket {
     /// The short label on task tags: "Do now", "Schedule", "Delegate", "Someday".
     var tagTitle: String {

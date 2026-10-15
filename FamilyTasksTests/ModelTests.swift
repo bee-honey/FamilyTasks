@@ -100,38 +100,6 @@ final class ModelTests: XCTestCase {
         XCTAssertNil(FamilyTask(title: "Done long ago", isDone: true).completionSummary(viewerEmail: "mum@example.com"))
     }
 
-    func testOnlyTasksSomeoneElseJustFinishedAreNews() {
-        let viewer = "mum@example.com"
-        let open = [
-            FamilyTask(title: "By Sam"),
-            FamilyTask(title: "By me"),
-            FamilyTask(title: "Finished yesterday morning"),
-            FamilyTask(title: "Private to Sam", assignedTo: "sam@example.com", assignedToEmails: ["sam@example.com"], createdBy: "sam@example.com")
-        ]
-        var after = open
-        for index in after.indices {
-            after[index].isDone = true
-            after[index].completedBy = index == 1 ? viewer : "sam@example.com"
-            after[index].completedAt = index == 2 ? Date().addingTimeInterval(-2 * 86_400) : Date()
-        }
-        let alreadyDone = doneTask("Never seen open", by: "sam@example.com")
-
-        let news = TaskCompletion.newlyCompleted(before: open, after: after + [alreadyDone], viewerEmail: viewer)
-
-        XCTAssertEqual(news, [TaskCompletion(who: "Sam", title: "By Sam")])
-    }
-
-    func testCompletionNotificationText() {
-        let sam = { TaskCompletion(who: "Sam", title: $0) }
-        XCTAssertEqual(TaskCompletion.notificationBody(for: [sam("Take out bins")]), "Sam finished Take out bins.")
-        XCTAssertEqual(TaskCompletion.notificationBody(for: [sam("Bins"), sam("Dishes")]), "Sam finished Bins and Dishes.")
-        XCTAssertEqual(TaskCompletion.notificationBody(for: [sam("Bins"), sam("Dishes"), sam("Laundry"), sam("Mow")]), "Sam finished Bins, Dishes and 2 more.")
-        XCTAssertEqual(
-            TaskCompletion.notificationBody(for: [sam("Bins"), TaskCompletion(who: "Mum", title: "Groceries")]),
-            "Sam and Mum finished Bins and Groceries."
-        )
-    }
-
     // MARK: Quick due dates
 
     private func date(_ string: String) -> Date {

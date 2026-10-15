@@ -12,11 +12,13 @@
 		26A57217B63A6D03B4F5955C /* ChoresView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB53E2CCC7AFC0F5493E24C0 /* ChoresView.swift */; };
 		2C0A000B2C0A000000000001 /* FamilyTasksApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A000A2C0A000000000001 /* FamilyTasksApp.swift */; };
 		2C0A000D2C0A000000000001 /* FamilyTask.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A000C2C0A000000000001 /* FamilyTask.swift */; };
+		F00DA1E70000000000000002 /* FamilyAlert.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00DA1E70000000000000001 /* FamilyAlert.swift */; };
 		2C0A000F2C0A000000000001 /* TaskStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A000E2C0A000000000001 /* TaskStore.swift */; };
 		2C0A00112C0A000000000001 /* CalendarSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A00102C0A000000000001 /* CalendarSyncService.swift */; };
 		2C0A00132C0A000000000001 /* FamilySharingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A00122C0A000000000001 /* FamilySharingService.swift */; };
 		2C0A00152C0A000000000001 /* TaskBoardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A00142C0A000000000001 /* TaskBoardView.swift */; };
 		2C0A00172C0A000000000001 /* BucketView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A00162C0A000000000001 /* BucketView.swift */; };
+		F00DA1E70000000000000006 /* NudgeButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00DA1E70000000000000005 /* NudgeButton.swift */; };
 		2C0A00192C0A000000000001 /* TaskCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A00182C0A000000000001 /* TaskCardView.swift */; };
 		2C0A001B2C0A000000000001 /* AddTaskView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A001A2C0A000000000001 /* AddTaskView.swift */; };
 		2C0A00312C0A000000000001 /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A002E2C0A000000000001 /* RootTabView.swift */; };
@@ -57,9 +59,11 @@
 		A1B2C3D40000000000000002 /* HouseholdRecords.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000000000000001 /* HouseholdRecords.swift */; };
 		A1B2C3D40000000000000004 /* HouseholdRecordsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000000000000003 /* HouseholdRecordsTests.swift */; };
 		A1B2C3D40000000000000006 /* HouseholdSyncEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000000000000005 /* HouseholdSyncEngine.swift */; };
+		F00DA1E70000000000000004 /* FamilyAlertService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00DA1E70000000000000003 /* FamilyAlertService.swift */; };
 		A1B2C3D40000000000000008 /* HouseholdSyncEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000000000000007 /* HouseholdSyncEngineTests.swift */; };
 		A5CCD6349124BE5E00A564CA /* ScreenChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCB382542C193CF747A96DA0 /* ScreenChrome.swift */; };
 		B1C21BB45F89B4FD4287627F /* ModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E612F06E9C75226BD229FC11 /* ModelTests.swift */; };
+		F00DA1E70000000000000008 /* FamilyAlertTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00DA1E70000000000000007 /* FamilyAlertTests.swift */; };
 		B1E2AA5145911A15F49052F0 /* ChoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AB649E7E7354FE110CDFCA7 /* ChoreTests.swift */; };
 		B6AB9552389A62F1C4E6BBF6 /* WidgetData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33B236709ED79055EFC132AD /* WidgetData.swift */; };
 		B7A8D40ABA07CDF7AF17409F /* WidgetBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5E2990011171453CBC039DF /* WidgetBridge.swift */; };
@@ -113,11 +117,13 @@
 		2C0A00072C0A000000000001 /* FamilyTasks.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FamilyTasks.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		2C0A000A2C0A000000000001 /* FamilyTasksApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyTasksApp.swift; sourceTree = "<group>"; };
 		2C0A000C2C0A000000000001 /* FamilyTask.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyTask.swift; sourceTree = "<group>"; };
+		F00DA1E70000000000000001 /* FamilyAlert.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyAlert.swift; sourceTree = "<group>"; };
 		2C0A000E2C0A000000000001 /* TaskStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskStore.swift; sourceTree = "<group>"; };
 		2C0A00102C0A000000000001 /* CalendarSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarSyncService.swift; sourceTree = "<group>"; };
 		2C0A00122C0A000000000001 /* FamilySharingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilySharingService.swift; sourceTree = "<group>"; };
 		2C0A00142C0A000000000001 /* TaskBoardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskBoardView.swift; sourceTree = "<group>"; };
 		2C0A00162C0A000000000001 /* BucketView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BucketView.swift; sourceTree = "<group>"; };
+		F00DA1E70000000000000005 /* NudgeButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NudgeButton.swift; sourceTree = "<group>"; };
 		2C0A00182C0A000000000001 /* TaskCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskCardView.swift; sourceTree = "<group>"; };
 		2C0A001A2C0A000000000001 /* AddTaskView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddTaskView.swift; sourceTree = "<group>"; };
 		2C0A001C2C0A000000000001 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -159,6 +165,7 @@
 		A1B2C3D40000000000000001 /* HouseholdRecords.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HouseholdRecords.swift; sourceTree = "<group>"; };
 		A1B2C3D40000000000000003 /* HouseholdRecordsTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HouseholdRecordsTests.swift; sourceTree = "<group>"; };
 		A1B2C3D40000000000000005 /* HouseholdSyncEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HouseholdSyncEngine.swift; sourceTree = "<group>"; };
+		F00DA1E70000000000000003 /* FamilyAlertService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyAlertService.swift; sourceTree = "<group>"; };
 		A1B2C3D40000000000000007 /* HouseholdSyncEngineTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HouseholdSyncEngineTests.swift; sourceTree = "<group>"; };
 		A5E2990011171453CBC039DF /* WidgetBridge.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WidgetBridge.swift; sourceTree = "<group>"; };
 		A9EBE4BFD6830D8DA4CF63B5 /* TaskStoreTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TaskStoreTests.swift; sourceTree = "<group>"; };
@@ -174,6 +181,7 @@
 		DB53E2CCC7AFC0F5493E24C0 /* ChoresView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ChoresView.swift; sourceTree = "<group>"; };
 		DBF42F5D8704345FA15A373D /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		E612F06E9C75226BD229FC11 /* ModelTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ModelTests.swift; sourceTree = "<group>"; };
+		F00DA1E70000000000000007 /* FamilyAlertTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = FamilyAlertTests.swift; sourceTree = "<group>"; };
 		EC9AE0823AA92C2177793719 /* WrappingStack.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WrappingStack.swift; sourceTree = "<group>"; };
 		FB6B27E570B66274E040165F /* MealPlanGeneratorTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MealPlanGeneratorTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -248,6 +256,7 @@
 			isa = PBXGroup;
 			children = (
 				2C0A000C2C0A000000000001 /* FamilyTask.swift */,
+				F00DA1E70000000000000001 /* FamilyAlert.swift */,
 				2C0A00502C0A000000000001 /* IdeaModels.swift */,
 				2C0A003C2C0A000000000001 /* ShoppingModels.swift */,
 				C817928FC24BEF3835312223 /* ChoreModels.swift */,
@@ -273,6 +282,7 @@
 				2C0A00122C0A000000000001 /* FamilySharingService.swift */,
 				A1B2C3D40000000000000001 /* HouseholdRecords.swift */,
 				A1B2C3D40000000000000005 /* HouseholdSyncEngine.swift */,
+				F00DA1E70000000000000003 /* FamilyAlertService.swift */,
 				2C0A00542C0A000000000001 /* HealthMetricsService.swift */,
 				2C0A004F2C0A000000000001 /* NotificationScheduler.swift */,
 				2C0A004D2C0A000000000001 /* ShoppingListIntent.swift */,
@@ -300,6 +310,7 @@
 				2C0A002F2C0A000000000001 /* AssigneeAvatarView.swift */,
 				2C0A00142C0A000000000001 /* TaskBoardView.swift */,
 				2C0A00162C0A000000000001 /* BucketView.swift */,
+				F00DA1E70000000000000005 /* NudgeButton.swift */,
 				2C0A00182C0A000000000001 /* TaskCardView.swift */,
 				2C0A001A2C0A000000000001 /* AddTaskView.swift */,
 				2C0A00362C0A000000000001 /* EditTaskView.swift */,
@@ -340,6 +351,7 @@
 			children = (
 				CF4226E63FDF989D31BEA8BF /* HealthAggregationTests.swift */,
 				E612F06E9C75226BD229FC11 /* ModelTests.swift */,
+				F00DA1E70000000000000007 /* FamilyAlertTests.swift */,
 				2A13A167718A0EF3814EA4E9 /* NotificationTimingTests.swift */,
 				1EE3F1FE8CB9085764096A06 /* OrganizerStoreTests.swift */,
 				725ABA626AD119FC773FD265 /* SyncMergeTests.swift */,
@@ -492,11 +504,14 @@
 				2C0A00552C0A000000000001 /* HealthMetricsService.swift in Sources */,
 				2C0A00572C0A000000000001 /* HealthView.swift in Sources */,
 				2C0A00172C0A000000000001 /* BucketView.swift in Sources */,
+				F00DA1E70000000000000006 /* NudgeButton.swift in Sources */,
 				2C0A00112C0A000000000001 /* CalendarSyncService.swift in Sources */,
 				2C0A000D2C0A000000000001 /* FamilyTask.swift in Sources */,
+				F00DA1E70000000000000002 /* FamilyAlert.swift in Sources */,
 				2C0A00132C0A000000000001 /* FamilySharingService.swift in Sources */,
 				A1B2C3D40000000000000002 /* HouseholdRecords.swift in Sources */,
 				A1B2C3D40000000000000006 /* HouseholdSyncEngine.swift in Sources */,
+				F00DA1E70000000000000004 /* FamilyAlertService.swift in Sources */,
 				2C0A004E2C0A000000000001 /* NotificationScheduler.swift in Sources */,
 				2C0A000B2C0A000000000001 /* FamilyTasksApp.swift in Sources */,
 				2C0A00152C0A000000000001 /* TaskBoardView.swift in Sources */,
@@ -549,6 +564,7 @@
 			files = (
 				3DD28E028918977E37FF9148 /* HealthAggregationTests.swift in Sources */,
 				B1C21BB45F89B4FD4287627F /* ModelTests.swift in Sources */,
+				F00DA1E70000000000000008 /* FamilyAlertTests.swift in Sources */,
 				30CB59E9CA5C66997CC39F93 /* NotificationTimingTests.swift in Sources */,
 				CB2B06C79C39C339685B0128 /* OrganizerStoreTests.swift in Sources */,
 				D06A7327F1ECEEC7990C61F1 /* SyncMergeTests.swift in Sources */,

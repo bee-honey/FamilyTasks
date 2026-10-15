@@ -611,6 +611,8 @@ private struct RecurringScheduleRow: View {
 
             Spacer(minLength: 8)
 
+            NudgeButton(item: task, dueDate: task.nextDueDate)
+
             AssigneeAvatarView(name: task.assignedTo, size: 28, showsPhoto: false)
         }
     }
@@ -661,6 +663,8 @@ private struct TodayTaskRow: View {
             if let location = task.location {
                 MapPinButton(location: location)
             }
+
+            NudgeButton(item: task, dueDate: task.dueDate, isDone: task.isDone)
 
             AssigneeAvatarView(name: task.primaryAssigneeForAvatar, size: 28, showsPhoto: false)
         }

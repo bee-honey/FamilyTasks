@@ -12,8 +12,6 @@ final class NotificationScheduler: ObservableObject {
     private weak var taskStore: TaskStore?
     private weak var organizerStore: OrganizerStore?
     private var changeObserver: NSObjectProtocol?
-    private var sharedTaskObserver: NSObjectProtocol?
-    private var completionObserver: NSObjectProtocol?
     private var shoppingObserver: NSObjectProtocol?
     private let defaults = UserDefaults.standard
 
@@ -23,10 +21,15 @@ final class NotificationScheduler: ObservableObject {
         static let dueSoon = "notifications.dueSoon"
         static let todayDigestHour = "notifications.todayDigestHour"
         static let todayDigestMinute = "notifications.todayDigestMinute"
+        static let eveningDigest = "notifications.eveningDigest"
+        static let eveningDigestHour = "notifications.eveningDigestHour"
+        static let eveningDigestMinute = "notifications.eveningDigestMinute"
         static let dueSoonLeadMinutes = "notifications.dueSoonLeadMinutes"
         static let dueSoonLeadMinutesList = "notifications.dueSoonLeadMinutesList"
-        static let digestCatchupDay = "notifications.digestCatchupDay"
+        /// Today's lists ("2026-10-13.morning") already scheduled or caught up, so none is sent twice.
+        static let dailyListsHandled = "notifications.dailyListsHandled"
         static let familyCompletions = "notifications.familyCompletions"
+        static let taskChanges = "notifications.taskChanges"
         static let familyShopping = "notifications.familyShopping"
     }
 
@@ -38,8 +41,6 @@ final class NotificationScheduler: ObservableObject {
         static let todayDigest = "familytasks.todayDigest."
         static let dueSoon = "familytasks.dueSoon."
         static let recurringDueSoon = "familytasks.recurringDueSoon."
-        static let sharedTaskArrival = "familytasks.sharedTaskArrival."
-        static let sharedTaskCompletion = "familytasks.sharedTaskCompletion."
         static let shoppingDone = "familytasks.shoppingDone."
     }
 
@@ -63,20 +64,6 @@ final class NotificationScheduler: ObservableObject {
             }
         }
 
-        if sharedTaskObserver == nil {
-            sharedTaskObserver = NotificationCenter.default.addObserver(
-                forName: .sharedTasksDidArrive,
-                object: nil,
-                queue: .main
-            ) { [weak self] notification in
-                let count = notification.userInfo?["count"] as? Int ?? 1
-                let title = notification.userInfo?["title"] as? String
-                Task { @MainActor in
-                    await self?.scheduleSharedTaskArrival(count: count, title: title)
-                }
-            }
-        }
-
         if shoppingObserver == nil {
             shoppingObserver = NotificationCenter.default.addObserver(
                 forName: .sharedShoppingTripsDone,
@@ -86,19 +73,6 @@ final class NotificationScheduler: ObservableObject {
                 let trips = notification.userInfo?["trips"] as? [ShoppingTripNews] ?? []
                 Task { @MainActor in
                     await self?.scheduleShoppingDone(trips)
-                }
-            }
-        }
-
-        if completionObserver == nil {
-            completionObserver = NotificationCenter.default.addObserver(
-                forName: .sharedTasksWereCompleted,
-                object: nil,
-                queue: .main
-            ) { [weak self] notification in
-                let completions = notification.userInfo?["completions"] as? [TaskCompletion] ?? []
-                Task { @MainActor in
-                    await self?.scheduleSharedTaskCompletion(completions)
                 }
             }
         }
@@ -144,10 +118,7 @@ final class NotificationScheduler: ObservableObject {
         let activeTasks = taskStore.exportVisibleTasks().filter { !$0.isDone }
         let activeRecurringTasks = organizerStore?.exportVisibleRecurringTasks().filter(\.isActive) ?? []
 
-        var alerts: [ScheduledAlert] = []
-        if defaults.bool(forKey: DefaultsKey.todayDigest) {
-            alerts += todayDigestAlerts(for: activeTasks)
-        }
+        var alerts = dailyListAlerts(tasks: activeTasks, recurringTasks: activeRecurringTasks)
         alerts += dueSoonAlerts(for: activeTasks)
         alerts += recurringDueSoonAlerts(for: activeRecurringTasks)
 
@@ -202,6 +173,10 @@ final class NotificationScheduler: ObservableObject {
             DefaultsKey.familyShopping: true,
             DefaultsKey.todayDigestHour: 8,
             DefaultsKey.todayDigestMinute: 0,
+            DefaultsKey.eveningDigest: true,
+            DefaultsKey.eveningDigestHour: 20,
+            DefaultsKey.eveningDigestMinute: 0,
+            DefaultsKey.taskChanges: true,
             DefaultsKey.dueSoonLeadMinutes: 60,
             DefaultsKey.dueSoonLeadMinutesList: "60"
         ])
@@ -214,8 +189,6 @@ final class NotificationScheduler: ObservableObject {
                 $0.hasPrefix(IdentifierPrefix.todayDigest) ||
                 $0.hasPrefix(IdentifierPrefix.dueSoon) ||
                 $0.hasPrefix(IdentifierPrefix.recurringDueSoon) ||
-                $0.hasPrefix(IdentifierPrefix.sharedTaskArrival) ||
-                $0.hasPrefix(IdentifierPrefix.sharedTaskCompletion) ||
                 $0.hasPrefix(IdentifierPrefix.shoppingDone)
             }
     }
@@ -248,65 +221,87 @@ final class NotificationScheduler: ObservableObject {
         let request: UNNotificationRequest
     }
 
-    private func todayDigestAlerts(for tasks: [FamilyTask]) -> [ScheduledAlert] {
+    /// A morning or evening reminder of this person's open tasks.
+    private struct DailyListSlot {
+        var id: String
+        var hour: Int
+        var minute: Int
+        var title: (Int) -> String
+    }
+
+    private var dailyListSlots: [DailyListSlot] {
+        var slots: [DailyListSlot] = []
+        if defaults.bool(forKey: DefaultsKey.todayDigest) {
+            slots.append(DailyListSlot(
+                id: "morning",
+                hour: defaults.integer(forKey: DefaultsKey.todayDigestHour),
+                minute: defaults.integer(forKey: DefaultsKey.todayDigestMinute),
+                title: { $0 == 1 ? "Your task today" : "Your \($0) tasks today" }
+            ))
+        }
+        if defaults.bool(forKey: DefaultsKey.eveningDigest) {
+            slots.append(DailyListSlot(
+                id: "evening",
+                hour: defaults.integer(forKey: DefaultsKey.eveningDigestHour),
+                minute: defaults.integer(forKey: DefaultsKey.eveningDigestMinute),
+                title: { $0 == 1 ? "Still to do: 1 task" : "Still to do: \($0) tasks" }
+            ))
+        }
+        return slots
+    }
+
+    /// Two weeks of morning and evening lists, each holding what will still be open then
+    /// if nothing changes. Any change reschedules them, so a finished task drops off.
+    private func dailyListAlerts(tasks: [FamilyTask], recurringTasks: [RecurringTask]) -> [ScheduledAlert] {
         let calendar = Calendar.current
         let now = Date()
-        let hour = defaults.integer(forKey: DefaultsKey.todayDigestHour)
-        let minute = defaults.integer(forKey: DefaultsKey.todayDigestMinute)
+        let viewer = defaults.string(forKey: "profile.email") ?? ""
+        let todaySuffix = digestIdentifierSuffix(for: now, calendar: calendar)
+        var handled = (defaults.stringArray(forKey: DefaultsKey.dailyListsHandled) ?? []).filter { $0.hasPrefix(todaySuffix) }
         var alerts: [ScheduledAlert] = []
+        var latestMissedToday: (slot: DailyListSlot, list: DailyTaskList, time: Date)?
 
         for dayOffset in 0..<14 {
-            guard let day = calendar.date(byAdding: .day, value: dayOffset, to: now),
-                  let triggerDate = calendar.date(
-                    bySettingHour: hour,
-                    minute: minute,
-                    second: 0,
-                    of: day
-                  ) else {
-                continue
-            }
-
-            let dayTasks = tasksForDigest(on: day, from: tasks, calendar: calendar)
-            guard !dayTasks.isEmpty else { continue }
+            guard let day = calendar.date(byAdding: .day, value: dayOffset, to: now) else { continue }
+            let list = DailyTaskList.make(on: day, tasks: tasks, recurringTasks: recurringTasks, viewer: viewer, calendar: calendar)
+            guard !list.entries.isEmpty else { continue }
             let daySuffix = digestIdentifierSuffix(for: day, calendar: calendar)
 
-            if triggerDate > now {
-                alerts.append(digestAlert(for: dayTasks, on: triggerDate, identifierSuffix: daySuffix))
-            } else if dayOffset == 0, defaults.string(forKey: DefaultsKey.digestCatchupDay) != daySuffix {
-                // Today's digest time already passed (e.g. first launch after it): send it once.
-                defaults.set(daySuffix, forKey: DefaultsKey.digestCatchupDay)
-                alerts.append(digestAlert(for: dayTasks, on: now.addingTimeInterval(10), identifierSuffix: "\(daySuffix).catchup"))
+            for slot in dailyListSlots {
+                guard let triggerDate = calendar.date(bySettingHour: slot.hour, minute: slot.minute, second: 0, of: day) else { continue }
+                if triggerDate > now {
+                    if dayOffset == 0 { handled.append("\(daySuffix).\(slot.id)") }
+                    alerts.append(dailyListAlert(list, title: slot.title(list.entries.count), on: triggerDate, identifierSuffix: "\(daySuffix).\(slot.id)"))
+                } else if dayOffset == 0, triggerDate > latestMissedToday?.time ?? .distantPast {
+                    latestMissedToday = (slot, list, triggerDate)
+                }
             }
         }
 
+        // Today's latest list time passed before one was scheduled for it (e.g. first launch
+        // after it): send it once.
+        if let missed = latestMissedToday {
+            let catchupKey = "\(todaySuffix).\(missed.slot.id)"
+            if !handled.contains(catchupKey) {
+                handled.append(catchupKey)
+                alerts.append(dailyListAlert(
+                    missed.list,
+                    title: missed.slot.title(missed.list.entries.count),
+                    on: now.addingTimeInterval(10),
+                    identifierSuffix: "\(catchupKey).catchup"
+                ))
+            }
+        }
+
+        defaults.set(Array(Set(handled)).sorted(), forKey: DefaultsKey.dailyListsHandled)
         return alerts
     }
 
-    private func tasksForDigest(on day: Date, from tasks: [FamilyTask], calendar: Calendar) -> [FamilyTask] {
-        tasks
-            .filter { task in
-                guard let dueDate = task.dueDate else { return false }
-                return calendar.isDate(dueDate, inSameDayAs: day)
-            }
-            .sorted { lhs, rhs in
-                switch (lhs.dueDate, rhs.dueDate) {
-                case let (left?, right?):
-                    return left < right
-                case (.some, .none):
-                    return true
-                case (.none, .some):
-                    return false
-                case (.none, .none):
-                    return lhs.updatedAt > rhs.updatedAt
-                }
-            }
-    }
-
-    private func digestAlert(for tasks: [FamilyTask], on triggerDate: Date, identifierSuffix: String) -> ScheduledAlert {
+    private func dailyListAlert(_ list: DailyTaskList, title: String, on triggerDate: Date, identifierSuffix: String) -> ScheduledAlert {
         let calendar = Calendar.current
         let content = UNMutableNotificationContent()
-        content.title = "Today's Family Tasks"
-        content.body = digestBody(for: tasks)
+        content.title = title
+        content.body = list.body
         content.sound = .default
 
         let components = calendar.dateComponents([.year, .month, .day, .hour, .minute, .second], from: triggerDate)
@@ -421,63 +416,6 @@ final class NotificationScheduler: ObservableObject {
         return normalized.isEmpty ? [60] : normalized
     }
 
-    private func scheduleSharedTaskArrival(count: Int, title: String?) async {
-        guard defaults.bool(forKey: DefaultsKey.enabled) else { return }
-
-        let settings = await center.notificationSettings()
-        guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else {
-            await refreshStatus(settings: settings)
-            return
-        }
-
-        let content = UNMutableNotificationContent()
-        content.title = count == 1 ? "New Family Task" : "New Family Tasks"
-
-        let trimmedTitle = title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        if count == 1, !trimmedTitle.isEmpty {
-            content.body = "\(trimmedTitle) was added to your shared tasks."
-        } else {
-            content.body = "\(count) tasks were added to your shared family list."
-        }
-
-        content.sound = .default
-
-        let request = UNNotificationRequest(
-            identifier: "\(IdentifierPrefix.sharedTaskArrival)\(UUID().uuidString)",
-            content: content,
-            trigger: UNTimeIntervalNotificationTrigger(timeInterval: 2, repeats: false)
-        )
-
-        do {
-            try await center.add(request)
-            await refreshStatus(settings: settings)
-        } catch {
-            statusMessage = "Could not schedule shared task notification: \(error.localizedDescription)"
-        }
-    }
-
-    /// "Sam finished Take out bins." when another family member completes a task.
-    private func scheduleSharedTaskCompletion(_ completions: [TaskCompletion]) async {
-        guard !completions.isEmpty,
-              defaults.bool(forKey: DefaultsKey.enabled),
-              defaults.bool(forKey: DefaultsKey.familyCompletions) else { return }
-
-        let settings = await center.notificationSettings()
-        guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else { return }
-
-        let content = UNMutableNotificationContent()
-        content.title = completions.count == 1 ? "Task Done" : "Tasks Done"
-        content.body = TaskCompletion.notificationBody(for: completions)
-        content.sound = .default
-
-        let request = UNNotificationRequest(
-            identifier: "\(IdentifierPrefix.sharedTaskCompletion)\(UUID().uuidString)",
-            content: content,
-            trigger: UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
-        )
-        try? await center.add(request)
-    }
-
     /// "Sam finished shopping at Costco (5 items)."
     private func scheduleShoppingDone(_ trips: [ShoppingTripNews]) async {
         guard !trips.isEmpty,
@@ -499,17 +437,6 @@ final class NotificationScheduler: ObservableObject {
             )
             try? await center.add(request)
         }
-    }
-
-    private func digestBody(for tasks: [FamilyTask]) -> String {
-        let countText = tasks.count == 1 ? "1 task" : "\(tasks.count) tasks"
-        let titles = tasks.prefix(3).map(\.title).joined(separator: ", ")
-
-        if tasks.count > 3 {
-            return "\(countText) scheduled: \(titles), and \(tasks.count - 3) more."
-        }
-
-        return "\(countText) scheduled: \(titles)."
     }
 
     private func dueSoonBody(title: String, dueDate: Date?, leadMinutes: Int) -> String {

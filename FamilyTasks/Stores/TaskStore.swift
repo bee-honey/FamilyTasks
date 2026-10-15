@@ -94,20 +94,20 @@ final class TaskStore: ObservableObject {
 
     func add(_ draft: TaskDraft) {
         let assignment = normalizedAssignment(from: draft)
-        tasks.append(
-            FamilyTask(
-                title: draft.title.trimmingCharacters(in: .whitespacesAndNewlines),
-                notes: draft.notes.trimmingCharacters(in: .whitespacesAndNewlines),
-                dueDate: draft.includeDueDate ? draft.dueDate : nil,
-                isUrgent: draft.isUrgent,
-                isImportant: draft.isImportant,
-                assignedTo: assignment.primaryValue,
-                assignedToEmails: assignment.emails,
-                createdBy: Self.currentProfileEmailValue(),
-                notificationPreference: draft.notificationPreference,
-                location: draft.location
-            )
+        let task = FamilyTask(
+            title: draft.title.trimmingCharacters(in: .whitespacesAndNewlines),
+            notes: draft.notes.trimmingCharacters(in: .whitespacesAndNewlines),
+            dueDate: draft.includeDueDate ? draft.dueDate : nil,
+            isUrgent: draft.isUrgent,
+            isImportant: draft.isImportant,
+            assignedTo: assignment.primaryValue,
+            assignedToEmails: assignment.emails,
+            createdBy: Self.currentProfileEmailValue(),
+            notificationPreference: draft.notificationPreference,
+            location: draft.location
         )
+        tasks.append(task)
+        LocalItemChange.task(before: nil, after: task).post()
     }
 
     func update(_ task: FamilyTask, with draft: TaskDraft) {
@@ -130,9 +130,11 @@ final class TaskStore: ObservableObject {
 
     func update(_ task: FamilyTask) {
         guard let index = tasks.firstIndex(where: { $0.id == task.id }) else { return }
+        let before = tasks[index]
         var changed = task
         changed.updatedAt = Date()
         tasks[index] = changed
+        LocalItemChange.task(before: before, after: changed).post()
     }
 
     func move(_ task: FamilyTask, to bucket: TaskBucket) {
@@ -162,7 +164,9 @@ final class TaskStore: ObservableObject {
         task.completedBy = Self.currentProfileEmailValue()
         task.completedAt = date
         task.updatedAt = date
+        let before = tasks[index]
         tasks[index] = task
+        LocalItemChange.task(before: before, after: task).post()
     }
 
     func delete(_ task: FamilyTask) {

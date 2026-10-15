@@ -438,25 +438,26 @@ final class OrganizerStore: ObservableObject {
         let title = draft.title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty else { return }
         let assignment = normalizedRecurringAssignment(from: draft)
-        recurringTasks.append(
-            RecurringTask(
-                title: title,
-                notes: draft.notes.trimmingCharacters(in: .whitespacesAndNewlines),
-                amount: draft.amount.trimmingCharacters(in: .whitespacesAndNewlines),
-                frequency: draft.frequency,
-                nextDueDate: draft.nextDueDate,
-                assignedTo: assignment.primaryValue,
-                assignedToEmails: assignment.emails,
-                createdBy: Self.currentProfileEmailValue(),
-                notificationPreference: draft.notificationPreference
-            )
+        let task = RecurringTask(
+            title: title,
+            notes: draft.notes.trimmingCharacters(in: .whitespacesAndNewlines),
+            amount: draft.amount.trimmingCharacters(in: .whitespacesAndNewlines),
+            frequency: draft.frequency,
+            nextDueDate: draft.nextDueDate,
+            assignedTo: assignment.primaryValue,
+            assignedToEmails: assignment.emails,
+            createdBy: Self.currentProfileEmailValue(),
+            notificationPreference: draft.notificationPreference
         )
+        recurringTasks.append(task)
+        LocalItemChange.recurring(before: nil, after: task, completedOccurrence: false).post()
     }
 
     func updateRecurringTask(_ task: RecurringTask, with draft: RecurringTaskDraft) {
         guard let index = recurringTasks.firstIndex(where: { $0.id == task.id }) else { return }
         let title = draft.title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty else { return }
+        let before = recurringTasks[index]
 
         recurringTasks[index].title = title
         recurringTasks[index].notes = draft.notes.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -471,6 +472,7 @@ final class OrganizerStore: ObservableObject {
         }
         recurringTasks[index].notificationPreference = draft.notificationPreference
         recurringTasks[index].updatedAt = Date()
+        LocalItemChange.recurring(before: before, after: recurringTasks[index], completedOccurrence: false).post()
     }
 
     func recurringTasks(on date: Date, calendar: Calendar = .current) -> [RecurringTask] {
@@ -490,14 +492,18 @@ final class OrganizerStore: ObservableObject {
 
     func toggleRecurringActive(_ task: RecurringTask) {
         guard let index = recurringTasks.firstIndex(where: { $0.id == task.id }) else { return }
+        let before = recurringTasks[index]
         recurringTasks[index].isActive.toggle()
         recurringTasks[index].updatedAt = Date()
+        LocalItemChange.recurring(before: before, after: recurringTasks[index], completedOccurrence: false).post()
     }
 
     func markRecurringDone(_ task: RecurringTask) {
         guard let index = recurringTasks.firstIndex(where: { $0.id == task.id }) else { return }
+        let before = recurringTasks[index]
         recurringTasks[index].nextDueDate = nextOccurrence(afterCompleting: task)
         recurringTasks[index].updatedAt = Date()
+        LocalItemChange.recurring(before: before, after: recurringTasks[index], completedOccurrence: true).post()
     }
 
     /// Advances along the task's own schedule (keeping its day and time) to the first

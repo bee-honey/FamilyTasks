@@ -56,6 +56,9 @@ struct FamilyTasksApp: App {
                     WidgetBridge.shared.applyPendingActions()
                     FamilyTasksShortcuts.updateAppShortcutParameters()
                     Task {
+                        await FamilyAlertService.shared.refresh()
+                    }
+                    Task {
                         await sharedHouseholdStore.syncOnAppActivation()
                         await HealthSyncCoordinator.shared.syncIfNeeded(
                             taskStore: taskStore,
