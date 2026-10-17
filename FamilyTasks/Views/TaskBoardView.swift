@@ -19,6 +19,7 @@ struct TaskBoardView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     header
+                        .padding(.horizontal, 8)
 
                     LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
                         ForEach(TaskBucket.allCases) { bucket in
@@ -65,10 +66,7 @@ struct TaskBoardView: View {
 
     /// "THIS WEEK ▾ / Tasks" with the add button; the caption picks the stats period.
     private var header: some View {
-        HStack(alignment: .top, spacing: 12) {
-            if !showsNavigationBar {
-                ProfileButton()
-            }
+        HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 4) {
                 Menu {
                     Picker("Period", selection: $analyticsRange) {

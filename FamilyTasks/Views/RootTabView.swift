@@ -73,9 +73,8 @@ enum TabSection: String, CaseIterable, Identifiable {
     }
 }
 
-/// The app's main navigation: Today, two chosen sections and More (the family and
-/// everything else). Your avatar at the top of each tab opens your profile, and its gear
-/// opens Settings.
+/// The app's main navigation: Today, two chosen sections, More (the family and everything
+/// else) and Settings.
 struct RootTabView: View {
     /// Kept across the rebuild that follows a theme change.
     @SceneStorage("root.selectedTab") private var selection = "today"
@@ -104,28 +103,12 @@ struct RootTabView: View {
             }
             .tabItem { Label("More", systemImage: "ellipsis.circle") }
             .tag("family")
+
+            SettingsHomeView()
+                .tabItem { Label("Settings", systemImage: "gearshape") }
+                .tag("settings")
         }
         .tint(AppTheme.primary)
-        .sheet(isPresented: $navigator.isShowingSettings) {
-            NavigationStack {
-                ProfileView()
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button("Done") { navigator.isShowingSettings = false }
-                        }
-                        ToolbarItem(placement: .primaryAction) {
-                            NavigationLink {
-                                SettingsHomeView()
-                            } label: {
-                                Image(systemName: "gearshape")
-                            }
-                            .accessibilityLabel("Settings")
-                        }
-                    }
-            }
-            // A sheet doesn't inherit the tab bar's tint.
-            .tint(AppTheme.primary)
-        }
         .overlay(alignment: .bottom) {
             if let toast = toasts.current {
                 ToastView(toast: toast) { toasts.dismiss() }
@@ -164,7 +147,7 @@ struct RootTabView: View {
     }
 
     private func validTabs(_ raw: String) -> [String] {
-        ["today", "family"] + TabSection.slots(from: raw).map(\.rawValue)
+        ["today", "family", "settings"] + TabSection.slots(from: raw).map(\.rawValue)
     }
 }
 
@@ -200,7 +183,7 @@ struct FamilyHubView: View {
         // Shown inside the Family tab's NavigationStack.
         List {
             Section {
-                ScreenHeader(eyebrow: peopleSummary, title: "More", showsProfile: true)
+                ScreenHeader(eyebrow: peopleSummary, title: "More")
             }
             .listRowInsets(EdgeInsets(top: 8, leading: 4, bottom: 0, trailing: 4))
             .listRowBackground(Color.clear)
@@ -226,6 +209,8 @@ struct FamilyHubView: View {
             .listRowBackground(AppTheme.surface)
         }
         .scrollContentBackground(.hidden)
+        // Header at the same height on every tab.
+        .contentMargins(.top, 0, for: .scrollContent)
         .background(AppTheme.background)
         .mainScreenNavigationBar(title: "More", isPushed: false)
         .navigationDestination(for: FamilyDestination.self) { destination in
@@ -334,41 +319,57 @@ struct FamilyHubView: View {
     }
 }
 
-/// Every setting except your profile (which is where this opens from), each with a one-line summary.
+/// Every setting, each with a one-line summary.
 private struct SettingsHomeView: View {
     @EnvironmentObject private var sharedHouseholdStore: SharedHouseholdStore
+    @AppStorage("profile.email") private var profileEmail = ""
+    @AppStorage("profile.name") private var profileName = ""
     @AppStorage("notifications.enabled") private var notificationsEnabled = false
     @AppStorage("calendar.integration.enabled") private var calendarEnabled = false
     @AppStorage("view.appearance") private var appearance = AppAppearance.system.rawValue
 
     var body: some View {
-        // Pushed from Profile in the sheet your avatar opens.
-        List {
-            Section {
-                NavigationLink { SyncSettingsView() } label: {
-                    HubRow(title: "iCloud Sharing", systemImage: "icloud", tint: SettingsTint.iCloud, detail: sharedHouseholdStore.statusMessage)
+        NavigationStack {
+            List {
+                Section {
+                    NavigationLink { ProfileView() } label: {
+                        HubRow(title: "Profile", systemImage: "person.crop.circle", tint: SettingsTint.profile, detail: profileDetail)
+                    }
+                    NavigationLink { SyncSettingsView() } label: {
+                        HubRow(title: "iCloud Sharing", systemImage: "icloud", tint: SettingsTint.iCloud, detail: sharedHouseholdStore.statusMessage)
+                    }
+                    NavigationLink { NotificationSettingsView() } label: {
+                        HubRow(title: "Notifications", systemImage: "bell.badge", tint: SettingsTint.notifications, detail: notificationsEnabled ? "On" : "Off")
+                    }
+                    NavigationLink { CalendarSettingsView() } label: {
+                        HubRow(title: "Calendar", systemImage: "calendar.badge.clock", tint: SettingsTint.calendar, detail: calendarEnabled ? "Showing your calendar events" : "Off")
+                    }
+                    NavigationLink { ViewSettingsView() } label: {
+                        HubRow(title: "Appearance", systemImage: "paintbrush", tint: SettingsTint.appearance, detail: appearanceDetail)
+                    }
                 }
-                NavigationLink { NotificationSettingsView() } label: {
-                    HubRow(title: "Notifications", systemImage: "bell.badge", tint: SettingsTint.notifications, detail: notificationsEnabled ? "On" : "Off")
-                }
-                NavigationLink { CalendarSettingsView() } label: {
-                    HubRow(title: "Calendar", systemImage: "calendar.badge.clock", tint: SettingsTint.calendar, detail: calendarEnabled ? "Showing your calendar events" : "Off")
-                }
-                NavigationLink { ViewSettingsView() } label: {
-                    HubRow(title: "Appearance", systemImage: "paintbrush", tint: SettingsTint.appearance, detail: appearanceDetail)
-                }
-            }
-            .listRowBackground(AppTheme.surface)
+                .listRowBackground(AppTheme.surface)
 
-            Section {
-            } footer: {
-                Text("Version \(appVersionDisplay)")
-                    .frame(maxWidth: .infinity)
+                Section {
+                } footer: {
+                    Text("Version \(appVersionDisplay)")
+                        .frame(maxWidth: .infinity)
+                }
             }
+            .scrollContentBackground(.hidden)
+            .background(AppTheme.background)
+            .navigationTitle("Settings")
         }
-        .scrollContentBackground(.hidden)
-        .background(AppTheme.background)
-        .navigationTitle("Settings")
+    }
+
+    private var profileDetail: String {
+        let name = profileName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let email = profileEmail.trimmingCharacters(in: .whitespacesAndNewlines)
+        switch (name.isEmpty, email.isEmpty) {
+        case (false, false): return "\(name) · \(email)"
+        case (true, false): return email
+        default: return "Set up your profile"
+        }
     }
 
     private var appearanceDetail: String {

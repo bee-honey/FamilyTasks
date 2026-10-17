@@ -6,12 +6,13 @@ struct ChoresView: View {
     @State private var editingChore: ChoreEditorTarget?
     @State private var isAddingKid = false
     @State private var isEditingSettings = false
+    @State private var openKidID: UUID?
 
     var body: some View {
         // Shown inside a tab's NavigationStack, or pushed from Family.
         List {
             Section {
-                ScreenHeader(eyebrow: summary, title: "Chores", showsProfile: !isPushed) {
+                ScreenHeader(eyebrow: summary, title: "Chores") {
                     Menu {
                         Button("Add Chore", systemImage: "star") { editingChore = .new }
                             .disabled(choreStore.kids.isEmpty)
@@ -36,7 +37,7 @@ struct ChoresView: View {
                 }
                 .listRowBackground(Color.clear)
             } else {
-                balancesSection
+                leaderboardSection
                 waitingSection
                 toDoSections
                 allChoresSection
@@ -66,6 +67,8 @@ struct ChoresView: View {
             }
         }
         .scrollContentBackground(.hidden)
+        // Header at the same height on every tab.
+        .contentMargins(.top, 0, for: .scrollContent)
         .background(AppTheme.background)
         .mainScreenNavigationBar(title: "Chores", isPushed: isPushed)
         .sheet(item: $editingChore) { target in
@@ -77,6 +80,9 @@ struct ChoresView: View {
         .sheet(isPresented: $isEditingSettings) {
             ChoreSettingsView()
         }
+        .navigationDestination(item: $openKidID) { kidID in
+            KidDetailView(kidID: kidID)
+        }
     }
 
     private var summary: String {
@@ -86,33 +92,20 @@ struct ChoresView: View {
         return kids == 1 ? "1 kid" : "\(kids) kids"
     }
 
-    private var balancesSection: some View {
+    /// This week's podium: 1st in the middle, runner-up and 3rd either side, with each
+    /// kid's points this week and what their balance is worth. Tap a kid for their details.
+    private var leaderboardSection: some View {
         Section {
-            ForEach(choreStore.kids) { kid in
-                NavigationLink {
-                    KidDetailView(kidID: kid.id)
-                } label: {
-                    HStack(spacing: 12) {
-                        AssigneeAvatarView(name: kid.name, size: 36, showsPhoto: false)
-                        Text(kid.name)
-                            .font(.body.weight(.semibold))
-                            .foregroundStyle(.primary)
-                        Spacer()
-                        let balance = choreStore.balance(for: kid)
-                        VStack(alignment: .trailing, spacing: 1) {
-                            Text("\(balance) pts")
-                                .font(.headline)
-                                .foregroundStyle(AppTheme.primary)
-                            Text(ChoreMath.formattedMoney(for: balance, settings: choreStore.settings))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-                .listRowBackground(AppTheme.surface)
-            }
+            ChoreLeaderboard(
+                standings: ChoreMath.standings(kids: choreStore.kids, completions: choreStore.completions),
+                balance: { choreStore.balance(for: $0) },
+                money: { ChoreMath.formattedMoney(for: $0, settings: choreStore.settings) },
+                onOpen: { openKidID = $0.id }
+            )
+            .listRowInsets(EdgeInsets(top: 16, leading: 12, bottom: 16, trailing: 12))
+            .listRowBackground(AppTheme.surface)
         } header: {
-            SectionTitle(text: "Points")
+            SectionTitle(text: "This Week")
         }
     }
 
@@ -665,5 +658,147 @@ private struct CurrencyPickerView: View {
         guard let code else { return "Phone's Currency" }
         let name = Locale.current.localizedString(forCurrencyCode: code) ?? code
         return "\(name) (\(code))"
+    }
+}
+
+/// Kids on a podium for points earned this week. The top three stand on steps (1st tallest,
+/// in the middle); anyone else is listed underneath.
+private struct ChoreLeaderboard: View {
+    let standings: [ChoreStanding]
+    let balance: (KidProfile) -> Int
+    let money: (Int) -> String
+    let onOpen: (KidProfile) -> Void
+
+    var body: some View {
+        let podium = Array(standings.prefix(3))
+        let rest = Array(standings.dropFirst(3))
+        let nobodyYet = standings.allSatisfy { $0.place == nil }
+
+        VStack(spacing: 16) {
+            HStack(alignment: .bottom, spacing: 10) {
+                ForEach(Self.podiumOrder(podium)) { standing in
+                    Button { onOpen(standing.kid) } label: {
+                        PodiumColumn(standing: standing, isLeader: standing.place == 1, balanceMoney: money(balance(standing.kid)))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            if nobodyYet {
+                Text("No points yet this week. The first approved chore takes 1st place!")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+
+            if !rest.isEmpty {
+                VStack(spacing: 0) {
+                    ForEach(rest) { standing in
+                        Button { onOpen(standing.kid) } label: {
+                            HStack(spacing: 12) {
+                                Text(standing.placeTitle ?? "–")
+                                    .font(.subheadline.weight(.bold))
+                                    .foregroundStyle(.secondary)
+                                    .frame(width: 34, alignment: .leading)
+                                AssigneeAvatarView(name: standing.kid.name, size: 32, showsPhoto: false)
+                                Text(standing.kid.name)
+                                    .font(.subheadline.weight(.semibold))
+                                Spacer()
+                                VStack(alignment: .trailing, spacing: 1) {
+                                    Text("\(standing.weekPoints) pts")
+                                        .font(.subheadline.weight(.semibold))
+                                    Text(money(balance(standing.kid)))
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            .padding(.vertical, 8)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+    }
+
+    /// Runner-up on the left, 1st in the middle, 3rd on the right, as on a real podium.
+    static func podiumOrder(_ top: [ChoreStanding]) -> [ChoreStanding] {
+        switch top.count {
+        case 2: [top[1], top[0]]
+        case 3: [top[1], top[0], top[2]]
+        default: top
+        }
+    }
+}
+
+/// One kid on the podium: medal, face, name, points this week and balance, on a step.
+private struct PodiumColumn: View {
+    let standing: ChoreStanding
+    let isLeader: Bool
+    let balanceMoney: String
+
+    var body: some View {
+        VStack(spacing: 6) {
+            Image(systemName: isLeader ? "crown.fill" : "medal.fill")
+                .font(isLeader ? .title3 : .subheadline)
+                .foregroundStyle(tint)
+                .opacity(standing.place == nil ? 0 : 1)
+
+            AssigneeAvatarView(name: standing.kid.name, size: isLeader ? 72 : 56, showsPhoto: false)
+                .padding(4)
+                .overlay(Circle().strokeBorder(tint, lineWidth: standing.place == nil ? 0 : 3))
+
+            Text(standing.kid.name)
+                .font(.subheadline.weight(.semibold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+
+            VStack(spacing: 1) {
+                Text("\(standing.weekPoints) pts")
+                    .font(.headline)
+                    .foregroundStyle(standing.place == nil ? .secondary : tint)
+                Text(balanceMoney)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            // The step: tallest for 1st.
+            Text(standing.placeTitle ?? " ")
+                .font(.headline.weight(.heavy))
+                .foregroundStyle(standing.place == nil ? Color.clear : AppTheme.onAvatar)
+                .frame(maxWidth: .infinity)
+                .frame(height: stepHeight)
+                .background(tint.opacity(standing.place == nil ? 0.15 : 0.9), in: UnevenRoundedRectangle(topLeadingRadius: 10, topTrailingRadius: 10))
+        }
+        .frame(maxWidth: .infinity)
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityText)
+        .accessibilityAddTraits(.isButton)
+    }
+
+    /// Real medal colors, the same in every theme, so 3rd always reads as bronze.
+    private var tint: Color {
+        switch standing.place {
+        case 1: Color(red: 0.93, green: 0.72, blue: 0.24)
+        case 2: Color(red: 0.66, green: 0.68, blue: 0.71)
+        case 3: Color(red: 0.78, green: 0.50, blue: 0.27)
+        default: Color.secondary
+        }
+    }
+
+    private var stepHeight: CGFloat {
+        switch standing.place {
+        case 1: 56
+        case 2: 40
+        case 3: 28
+        default: 20
+        }
+    }
+
+    private var accessibilityText: String {
+        let place = standing.placeTitle.map { "\($0) place, " } ?? ""
+        return "\(place)\(standing.kid.name), \(standing.weekPoints) points this week, balance \(balanceMoney)"
     }
 }

@@ -100,6 +100,17 @@ final class ModelTests: XCTestCase {
         XCTAssertNil(FamilyTask(title: "Done long ago", isDone: true).completionSummary(viewerEmail: "mum@example.com"))
     }
 
+    func testWeekTitleIsShortEnoughToFit() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        func day(_ month: Int, _ day: Int) -> Date {
+            calendar.date(from: DateComponents(year: 2026, month: month, day: day, hour: 12))!
+        }
+
+        XCTAssertEqual(TodayTasksView.weekTitle(from: day(10, 11), to: day(10, 17), calendar: calendar), "Oct 11 – 17")
+        XCTAssertEqual(TodayTasksView.weekTitle(from: day(9, 27), to: day(10, 3), calendar: calendar), "Sep 27 – Oct 3")
+    }
+
     // MARK: Quick due dates
 
     private func date(_ string: String) -> Date {

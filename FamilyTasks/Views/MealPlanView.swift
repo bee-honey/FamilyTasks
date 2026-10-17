@@ -19,7 +19,7 @@ struct MealPlanView: View {
         // Shown inside a tab's NavigationStack, or pushed from Family.
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 14) {
-                ScreenHeader(eyebrow: weekTitle, title: "Meal Plan", showsProfile: !isPushed) {
+                ScreenHeader(eyebrow: weekTitle, title: "Meal Plan") {
                     NavigationLink {
                         MealLibraryView()
                     } label: {
@@ -27,7 +27,7 @@ struct MealPlanView: View {
                     }
                     .buttonStyle(.plain)
                 }
-                .padding(.horizontal, 4)
+                .padding(.horizontal, 10)
 
                 if organizerStore.mealIdeas.isEmpty {
                     ContentUnavailableView {
@@ -75,7 +75,9 @@ struct MealPlanView: View {
                     }
                 }
             }
-            .padding(14)
+            .padding(.horizontal, 14)
+            .padding(.top, 8)
+            .padding(.bottom, 14)
         }
         .background(AppTheme.background)
         .mainScreenNavigationBar(title: "Meal Plan", isPushed: isPushed)

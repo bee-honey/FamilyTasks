@@ -111,10 +111,7 @@ struct ShoppingView: View {
     private var header: some View {
         let total = organizerStore.shoppingItems.filter { $0.isNeeded && !$0.isPurchased }.count
         let shopCount = organizerStore.shops.count
-        return HStack(alignment: .top, spacing: 12) {
-            if !showsNavigationBar {
-                ProfileButton()
-            }
+        return HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("\(total) TO BUY · \(shopCount) \(shopCount == 1 ? "SHOP" : "SHOPS")")
                     .font(.footnote.weight(.semibold))

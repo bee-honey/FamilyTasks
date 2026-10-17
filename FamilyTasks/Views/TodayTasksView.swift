@@ -128,7 +128,7 @@ struct TodayTasksView: View {
                     .font(.headline)
                     .foregroundStyle(AppTheme.primary)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+                    .minimumScaleFactor(0.7)
             }
             .buttonStyle(.plain)
             .accessibilityHint("Goes back to today")
@@ -172,8 +172,18 @@ struct TodayTasksView: View {
                 return selectedDate.formatted(.dateTime.month(.abbreviated).day())
             }
             let end = calendar.date(byAdding: .day, value: 6, to: interval.start) ?? interval.end
-            return "\(interval.start.formatted(.dateTime.month(.abbreviated).day())) – \(end.formatted(.dateTime.month(.abbreviated).day()))"
+            return Self.weekTitle(from: interval.start, to: end, calendar: calendar)
         }
+    }
+
+    /// "Oct 11 – 17", or "Sep 28 – Oct 4" across months: short enough to fit beside the
+    /// Week/Month switch.
+    nonisolated static func weekTitle(from start: Date, to end: Date, calendar: Calendar = .current) -> String {
+        let startText = start.formatted(.dateTime.month(.abbreviated).day())
+        if calendar.isDate(start, equalTo: end, toGranularity: .month) {
+            return "\(startText) – \(end.formatted(.dateTime.day()))"
+        }
+        return "\(startText) – \(end.formatted(.dateTime.month(.abbreviated).day()))"
     }
 
     /// The dot under a day: red when it still has overdue tasks, a quiet dot when it has anything planned.
@@ -765,8 +775,7 @@ private struct TodayHeader: View {
         let overdue = taskStore.pendingTasks(before: now).count
 
         VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .top, spacing: 12) {
-                ProfileButton()
+            HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(now.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()).uppercased())
                         .font(.footnote.weight(.semibold))

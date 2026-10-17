@@ -156,6 +156,23 @@ enum ChoreStatus: Equatable {
     case done
 }
 
+/// Where a kid stands this week: 1st, 2nd (runner-up), 3rd, or no place yet.
+struct ChoreStanding: Identifiable, Equatable {
+    var kid: KidProfile
+    var weekPoints: Int
+    var place: Int?
+
+    var id: UUID { kid.id }
+
+    /// "1st", "2nd", "3rd", "4th".
+    var placeTitle: String? {
+        guard let place else { return nil }
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .ordinal
+        return formatter.string(from: place as NSNumber)
+    }
+}
+
 enum ChoreMath {
     /// Approved points minus what has been paid out.
     static func balance(for kidID: UUID, completions: [ChoreCompletion], payouts: [ChorePayout]) -> Int {
@@ -188,6 +205,38 @@ enum ChoreMath {
         if thisPeriod.contains(where: { $0.status == .approved }) { return .done }
         if !thisPeriod.isEmpty { return .waitingForApproval }
         return .toDo
+    }
+
+    /// Kids by approved points earned this week, most first. Kids on the same points
+    /// share a place; anyone with none this week has no place yet.
+    static func standings(
+        kids: [KidProfile],
+        completions: [ChoreCompletion],
+        now: Date = Date(),
+        calendar: Calendar = .current
+    ) -> [ChoreStanding] {
+        let week = period(of: .weekly, containing: now, calendar: calendar)
+        let points = Dictionary(grouping: completions.filter {
+            $0.status == .approved && $0.completedAt >= week.start && $0.completedAt < week.end
+        }, by: \.kidID).mapValues { $0.reduce(0) { $0 + $1.points } }
+
+        let sorted = kids.sorted { lhs, rhs in
+            let left = points[lhs.id] ?? 0, right = points[rhs.id] ?? 0
+            return left != right ? left > right : lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+        }
+        var standings: [ChoreStanding] = []
+        for kid in sorted {
+            let weekPoints = points[kid.id] ?? 0
+            let place: Int? = if weekPoints == 0 {
+                nil
+            } else if let previous = standings.last, previous.weekPoints == weekPoints {
+                previous.place
+            } else {
+                standings.count + 1
+            }
+            standings.append(ChoreStanding(kid: kid, weekPoints: weekPoints, place: place))
+        }
+        return standings
     }
 
     static func money(for points: Int, settings: ChoreSettings) -> Decimal {

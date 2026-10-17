@@ -12,7 +12,7 @@ struct IdeaNotebookView: View {
         // Shown inside a tab's NavigationStack, or pushed from Family.
         List {
             Section {
-                ScreenHeader(eyebrow: organizerStore.ideaNotes.count == 1 ? "1 idea" : "\(organizerStore.ideaNotes.count) ideas", title: "Ideas", showsProfile: !isPushed) {
+                ScreenHeader(eyebrow: organizerStore.ideaNotes.count == 1 ? "1 idea" : "\(organizerStore.ideaNotes.count) ideas", title: "Ideas") {
                     HeaderAddButton(accessibilityLabel: "Add idea") { showingAddIdea = true }
                 }
             }
@@ -68,6 +68,8 @@ struct IdeaNotebookView: View {
             }
         }
         .scrollContentBackground(.hidden)
+        // Header at the same height on every tab.
+        .contentMargins(.top, 0, for: .scrollContent)
         .scrollDismissesKeyboard(.interactively)
         .background(AppTheme.background)
         .mainScreenNavigationBar(title: "Ideas", isPushed: isPushed)

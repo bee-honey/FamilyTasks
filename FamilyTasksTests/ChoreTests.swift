@@ -163,4 +163,29 @@ final class ChoreTests: XCTestCase {
 
         XCTAssertEqual(merged.chores.completions.map(\.status), [.approved])
     }
+
+    // MARK: Leaderboard
+
+    func testStandingsRankThisWeeksApprovedPointsAndShareTies() {
+        let now = Date()
+        let lastWeek = calendar.date(byAdding: .day, value: -8, to: now)!
+        let ava = KidProfile(name: "Ava"), ben = KidProfile(name: "Ben"), cal = KidProfile(name: "Cal"), dee = KidProfile(name: "Dee")
+        func done(_ kid: KidProfile, _ points: Int, at date: Date = now, approved: Bool = true) -> ChoreCompletion {
+            ChoreCompletion(choreID: UUID(), kidID: kid.id, choreTitle: "Chore", points: points, status: approved ? .approved : .waitingForApproval, completedAt: date)
+        }
+        let completions = [
+            done(ava, 10), done(ava, 5),
+            done(ben, 15),
+            done(cal, 5),
+            done(cal, 50, at: lastWeek),
+            done(dee, 30, approved: false)
+        ]
+
+        let standings = ChoreMath.standings(kids: [dee, cal, ben, ava], completions: completions, now: now, calendar: calendar)
+
+        XCTAssertEqual(standings.map(\.kid.name), ["Ava", "Ben", "Cal", "Dee"])
+        XCTAssertEqual(standings.map(\.weekPoints), [15, 15, 5, 0])
+        XCTAssertEqual(standings.map(\.place), [1, 1, 3, nil])
+        XCTAssertEqual(standings.map(\.placeTitle), ["1st", "1st", "3rd", nil])
+    }
 }

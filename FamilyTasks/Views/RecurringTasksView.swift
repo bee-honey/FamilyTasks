@@ -13,7 +13,7 @@ struct RecurringTasksView: View {
         let paused = sorted.filter { !$0.isActive }
         List {
             Section {
-                ScreenHeader(eyebrow: summary(active: active.count, paused: paused.count), title: "Recurring", showsProfile: !isPushed) {
+                ScreenHeader(eyebrow: summary(active: active.count, paused: paused.count), title: "Recurring") {
                     HeaderAddButton(accessibilityLabel: "Add recurring task") { isAdding = true }
                 }
             }
@@ -52,6 +52,8 @@ struct RecurringTasksView: View {
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
+        // Header at the same height on every tab.
+        .contentMargins(.top, 0, for: .scrollContent)
         .background(AppTheme.background)
         .mainScreenNavigationBar(title: "Recurring", isPushed: isPushed)
         .sheet(isPresented: $isAdding) {
