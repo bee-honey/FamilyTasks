@@ -5,16 +5,23 @@ import SwiftUI
 struct ScreenHeader<Actions: View>: View {
     let eyebrow: String
     let title: String
+    /// Your avatar before the title, for your profile and Settings. Only on a tab's own
+    /// screen, not one pushed from More.
+    var showsProfile = false
     @ViewBuilder let actions: Actions
 
-    init(eyebrow: String, title: String, @ViewBuilder actions: () -> Actions = { EmptyView() }) {
+    init(eyebrow: String, title: String, showsProfile: Bool = false, @ViewBuilder actions: () -> Actions = { EmptyView() }) {
         self.eyebrow = eyebrow
         self.title = title
+        self.showsProfile = showsProfile
         self.actions = actions()
     }
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
+            if showsProfile {
+                ProfileButton()
+            }
             VStack(alignment: .leading, spacing: 4) {
                 Text(eyebrow.uppercased())
                     .font(.footnote.weight(.semibold))
@@ -30,6 +37,22 @@ struct ScreenHeader<Actions: View>: View {
                 actions
             }
         }
+    }
+}
+
+/// Your avatar at the top left of each tab; opens your profile, which leads to Settings.
+struct ProfileButton: View {
+    @AppStorage("profile.email") private var profileEmail = ""
+
+    var body: some View {
+        Button {
+            AppNavigator.shared.isShowingSettings = true
+        } label: {
+            AssigneeAvatarView(name: profileEmail, size: 44)
+                .overlay(Circle().strokeBorder(AppTheme.primary.opacity(0.35), lineWidth: 2))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Profile and Settings")
     }
 }
 
@@ -174,19 +197,20 @@ struct ToastView: View {
 
 // MARK: Going to a section
 
-/// Opens a section wherever it lives: its tab if it has one, otherwise inside Family.
+/// Opens a section wherever it lives: its tab if it has one, otherwise inside More.
 @MainActor
 final class AppNavigator: ObservableObject {
     static let shared = AppNavigator()
 
     @Published var request: FamilyDestination?
+    @Published var isShowingSettings = false
 
     func open(_ destination: FamilyDestination) {
         request = destination
     }
 }
 
-/// Everything Family can open.
+/// Everything the More tab can open.
 enum FamilyDestination: Hashable {
     case section(TabSection)
     case health

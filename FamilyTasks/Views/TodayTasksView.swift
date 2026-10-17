@@ -765,7 +765,8 @@ private struct TodayHeader: View {
         let overdue = taskStore.pendingTasks(before: now).count
 
         VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .top) {
+            HStack(alignment: .top, spacing: 12) {
+                ProfileButton()
                 VStack(alignment: .leading, spacing: 4) {
                     Text(now.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()).uppercased())
                         .font(.footnote.weight(.semibold))

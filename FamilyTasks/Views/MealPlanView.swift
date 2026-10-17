@@ -19,7 +19,7 @@ struct MealPlanView: View {
         // Shown inside a tab's NavigationStack, or pushed from Family.
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 14) {
-                ScreenHeader(eyebrow: weekTitle, title: "Meal Plan") {
+                ScreenHeader(eyebrow: weekTitle, title: "Meal Plan", showsProfile: !isPushed) {
                     NavigationLink {
                         MealLibraryView()
                     } label: {

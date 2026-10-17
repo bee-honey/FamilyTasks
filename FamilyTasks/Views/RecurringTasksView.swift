@@ -13,7 +13,7 @@ struct RecurringTasksView: View {
         let paused = sorted.filter { !$0.isActive }
         List {
             Section {
-                ScreenHeader(eyebrow: summary(active: active.count, paused: paused.count), title: "Recurring") {
+                ScreenHeader(eyebrow: summary(active: active.count, paused: paused.count), title: "Recurring", showsProfile: !isPushed) {
                     HeaderAddButton(accessibilityLabel: "Add recurring task") { isAdding = true }
                 }
             }

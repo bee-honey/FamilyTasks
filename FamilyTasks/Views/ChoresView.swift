@@ -11,7 +11,7 @@ struct ChoresView: View {
         // Shown inside a tab's NavigationStack, or pushed from Family.
         List {
             Section {
-                ScreenHeader(eyebrow: summary, title: "Chores") {
+                ScreenHeader(eyebrow: summary, title: "Chores", showsProfile: !isPushed) {
                     Menu {
                         Button("Add Chore", systemImage: "star") { editingChore = .new }
                             .disabled(choreStore.kids.isEmpty)

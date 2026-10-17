@@ -12,7 +12,7 @@ struct IdeaNotebookView: View {
         // Shown inside a tab's NavigationStack, or pushed from Family.
         List {
             Section {
-                ScreenHeader(eyebrow: organizerStore.ideaNotes.count == 1 ? "1 idea" : "\(organizerStore.ideaNotes.count) ideas", title: "Ideas") {
+                ScreenHeader(eyebrow: organizerStore.ideaNotes.count == 1 ? "1 idea" : "\(organizerStore.ideaNotes.count) ideas", title: "Ideas", showsProfile: !isPushed) {
                     HeaderAddButton(accessibilityLabel: "Add idea") { showingAddIdea = true }
                 }
             }

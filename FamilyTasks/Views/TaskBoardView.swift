@@ -65,7 +65,10 @@ struct TaskBoardView: View {
 
     /// "THIS WEEK ▾ / Tasks" with the add button; the caption picks the stats period.
     private var header: some View {
-        HStack(alignment: .top) {
+        HStack(alignment: .top, spacing: 12) {
+            if !showsNavigationBar {
+                ProfileButton()
+            }
             VStack(alignment: .leading, spacing: 4) {
                 Menu {
                     Picker("Period", selection: $analyticsRange) {
