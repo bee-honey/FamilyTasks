@@ -190,7 +190,6 @@ final class AppNavigator: ObservableObject {
 enum FamilyDestination: Hashable {
     case section(TabSection)
     case health
-    case sharing
 }
 
 /// The red Delete at the bottom of an editor, so deleting doesn't depend on knowing to swipe.

@@ -168,31 +168,23 @@ struct TabSectionScreen: View {
     }
 }
 
-/// The More tab: the family's faces and invites, then every section that isn't its own tab,
-/// plus Health, each with a live summary.
+/// The More tab: every section that isn't its own tab, plus Health, each with a live summary.
+/// The family and invites are in Settings.
 struct FamilyHubView: View {
     @EnvironmentObject private var organizerStore: OrganizerStore
     @EnvironmentObject private var choreStore: ChoreStore
     @EnvironmentObject private var taskStore: TaskStore
-    @EnvironmentObject private var sharedHouseholdStore: SharedHouseholdStore
     @AppStorage(TabSection.storageKey) private var slotsRaw = ""
     @AppStorage("health.section.enabled") private var healthSectionEnabled = false
-    @AppStorage("profile.email") private var profileEmail = ""
 
     var body: some View {
         // Shown inside the Family tab's NavigationStack.
         List {
             Section {
-                ScreenHeader(eyebrow: peopleSummary, title: "More")
+                ScreenHeader(eyebrow: sectionCount, title: "More")
             }
             .listRowInsets(EdgeInsets(top: 8, leading: 4, bottom: 0, trailing: 4))
             .listRowBackground(Color.clear)
-
-            Section {
-                peopleRow
-            }
-            .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12))
-            .listRowBackground(AppTheme.surface)
 
             Section {
                 ForEach(hubSections) { section in
@@ -217,61 +209,12 @@ struct FamilyHubView: View {
             switch destination {
             case .section(let section): TabSectionScreen(section: section, isPushed: true)
             case .health: HealthView()
-            case .sharing: SyncSettingsView()
             }
         }
     }
 
-    private var members: [String] {
-        let me = profileEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        let others = taskStore.familyMembers
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
-            .filter { !$0.isEmpty && $0 != me }
-        return (me.isEmpty ? [] : [me]) + others
-    }
-
-    private var peopleSummary: String {
-        let count = members.count
-        let people = count == 1 ? "1 person" : "\(count) people"
-        return sharedHouseholdStore.isSharingConfigured ? "\(people) · sharing" : people
-    }
-
-    /// Everyone in the family, then Invite.
-    private var peopleRow: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(alignment: .top, spacing: 16) {
-                ForEach(members, id: \.self) { member in
-                    VStack(spacing: 6) {
-                        AssigneeAvatarView(name: member, size: 48, showsPhoto: false)
-                        Text(member.caseInsensitiveCompare(profileEmail) == .orderedSame ? "You" : firstName(member))
-                            .font(.caption.weight(.semibold))
-                            .lineLimit(1)
-                    }
-                    .frame(minWidth: 56)
-                }
-                Button {
-                    AppNavigator.shared.open(.sharing)
-                } label: {
-                    VStack(spacing: 6) {
-                        Image(systemName: "person.badge.plus")
-                            .font(.title3.weight(.semibold))
-                            .foregroundStyle(AppTheme.primary)
-                            .frame(width: 48, height: 48)
-                            .background(AppTheme.primary.opacity(0.14), in: Circle())
-                        Text("Invite")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(AppTheme.primary)
-                    }
-                    .frame(minWidth: 56)
-                }
-                .buttonStyle(.plain)
-            }
-        }
-    }
-
-    private func firstName(_ email: String) -> String {
-        let name = Assignee.memberName(for: email)
-        return name.split(separator: " ").first.map(String.init) ?? name
+    private var sectionCount: String {
+        "\(hubSections.count + 1) sections"
     }
 
     /// Sections already in the tab bar aren't listed again.
@@ -322,6 +265,8 @@ struct FamilyHubView: View {
 /// Every setting, each with a one-line summary.
 private struct SettingsHomeView: View {
     @EnvironmentObject private var sharedHouseholdStore: SharedHouseholdStore
+    @EnvironmentObject private var taskStore: TaskStore
+    @State private var isShowingSharing = false
     @AppStorage("profile.email") private var profileEmail = ""
     @AppStorage("profile.name") private var profileName = ""
     @AppStorage("notifications.enabled") private var notificationsEnabled = false
@@ -333,11 +278,19 @@ private struct SettingsHomeView: View {
         NavigationStack {
             List {
                 Section {
+                    peopleRow
+                } header: {
+                    SectionTitle(text: "Family · \(peopleSummary)")
+                }
+                .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12))
+                .listRowBackground(AppTheme.surface)
+
+                Section {
                     NavigationLink { ProfileView() } label: {
                         HubRow(title: "Profile", systemImage: "person.crop.circle", tint: SettingsTint.profile, detail: profileDetail)
                     }
                     NavigationLink { SyncSettingsView() } label: {
-                        HubRow(title: "iCloud Sharing", systemImage: "icloud", tint: SettingsTint.iCloud, detail: sharedHouseholdStore.statusMessage)
+                        HubRow(title: "Family & Sharing", systemImage: "person.2", tint: SettingsTint.iCloud, detail: sharedHouseholdStore.statusMessage)
                     }
                     NavigationLink { NotificationSettingsView() } label: {
                         HubRow(title: "Notifications", systemImage: "bell.badge", tint: SettingsTint.notifications, detail: notificationsEnabled ? "On" : "Off")
@@ -363,7 +316,62 @@ private struct SettingsHomeView: View {
             .scrollContentBackground(.hidden)
             .background(AppTheme.background)
             .navigationTitle("Settings")
+            .navigationDestination(isPresented: $isShowingSharing) {
+                SyncSettingsView()
+            }
         }
+    }
+
+    private var members: [String] {
+        let me = profileEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let others = taskStore.familyMembers
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+            .filter { !$0.isEmpty && $0 != me }
+        return (me.isEmpty ? [] : [me]) + others
+    }
+
+    private var peopleSummary: String {
+        let count = members.count
+        let people = count == 1 ? "1 person" : "\(count) people"
+        return sharedHouseholdStore.isSharingConfigured ? "\(people) · sharing" : people
+    }
+
+    /// Everyone in the family, then Invite.
+    private var peopleRow: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(alignment: .top, spacing: 16) {
+                ForEach(members, id: \.self) { member in
+                    VStack(spacing: 6) {
+                        AssigneeAvatarView(name: member, size: 48, showsPhoto: false)
+                        Text(member.caseInsensitiveCompare(profileEmail) == .orderedSame ? "You" : firstName(member))
+                            .font(.caption.weight(.semibold))
+                            .lineLimit(1)
+                    }
+                    .frame(minWidth: 56)
+                }
+                Button {
+                    isShowingSharing = true
+                } label: {
+                    VStack(spacing: 6) {
+                        Image(systemName: "person.badge.plus")
+                            .font(.title3.weight(.semibold))
+                            .foregroundStyle(AppTheme.primary)
+                            .frame(width: 48, height: 48)
+                            .background(AppTheme.primary.opacity(0.14), in: Circle())
+                        Text("Invite")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(AppTheme.primary)
+                    }
+                    .frame(minWidth: 56)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private func firstName(_ email: String) -> String {
+        let name = Assignee.memberName(for: email)
+        return name.split(separator: " ").first.map(String.init) ?? name
     }
 
     private var profileDetail: String {

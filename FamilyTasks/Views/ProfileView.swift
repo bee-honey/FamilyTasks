@@ -982,7 +982,7 @@ struct SyncSettingsView: View {
                     Text("Calendar access and events, notification settings and appearance stay on each phone.")
                 }
             }
-            .navigationTitle("iCloud Sharing")
+            .navigationTitle("Family & Sharing")
             .labelStyle(.tile(SettingsTint.iCloud))
             .scrollContentBackground(.hidden)
             .background(AppTheme.background)
