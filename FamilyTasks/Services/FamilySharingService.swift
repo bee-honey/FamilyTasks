@@ -1156,6 +1156,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
         let identifier = notification.request.identifier
+        if let entry = NotificationHistory.entry(for: notification) {
+            await NotificationHistory.shared.record([entry])
+        }
 
         if identifier.hasPrefix("familytasks.test.") ||
             identifier.hasPrefix("familytasks.shoppingDone.") {
@@ -1169,6 +1172,17 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         }
 
         return [.banner, .list, .sound, .badge]
+    }
+
+    /// A tapped notification goes in the history too, since iOS removes it from
+    /// Notification Center.
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse
+    ) async {
+        if let entry = NotificationHistory.entry(for: response.notification) {
+            await NotificationHistory.shared.record([entry])
+        }
     }
 }
 

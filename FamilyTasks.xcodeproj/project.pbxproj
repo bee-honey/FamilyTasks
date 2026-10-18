@@ -19,6 +19,7 @@
 		2C0A00152C0A000000000001 /* TaskBoardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A00142C0A000000000001 /* TaskBoardView.swift */; };
 		2C0A00172C0A000000000001 /* BucketView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A00162C0A000000000001 /* BucketView.swift */; };
 		F00DA1E70000000000000006 /* NudgeButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00DA1E70000000000000005 /* NudgeButton.swift */; };
+		F00DA1E7000000000000000C /* NotificationHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00DA1E7000000000000000B /* NotificationHistoryView.swift */; };
 		2C0A00192C0A000000000001 /* TaskCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A00182C0A000000000001 /* TaskCardView.swift */; };
 		2C0A001B2C0A000000000001 /* AddTaskView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A001A2C0A000000000001 /* AddTaskView.swift */; };
 		2C0A00312C0A000000000001 /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A002E2C0A000000000001 /* RootTabView.swift */; };
@@ -38,6 +39,7 @@
 		2C0A004B2C0A000000000001 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 2C0A004A2C0A000000000001 /* LaunchScreen.storyboard */; };
 		2C0A004C2C0A000000000001 /* ShoppingListIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A004D2C0A000000000001 /* ShoppingListIntent.swift */; };
 		2C0A004E2C0A000000000001 /* NotificationScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A004F2C0A000000000001 /* NotificationScheduler.swift */; };
+		F00DA1E7000000000000000A /* NotificationHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00DA1E70000000000000009 /* NotificationHistory.swift */; };
 		2C0A00512C0A000000000001 /* IdeaModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A00502C0A000000000001 /* IdeaModels.swift */; };
 		2C0A00532C0A000000000001 /* IdeaNotebookView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A00522C0A000000000001 /* IdeaNotebookView.swift */; };
 		2C0A00552C0A000000000001 /* HealthMetricsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A00542C0A000000000001 /* HealthMetricsService.swift */; };
@@ -124,6 +126,7 @@
 		2C0A00142C0A000000000001 /* TaskBoardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskBoardView.swift; sourceTree = "<group>"; };
 		2C0A00162C0A000000000001 /* BucketView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BucketView.swift; sourceTree = "<group>"; };
 		F00DA1E70000000000000005 /* NudgeButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NudgeButton.swift; sourceTree = "<group>"; };
+		F00DA1E7000000000000000B /* NotificationHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationHistoryView.swift; sourceTree = "<group>"; };
 		2C0A00182C0A000000000001 /* TaskCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskCardView.swift; sourceTree = "<group>"; };
 		2C0A001A2C0A000000000001 /* AddTaskView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddTaskView.swift; sourceTree = "<group>"; };
 		2C0A001C2C0A000000000001 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -146,6 +149,7 @@
 		2C0A004A2C0A000000000001 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 		2C0A004D2C0A000000000001 /* ShoppingListIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShoppingListIntent.swift; sourceTree = "<group>"; };
 		2C0A004F2C0A000000000001 /* NotificationScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationScheduler.swift; sourceTree = "<group>"; };
+		F00DA1E70000000000000009 /* NotificationHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationHistory.swift; sourceTree = "<group>"; };
 		2C0A00502C0A000000000001 /* IdeaModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeaModels.swift; sourceTree = "<group>"; };
 		2C0A00522C0A000000000001 /* IdeaNotebookView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeaNotebookView.swift; sourceTree = "<group>"; };
 		2C0A00542C0A000000000001 /* HealthMetricsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthMetricsService.swift; sourceTree = "<group>"; };
@@ -285,6 +289,7 @@
 				F00DA1E70000000000000003 /* FamilyAlertService.swift */,
 				2C0A00542C0A000000000001 /* HealthMetricsService.swift */,
 				2C0A004F2C0A000000000001 /* NotificationScheduler.swift */,
+				F00DA1E70000000000000009 /* NotificationHistory.swift */,
 				2C0A004D2C0A000000000001 /* ShoppingListIntent.swift */,
 				33B236709ED79055EFC132AD /* WidgetData.swift */,
 				A5E2990011171453CBC039DF /* WidgetBridge.swift */,
@@ -311,6 +316,7 @@
 				2C0A00142C0A000000000001 /* TaskBoardView.swift */,
 				2C0A00162C0A000000000001 /* BucketView.swift */,
 				F00DA1E70000000000000005 /* NudgeButton.swift */,
+				F00DA1E7000000000000000B /* NotificationHistoryView.swift */,
 				2C0A00182C0A000000000001 /* TaskCardView.swift */,
 				2C0A001A2C0A000000000001 /* AddTaskView.swift */,
 				2C0A00362C0A000000000001 /* EditTaskView.swift */,
@@ -505,6 +511,7 @@
 				2C0A00572C0A000000000001 /* HealthView.swift in Sources */,
 				2C0A00172C0A000000000001 /* BucketView.swift in Sources */,
 				F00DA1E70000000000000006 /* NudgeButton.swift in Sources */,
+				F00DA1E7000000000000000C /* NotificationHistoryView.swift in Sources */,
 				2C0A00112C0A000000000001 /* CalendarSyncService.swift in Sources */,
 				2C0A000D2C0A000000000001 /* FamilyTask.swift in Sources */,
 				F00DA1E70000000000000002 /* FamilyAlert.swift in Sources */,
@@ -513,6 +520,7 @@
 				A1B2C3D40000000000000006 /* HouseholdSyncEngine.swift in Sources */,
 				F00DA1E70000000000000004 /* FamilyAlertService.swift in Sources */,
 				2C0A004E2C0A000000000001 /* NotificationScheduler.swift in Sources */,
+				F00DA1E7000000000000000A /* NotificationHistory.swift in Sources */,
 				2C0A000B2C0A000000000001 /* FamilyTasksApp.swift in Sources */,
 				2C0A00152C0A000000000001 /* TaskBoardView.swift in Sources */,
 				2C0A00192C0A000000000001 /* TaskCardView.swift in Sources */,

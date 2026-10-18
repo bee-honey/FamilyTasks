@@ -327,6 +327,7 @@ private struct SettingsHomeView: View {
     @AppStorage("notifications.enabled") private var notificationsEnabled = false
     @AppStorage("calendar.integration.enabled") private var calendarEnabled = false
     @AppStorage("view.appearance") private var appearance = AppAppearance.system.rawValue
+    @ObservedObject private var notificationHistory = NotificationHistory.shared
 
     var body: some View {
         NavigationStack {
@@ -340,6 +341,9 @@ private struct SettingsHomeView: View {
                     }
                     NavigationLink { NotificationSettingsView() } label: {
                         HubRow(title: "Notifications", systemImage: "bell.badge", tint: SettingsTint.notifications, detail: notificationsEnabled ? "On" : "Off")
+                    }
+                    NavigationLink { NotificationHistoryView() } label: {
+                        HubRow(title: "Notification History", systemImage: "clock.arrow.circlepath", tint: SettingsTint.notifications, detail: historyDetail)
                     }
                     NavigationLink { CalendarSettingsView() } label: {
                         HubRow(title: "Calendar", systemImage: "calendar.badge.clock", tint: SettingsTint.calendar, detail: calendarEnabled ? "Showing your calendar events" : "Off")
@@ -369,6 +373,15 @@ private struct SettingsHomeView: View {
         case (false, false): return "\(name) · \(email)"
         case (true, false): return email
         default: return "Set up your profile"
+        }
+    }
+
+    private var historyDetail: String {
+        let count = notificationHistory.entries.count
+        switch count {
+        case 0: return "Nothing in the last week"
+        case 1: return "1 in the last week"
+        default: return "\(count) in the last week"
         }
     }
 

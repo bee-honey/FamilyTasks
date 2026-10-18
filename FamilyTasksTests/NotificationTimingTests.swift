@@ -35,4 +35,28 @@ final class NotificationTimingTests: XCTestCase {
         XCTAssertTrue(NotificationScheduler.leadTimeFireDates(dueDate: now.addingTimeInterval(-60), leadMinuteValues: [15], now: now).isEmpty)
         XCTAssertTrue(NotificationScheduler.leadTimeFireDates(dueDate: now.addingTimeInterval(3_600), leadMinuteValues: [], now: now).isEmpty)
     }
+
+    // MARK: History
+
+    private func entry(_ id: String, daysAgo: Double, title: String = "Title") -> NotificationHistory.Entry {
+        NotificationHistory.Entry(id: id, title: title, body: "Body", date: now.addingTimeInterval(-daysAgo * 86_400), kind: .other)
+    }
+
+    func testHistoryKeepsAWeekNewestFirstAndEachNotificationOnce() {
+        let existing = [entry("a", daysAgo: 1, title: "First seen"), entry("old", daysAgo: 8)]
+        let new = [entry("a", daysAgo: 1, title: "Seen again"), entry("b", daysAgo: 0.5), entry("c", daysAgo: 6.9)]
+
+        let merged = NotificationHistory.merged(existing, with: new, now: now)
+
+        XCTAssertEqual(merged.map(\.id), ["b", "a", "c"])
+        XCTAssertEqual(merged.first { $0.id == "a" }?.title, "First seen")
+    }
+
+    func testHistoryKindComesFromTheIdentifier() {
+        XCTAssertEqual(NotificationHistory.kind(identifier: "familytasks.todayDigest.2026-10-16.morning", userInfo: [:]), .dailyList)
+        XCTAssertEqual(NotificationHistory.kind(identifier: "familytasks.dueSoon.abc.60", userInfo: [:]), .dueSoon)
+        XCTAssertEqual(NotificationHistory.kind(identifier: "familytasks.recurringDueSoon.abc.0", userInfo: [:]), .recurringDueSoon)
+        XCTAssertEqual(NotificationHistory.kind(identifier: "familytasks.shoppingDone.x", userInfo: [:]), .shopping)
+        XCTAssertEqual(NotificationHistory.kind(identifier: "something-else", userInfo: [:]), .other)
+    }
 }

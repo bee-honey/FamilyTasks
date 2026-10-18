@@ -59,6 +59,9 @@ struct FamilyTasksApp: App {
                         await FamilyAlertService.shared.refresh()
                     }
                     Task {
+                        await NotificationHistory.shared.collectDelivered()
+                    }
+                    Task {
                         await sharedHouseholdStore.syncOnAppActivation()
                         await HealthSyncCoordinator.shared.syncIfNeeded(
                             taskStore: taskStore,
