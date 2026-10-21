@@ -1,6 +1,8 @@
 import CloudKit
 import CryptoKit
 import Foundation
+import UIKit
+import UserNotifications
 
 /// Sends nudges and task news to family members as real pushes, which iOS shows even when
 /// the app is closed (the household sync's silent pushes are throttled and are dropped
@@ -56,6 +58,9 @@ final class FamilyAlertService {
         static let sent = "familyAlerts.sent"
         static let unsent = "familyAlerts.unsent"
         static let isSubscribed = "familyAlerts.isSubscribed"
+        static let lastSent = "familyAlerts.lastSent"
+        static let lastSendError = "familyAlerts.lastSendError"
+        static let lastSubscriptionError = "familyAlerts.lastSubscriptionError"
     }
 
     private struct SentRecord: Codable {
@@ -177,6 +182,17 @@ final class FamilyAlertService {
     }
 
     private func save(_ alerts: [FamilyAlert]) async throws {
+        do {
+            try await saveRecords(alerts)
+            defaults.set(Date(), forKey: DefaultsKey.lastSent)
+            defaults.removeObject(forKey: DefaultsKey.lastSendError)
+        } catch {
+            defaults.set(Self.describe(error), forKey: DefaultsKey.lastSendError)
+            throw error
+        }
+    }
+
+    private func saveRecords(_ alerts: [FamilyAlert]) async throws {
         let records = alerts.map(record(for:))
         let (results, _) = try await database.modifyRecords(saving: records, deleting: [])
         var sent = loadSent()
@@ -309,11 +325,13 @@ final class FamilyAlertService {
             }
             savedSubscriptionKey = key
             defaults.set(!kinds.isEmpty, forKey: DefaultsKey.isSubscribed)
+            defaults.removeObject(forKey: DefaultsKey.lastSubscriptionError)
         } catch let error as CKError where error.code == .unknownItem {
             savedSubscriptionKey = key
             defaults.set(false, forKey: DefaultsKey.isSubscribed)
         } catch {
             // Tried again next launch or settings change.
+            defaults.set(Self.describe(error), forKey: DefaultsKey.lastSubscriptionError)
         }
     }
 
@@ -343,6 +361,128 @@ final class FamilyAlertService {
         info.shouldSendContentAvailable = true
         subscription.notificationInfo = info
         return subscription
+    }
+
+    // MARK: Checking
+
+    /// One step family alerts depend on, for Settings to show when alerts don't arrive.
+    struct Check: Identifiable {
+        var id: String { title }
+        var title: String
+        var detail: String
+        var isOK: Bool
+    }
+
+    /// Checks everything a family alert needs on this phone, saving the subscription again
+    /// so its error, if any, is current.
+    func runChecks() async -> [Check] {
+        var checks: [Check] = []
+
+        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        let allowed = settings.authorizationStatus == .authorized
+        let enabled = defaults.bool(forKey: "notifications.enabled")
+        checks.append(Check(
+            title: "Notifications On",
+            detail: !allowed ? "Allow notifications for Family Tasks in the iPhone Settings app."
+                : !enabled ? "Turn on Enable Notifications above."
+                : "Allowed and turned on.",
+            isOK: allowed && enabled
+        ))
+
+        let registered = UIApplication.shared.isRegisteredForRemoteNotifications
+        checks.append(Check(
+            title: "Push Registration",
+            detail: registered ? "This phone can receive pushes." : "iOS hasn't registered this phone for pushes yet. Restart the app.",
+            isOK: registered
+        ))
+
+        let account: CKAccountStatus? = try? await CKContainer.default().accountStatus()
+        checks.append(Check(
+            title: "iCloud Account",
+            detail: account == .available ? "Signed in." : "Sign in to iCloud in the iPhone Settings app.",
+            isOK: account == .available
+        ))
+
+        let sharing = SharedHouseholdStore.shared.isSharingConfigured
+        checks.append(Check(
+            title: "Household Sharing",
+            detail: sharing ? "Sharing with your family." : "Share your household in Family & Sharing.",
+            isOK: sharing
+        ))
+
+        let email = senderEmail
+        let validEmail = TaskStore.isValidEmail(email)
+        checks.append(Check(
+            title: "Your Email",
+            detail: validEmail ? "\(email). Family members must list you with exactly this email." : "Add your email in Profile. Alerts are addressed to it.",
+            isOK: validEmail
+        ))
+
+        let others = familyMembers.map(FamilyAlert.normalized).filter { $0 != email }
+        checks.append(Check(
+            title: "Family Emails",
+            detail: others.isEmpty ? "No one else is in your family list." : others.joined(separator: ", "),
+            isOK: !others.isEmpty
+        ))
+
+        if allowed && enabled && account == .available && sharing && validEmail {
+            savedSubscriptionKey = nil
+            await updateSubscription()
+            let error = defaults.string(forKey: DefaultsKey.lastSubscriptionError)
+            checks.append(Check(
+                title: "Alert Subscription",
+                detail: error ?? "Saved. Alerts for \(email) come to this phone.",
+                isOK: error == nil
+            ))
+
+            // Fails when the FamilyAlert type or its Queryable indexes aren't in this environment.
+            let query = CKQuery(
+                recordType: Self.recordType,
+                predicate: NSPredicate(format: "%K == %@", Field.recipient, Self.recipientKey(for: email))
+            )
+            do {
+                _ = try await database.records(matching: query, resultsLimit: 1)
+                checks.append(Check(title: "CloudKit Schema", detail: "FamilyAlert is set up.", isOK: true))
+            } catch {
+                checks.append(Check(title: "CloudKit Schema", detail: Self.describe(error), isOK: false))
+            }
+        }
+
+        if let error = defaults.string(forKey: DefaultsKey.lastSendError) {
+            checks.append(Check(title: "Last Alert Sent", detail: "Failed: \(error)", isOK: false))
+        } else if let date = defaults.object(forKey: DefaultsKey.lastSent) as? Date {
+            checks.append(Check(
+                title: "Last Alert Sent",
+                detail: "Sent \(date.formatted(date: .abbreviated, time: .shortened)).",
+                isOK: true
+            ))
+        }
+
+        return checks
+    }
+
+    /// Family members a test alert can go to.
+    var testRecipients: [String] {
+        familyMembers.map(FamilyAlert.normalized).filter { $0 != senderEmail && TaskStore.isValidEmail($0) }
+    }
+
+    /// Sends `email` an alert that only says it's a test.
+    func sendTestAlert(to email: String) async throws {
+        try await save([FamilyAlert(
+            kind: .nudge,
+            recipient: email,
+            title: "Test from \(senderName)",
+            body: "Family alerts reach this phone.",
+            itemID: UUID().uuidString
+        )])
+    }
+
+    private static func describe(_ error: Error) -> String {
+        guard let cloudError = error as? CKError else { return error.localizedDescription }
+        if let partial = cloudError.partialErrorsByItemID?.values.first {
+            return describe(partial)
+        }
+        return "\(cloudError.localizedDescription) (CloudKit error \(cloudError.code.rawValue))"
     }
 
     // MARK: Who's sending

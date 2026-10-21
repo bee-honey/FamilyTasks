@@ -541,6 +541,13 @@ struct NotificationSettingsView: View {
                             .labelStyle(.tile(AppTheme.primary))
                     }
                     .disabled(!notificationsEnabled)
+
+                    NavigationLink {
+                        FamilyAlertCheckView()
+                    } label: {
+                        Label("Check Family Alerts", systemImage: "stethoscope")
+                            .labelStyle(.tile(AppTheme.warmAccent))
+                    }
                 }
             }
             .navigationTitle("Notifications")
@@ -644,6 +651,88 @@ struct NotificationSettingsView: View {
             return "\(descriptions[0]) and \(descriptions[1])"
         default:
             return "\(descriptions.dropLast().joined(separator: ", ")), and \(descriptions.last ?? "")"
+        }
+    }
+}
+
+/// Walks through what nudges and task alerts need, for when they don't arrive.
+struct FamilyAlertCheckView: View {
+    @State private var checks: [FamilyAlertService.Check] = []
+    @State private var testResult: String?
+
+    var body: some View {
+        // Shown inside a tab's NavigationStack.
+        Form {
+            Section {
+                if checks.isEmpty {
+                    HStack {
+                        ProgressView()
+                        Text("Checking…")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                ForEach(checks) { check in
+                    HStack(alignment: .top, spacing: 12) {
+                        Image(systemName: check.isOK ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                            .foregroundStyle(check.isOK ? AppTheme.success : AppTheme.warning)
+                            .font(.title3)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(check.title)
+                                .font(.subheadline.weight(.semibold))
+                            Text(check.detail)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .textSelection(.enabled)
+                        }
+                    }
+                    .accessibilityElement(children: .combine)
+                }
+            } footer: {
+                Text("Every phone in the family needs all of these. Both phones must also run the same kind of build: both from TestFlight or the App Store, or both from Xcode.")
+            }
+
+            Section {
+                ForEach(FamilyAlertService.shared.testRecipients, id: \.self) { email in
+                    Button {
+                        sendTest(to: email)
+                    } label: {
+                        Label("Send Test to \(Assignee.memberName(for: email))", systemImage: "paperplane.fill")
+                            .labelStyle(.tile(AppTheme.primary))
+                    }
+                }
+                if let testResult {
+                    Text(testResult)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                }
+            } header: {
+                Text("Test")
+            } footer: {
+                Text("Run this check on their phone too. A test that sends but never arrives means their phone isn't subscribed.")
+            }
+        }
+        .navigationTitle("Family Alerts")
+        .scrollContentBackground(.hidden)
+        .background(AppTheme.background)
+        .refreshable { await check() }
+        .task { await check() }
+    }
+
+    private func check() async {
+        checks = await FamilyAlertService.shared.runChecks()
+    }
+
+    private func sendTest(to email: String) {
+        testResult = "Sending…"
+        Task {
+            do {
+                try await FamilyAlertService.shared.sendTestAlert(to: email)
+                testResult = "Sent to \(email). It should arrive on their phone within a few seconds."
+            } catch {
+                testResult = "Couldn't send: \(FamilyAlertService.NudgeError.cloud(error).localizedDescription)"
+            }
+            await check()
         }
     }
 }
