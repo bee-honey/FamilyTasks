@@ -14,6 +14,8 @@ struct TodayTasksView: View {
     @State private var editingTask: FamilyTask?
     @State private var selectedDate = Date()
     @State private var displayMode: ScheduleDisplayMode = .week
+    @State private var hasLoaded = false
+    @Environment(\.scenePhase) private var scenePhase
 
     private let calendar = Calendar.current
 
@@ -73,6 +75,10 @@ struct TodayTasksView: View {
             .navigationTitle("Today")
             .toolbar(.hidden, for: .navigationBar)
             .task {
+                // Once, not on every switch to this tab: reloading as the tab appeared
+                // redrew the list mid-transition. Coming back to the app reloads instead.
+                guard !hasLoaded else { return }
+                hasLoaded = true
                 if ScheduleDisplayMode(rawValue: defaultDisplayModeRaw) == nil {
                     // Earlier versions also had a "today" view; it is now the week view.
                     defaultDisplayModeRaw = ScheduleDisplayMode.week.rawValue
@@ -83,6 +89,12 @@ struct TodayTasksView: View {
                     await calendarSync.loadEvents(on: selectedDate)
                 } else {
                     calendarSync.clearTodayEvents()
+                }
+            }
+            .onChange(of: scenePhase) { _, phase in
+                guard phase == .active, calendarIntegrationEnabled else { return }
+                Task {
+                    await calendarSync.loadEvents(on: selectedDate)
                 }
             }
             .onChange(of: calendarIntegrationEnabled) { _, enabled in

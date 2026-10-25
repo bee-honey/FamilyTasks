@@ -79,7 +79,7 @@ final class CalendarSyncService: ObservableObject {
     }
 
     func requestFullAccessForReadingIfNeeded() async -> Bool {
-        authorizationStatus = EKEventStore.authorizationStatus(for: .event)
+        setIfChanged(\.authorizationStatus, EKEventStore.authorizationStatus(for: .event))
 
         switch authorizationStatus {
         case .fullAccess:
@@ -113,21 +113,23 @@ final class CalendarSyncService: ObservableObject {
     func loadEvents(on date: Date, calendar: Calendar = .current) async {
         guard await requestFullAccessForReadingIfNeeded() else { return }
 
-        isLoadingTodayEvents = true
-        defer { isLoadingTodayEvents = false }
+        // Only changed values are published, so a reload that finds the same events
+        // doesn't redraw Today.
+        setIfChanged(\.isLoadingTodayEvents, true)
+        defer { setIfChanged(\.isLoadingTodayEvents, false) }
 
         let start = calendar.startOfDay(for: date)
         let end = calendar.date(byAdding: .day, value: 1, to: start) ?? start.addingTimeInterval(86_400)
         let calendars = selectedReadCalendars()
         guard !calendars.isEmpty else {
-            dayEvents = []
+            setIfChanged(\.dayEvents, [])
             lastRefreshDate = Date()
             return
         }
 
         let predicate = eventStore.predicateForEvents(withStart: start, end: end, calendars: calendars)
 
-        dayEvents = eventStore.events(matching: predicate)
+        setIfChanged(\.dayEvents, eventStore.events(matching: predicate)
             .filter { !$0.isDetached }
             .map(CalendarDayEvent.init(event:))
             .sorted { lhs, rhs in
@@ -135,13 +137,20 @@ final class CalendarSyncService: ObservableObject {
                     return lhs.isAllDay
                 }
                 return lhs.startDate < rhs.startDate
-            }
+            })
         lastRefreshDate = Date()
     }
 
+    /// Publishes only a real change; every publish redraws the views that watch this service.
+    private func setIfChanged<Value: Equatable>(_ keyPath: ReferenceWritableKeyPath<CalendarSyncService, Value>, _ value: Value) {
+        if self[keyPath: keyPath] != value {
+            self[keyPath: keyPath] = value
+        }
+    }
+
     func clearTodayEvents() {
-        dayEvents = []
-        lastErrorMessage = nil
+        setIfChanged(\.dayEvents, [])
+        setIfChanged(\.lastErrorMessage, nil)
     }
 
     func removeTodayEvent(_ event: CalendarDayEvent) {
@@ -149,15 +158,15 @@ final class CalendarSyncService: ObservableObject {
     }
 
     func refreshAvailableCalendars() {
-        authorizationStatus = EKEventStore.authorizationStatus(for: .event)
-        availableCalendars = eventStore.calendars(for: .event)
+        setIfChanged(\.authorizationStatus, EKEventStore.authorizationStatus(for: .event))
+        setIfChanged(\.availableCalendars, eventStore.calendars(for: .event)
             .map(CalendarSelectionOption.init(calendar:))
             .sorted { lhs, rhs in
                 if lhs.sourceTitle != rhs.sourceTitle {
                     return lhs.sourceTitle.localizedCaseInsensitiveCompare(rhs.sourceTitle) == .orderedAscending
                 }
                 return lhs.title.localizedCaseInsensitiveCompare(rhs.title) == .orderedAscending
-            }
+            })
         removeStaleCalendarSelections()
     }
 

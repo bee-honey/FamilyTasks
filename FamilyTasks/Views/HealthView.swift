@@ -37,9 +37,14 @@ struct HealthView: View {
                         Button {
                             isShowingSettings = true
                         } label: {
-                            PillButtonLabel(title: "Settings", systemImage: "gearshape")
+                            Image(systemName: "gearshape")
+                                .font(.headline)
+                                .foregroundStyle(AppTheme.ink)
+                                .frame(width: 44, height: 44)
+                                .background(AppTheme.surface, in: Circle())
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel("Health settings")
                     }
                 }
                 .listRowInsets(EdgeInsets(top: 8, leading: 4, bottom: 0, trailing: 4))

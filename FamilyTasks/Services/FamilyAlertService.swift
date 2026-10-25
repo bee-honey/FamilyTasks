@@ -61,6 +61,7 @@ final class FamilyAlertService {
         static let lastSent = "familyAlerts.lastSent"
         static let lastSendError = "familyAlerts.lastSendError"
         static let lastSubscriptionError = "familyAlerts.lastSubscriptionError"
+        static let lastNudge = "familyAlerts.lastNudge"
     }
 
     private struct SentRecord: Codable {
@@ -77,7 +78,6 @@ final class FamilyAlertService {
     private lazy var database = CKContainer.default().publicCloudDatabase
     private weak var taskStore: TaskStore?
     private var changeObserver: NSObjectProtocol?
-    private var lastNudge: [String: Date] = [:]
     /// The subscription saved this launch; saved again whenever what it asks for changes.
     private var savedSubscriptionKey: String?
     private let defaults = UserDefaults.standard
@@ -113,6 +113,22 @@ final class FamilyAlertService {
     }
 
     // MARK: Sending
+
+    /// When each item was last nudged from this phone, by item ID.
+    private var lastNudge: [String: Date] {
+        get { defaults.dictionary(forKey: DefaultsKey.lastNudge) as? [String: Date] ?? [:] }
+        set {
+            // A day is as far back as anything asks.
+            let cutoff = Date().addingTimeInterval(-86_400)
+            defaults.set(newValue.filter { $0.value > cutoff }, forKey: DefaultsKey.lastNudge)
+        }
+    }
+
+    /// Whether this phone nudged about `item` today.
+    func wasNudgedToday(_ item: some AssignedItem, calendar: Calendar = .current) -> Bool {
+        guard let date = lastNudge[item.id.uuidString] else { return false }
+        return calendar.isDateInToday(date)
+    }
 
     func canNudge(_ item: some AssignedItem) -> Bool {
         guard SharedHouseholdStore.shared.isSharingConfigured else { return false }
