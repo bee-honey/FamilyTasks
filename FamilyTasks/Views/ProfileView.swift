@@ -514,6 +514,9 @@ struct NotificationSettingsView: View {
                             .labelStyle(.tile(AppTheme.coolAccent))
                     }
                         .disabled(!notificationsEnabled)
+                        .onChange(of: familyShoppingEnabled) { _, _ in
+                            updateFamilyAlerts()
+                        }
                 } header: {
                     Text("From Your Family")
                 } footer: {

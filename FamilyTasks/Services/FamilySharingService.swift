@@ -409,8 +409,6 @@ struct SharedMemberProfile: Codable, Identifiable, Equatable {
 
 extension Notification.Name {
     static let familyDataDidChange = Notification.Name("FamilyDataDidChange")
-    /// userInfo["trips"] holds the [ShoppingTripNews] another family member finished.
-    static let sharedShoppingTripsDone = Notification.Name("SharedShoppingTripsDone")
 }
 
 struct PreparedCloudShare: Identifiable {
@@ -790,13 +788,8 @@ final class SharedHouseholdStore: ObservableObject, HouseholdDataSource {
     }
 
     func apply(_ payload: SharedHouseholdPayload, changedRecords: [SyncRecord]) {
-        // New, changed and finished tasks reach the people they're for as pushes from
-        // FamilyAlertService, sent by whoever made the change.
-        let trips = ShoppingTripNews.newlyDone(
-            before: organizerStore?.shops ?? [],
-            after: payload.shopping.shops,
-            viewerEmail: defaults.string(forKey: "profile.email") ?? ""
-        )
+        // New, changed and finished tasks and finished shopping trips reach the family as
+        // pushes from FamilyAlertService, sent by whoever made the change.
         SyncLedger.shared.apply(deletions: payload.deletions, memberAdditions: payload.memberAdditions)
         SharedMemberProfile.mergeAndSave(payload.profiles)
         taskStore?.applySharedData(tasks: payload.tasks, familyMembers: payload.familyMembers)
@@ -808,9 +801,6 @@ final class SharedHouseholdStore: ObservableObject, HouseholdDataSource {
             healthSnapshots: payload.healthSnapshots
         )
         ChoreStore.shared.applySharedData(payload.chores)
-        if !trips.isEmpty {
-            NotificationCenter.default.post(name: .sharedShoppingTripsDone, object: self, userInfo: ["trips": trips])
-        }
     }
 
     private func userFacingMessage(for error: Error) -> String {

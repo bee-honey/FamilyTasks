@@ -184,10 +184,11 @@ final class FamilyAlertTests: XCTestCase {
         XCTAssertEqual(FamilyAlertService.wantedKinds(defaults: defaults), [])
 
         defaults.set(true, forKey: "notifications.enabled")
-        XCTAssertEqual(FamilyAlertService.wantedKinds(defaults: defaults), [.nudge, .assigned, .updated, .completed])
+        XCTAssertEqual(FamilyAlertService.wantedKinds(defaults: defaults), [.nudge, .assigned, .updated, .completed, .shopping])
 
         defaults.set(false, forKey: "notifications.taskChanges")
         defaults.set(false, forKey: "notifications.familyCompletions")
+        defaults.set(false, forKey: "notifications.familyShopping")
         XCTAssertEqual(FamilyAlertService.wantedKinds(defaults: defaults), [.nudge])
     }
 

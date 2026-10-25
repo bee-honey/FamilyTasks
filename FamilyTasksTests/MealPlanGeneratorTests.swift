@@ -118,18 +118,20 @@ final class MealPlanGeneratorTests: XCTestCase {
 
     // MARK: Shopping done
 
-    func testFinishedShoppingIsNewsForTheRestOfTheFamily() {
-        let costco = Shop(name: "Costco")
-        var done = costco
-        done.lastTripDoneAt = Date()
-        done.lastTripDoneBy = "sam@example.com"
-        done.lastTripItemCount = 5
+    func testFinishedShoppingTellsTheRestOfTheFamily() {
+        let shopID = UUID()
+        let trip = ShoppingTripNews(who: "Sam", shopName: "Costco", itemCount: 5)
 
-        let news = ShoppingTripNews.newlyDone(before: [costco], after: [done], viewerEmail: "mum@example.com")
+        let alerts = FamilyAlert.shoppingDone(
+            trip: trip,
+            shopID: shopID,
+            sender: "Sam@example.com",
+            familyMembers: ["sam@example.com", "mum@example.com", "dad@example.com"]
+        )
 
-        XCTAssertEqual(news, [ShoppingTripNews(who: "Sam", shopName: "Costco", itemCount: 5)])
-        XCTAssertEqual(news.first?.notificationBody, "Sam finished shopping at Costco (5 items).")
-        XCTAssertTrue(ShoppingTripNews.newlyDone(before: [costco], after: [done], viewerEmail: "sam@example.com").isEmpty, "Not news to the shopper")
-        XCTAssertTrue(ShoppingTripNews.newlyDone(before: [done], after: [done], viewerEmail: "mum@example.com").isEmpty, "Already seen")
+        XCTAssertEqual(alerts.map(\.recipient), ["dad@example.com", "mum@example.com"], "Not the shopper")
+        XCTAssertEqual(Set(alerts.map(\.kind)), [.shopping])
+        XCTAssertEqual(alerts.first?.body, "Sam finished shopping at Costco (5 items).")
+        XCTAssertEqual(alerts.first?.itemID, shopID.uuidString)
     }
 }

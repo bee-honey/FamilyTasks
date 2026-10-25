@@ -219,6 +219,7 @@ final class OrganizerStore: ObservableObject {
             updated.lastTripItemCount = bought
             updated.updatedAt = date
             shops[index] = updated
+            LocalItemChange.shoppingTrip(shopID: shop.id, shopName: updated.name, itemCount: bought).post()
         }
         shoppingItems.removeAll { $0.shopID == shop.id && $0.isPurchased }
     }

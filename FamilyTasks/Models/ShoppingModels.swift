@@ -389,24 +389,11 @@ struct RecurringTask: Identifiable, Codable, Equatable {
     }
 }
 
-/// Another family member finishing a shop's trip, for "Sam finished shopping at Costco".
+/// Someone finishing a shop's trip, for "Sam finished shopping at Costco".
 struct ShoppingTripNews: Equatable, Sendable {
     var who: String
     var shopName: String
     var itemCount: Int
-
-    /// Trips someone else finished since `before`, recently enough to be news.
-    static func newlyDone(before: [Shop], after: [Shop], viewerEmail: String, now: Date = Date()) -> [ShoppingTripNews] {
-        let viewer = viewerEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        let previous = Dictionary(before.map { ($0.id, $0.lastTripDoneAt) }, uniquingKeysWith: { first, _ in first })
-        return after.compactMap { shop in
-            guard let doneAt = shop.lastTripDoneAt,
-                  doneAt != previous[shop.id] ?? nil,
-                  now.timeIntervalSince(doneAt) < 86_400,
-                  let by = shop.lastTripDoneBy?.lowercased(), !by.isEmpty, by != viewer else { return nil }
-            return ShoppingTripNews(who: Assignee.memberName(for: by), shopName: shop.name, itemCount: shop.lastTripItemCount ?? 0)
-        }
-    }
 
     var notificationBody: String {
         switch itemCount {

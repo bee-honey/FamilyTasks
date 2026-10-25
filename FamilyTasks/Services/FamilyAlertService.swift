@@ -167,6 +167,13 @@ final class FamilyAlertService {
                 senderName: senderName,
                 familyMembers: familyMembers
             )
+        case let .shoppingTrip(shopID, shopName, itemCount):
+            FamilyAlert.shoppingDone(
+                trip: ShoppingTripNews(who: senderName, shopName: shopName, itemCount: itemCount),
+                shopID: shopID,
+                sender: senderEmail,
+                familyMembers: familyMembers
+            )
         }
         guard !alerts.isEmpty else { return }
 
@@ -297,6 +304,9 @@ final class FamilyAlertService {
         }
         if defaults.object(forKey: "notifications.familyCompletions") as? Bool ?? true {
             kinds.append(.completed)
+        }
+        if defaults.object(forKey: "notifications.familyShopping") as? Bool ?? true {
+            kinds.append(.shopping)
         }
         return kinds
     }

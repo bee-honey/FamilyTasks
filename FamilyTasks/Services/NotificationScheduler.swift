@@ -12,7 +12,6 @@ final class NotificationScheduler: ObservableObject {
     private weak var taskStore: TaskStore?
     private weak var organizerStore: OrganizerStore?
     private var changeObserver: NSObjectProtocol?
-    private var shoppingObserver: NSObjectProtocol?
     private let defaults = UserDefaults.standard
 
     private enum DefaultsKey {
@@ -60,19 +59,6 @@ final class NotificationScheduler: ObservableObject {
             ) { [weak self] _ in
                 Task { @MainActor in
                     await self?.reschedule()
-                }
-            }
-        }
-
-        if shoppingObserver == nil {
-            shoppingObserver = NotificationCenter.default.addObserver(
-                forName: .sharedShoppingTripsDone,
-                object: nil,
-                queue: .main
-            ) { [weak self] notification in
-                let trips = notification.userInfo?["trips"] as? [ShoppingTripNews] ?? []
-                Task { @MainActor in
-                    await self?.scheduleShoppingDone(trips)
                 }
             }
         }
@@ -414,29 +400,6 @@ final class NotificationScheduler: ObservableObject {
         let validValues = Set(NotificationLeadTimeOption.options.map(\.minutes))
         let normalized = Array(Set(values.filter { validValues.contains($0) })).sorted()
         return normalized.isEmpty ? [60] : normalized
-    }
-
-    /// "Sam finished shopping at Costco (5 items)."
-    private func scheduleShoppingDone(_ trips: [ShoppingTripNews]) async {
-        guard !trips.isEmpty,
-              defaults.bool(forKey: DefaultsKey.enabled),
-              defaults.bool(forKey: DefaultsKey.familyShopping) else { return }
-
-        let settings = await center.notificationSettings()
-        guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else { return }
-
-        for trip in trips {
-            let content = UNMutableNotificationContent()
-            content.title = "Shopping Done"
-            content.body = trip.notificationBody
-            content.sound = .default
-            let request = UNNotificationRequest(
-                identifier: "\(IdentifierPrefix.shoppingDone)\(UUID().uuidString)",
-                content: content,
-                trigger: UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
-            )
-            try? await center.add(request)
-        }
     }
 
     private func dueSoonBody(title: String, dueDate: Date?, leadMinutes: Int) -> String {

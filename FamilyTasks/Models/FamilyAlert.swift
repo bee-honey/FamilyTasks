@@ -40,6 +40,7 @@ struct FamilyAlert: Equatable, Codable, Sendable {
         case assigned
         case updated
         case completed
+        case shopping
     }
 
     var kind: Kind
@@ -251,9 +252,26 @@ struct FamilyAlert: Equatable, Codable, Sendable {
 
 /// A change this person made on this device, for sending alerts about it. Changes that
 /// arrive from the family are applied without one.
+extension FamilyAlert {
+    /// "Sam finished shopping at Costco (5 items)." for everyone in the family but the shopper.
+    static func shoppingDone(
+        trip: ShoppingTripNews,
+        shopID: UUID,
+        sender: String,
+        familyMembers: [String]
+    ) -> [FamilyAlert] {
+        let sender = normalized(sender)
+        let people = Set(familyMembers.map(normalized).filter { !$0.isEmpty && $0 != sender })
+        return people.sorted().map {
+            FamilyAlert(kind: .shopping, recipient: $0, title: "Shopping Done", body: trip.notificationBody, itemID: shopID.uuidString)
+        }
+    }
+}
+
 enum LocalItemChange {
     case task(before: FamilyTask?, after: FamilyTask)
     case recurring(before: RecurringTask?, after: RecurringTask, completedOccurrence: Bool)
+    case shoppingTrip(shopID: UUID, shopName: String, itemCount: Int)
 }
 
 extension Notification.Name {
