@@ -41,6 +41,7 @@ struct FamilyAlert: Equatable, Codable, Sendable {
         case updated
         case completed
         case shopping
+        case habit
     }
 
     var kind: Kind
@@ -266,12 +267,33 @@ extension FamilyAlert {
             FamilyAlert(kind: .shopping, recipient: $0, title: "Shopping Done", body: trip.notificationBody, itemID: shopID.uuidString)
         }
     }
+
+    /// "Sam did Drink water today (8 of 8) · 🔥 12 days in a row" for everyone in the
+    /// family but the person whose habit it is. Only shared habits are news.
+    static func habitDone(
+        _ habit: Habit,
+        streak: Int,
+        sender: String,
+        senderName: String,
+        familyMembers: [String]
+    ) -> [FamilyAlert] {
+        guard habit.isShared else { return [] }
+        let sender = normalized(sender)
+        let people = Set(familyMembers.map(normalized).filter { !$0.isEmpty && $0 != sender })
+        let times = habit.timesPerDay > 1 ? " (\(habit.timesPerDay) of \(habit.timesPerDay))" : ""
+        let run = streak > 1 ? " · 🔥 \(streak) days in a row" : ""
+        return people.sorted().map {
+            FamilyAlert(kind: .habit, recipient: $0, title: "Habit done", body: "\(senderName) did \(habit.name) today\(times)\(run)", itemID: habit.id.uuidString)
+        }
+    }
 }
 
 enum LocalItemChange {
     case task(before: FamilyTask?, after: FamilyTask)
     case recurring(before: RecurringTask?, after: RecurringTask, completedOccurrence: Bool)
     case shoppingTrip(shopID: UUID, shopName: String, itemCount: Int)
+    /// One of this person's shared habits reached today's target.
+    case habitDone(habit: Habit, day: String, streak: Int)
 }
 
 extension Notification.Name {

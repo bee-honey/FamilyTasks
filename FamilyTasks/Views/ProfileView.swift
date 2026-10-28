@@ -144,7 +144,9 @@ struct ViewSettingsView: View {
     @AppStorage(ThemePalette.storageKey) private var themeID = ThemePalette.defaultTheme.id
     @AppStorage(TabSection.storageKey) private var tabSlotsRaw = ""
     @AppStorage("calendar.integration.enabled") private var calendarIntegrationEnabled = false
-    @AppStorage("schedule.contentPriority") private var scheduleContentPriority = ScheduleContentPriority.tasksFirst.rawValue
+    @AppStorage(TodaySection.storageKey) private var sectionOrderRaw = ""
+    @AppStorage(TodaySection.legacyPriorityKey) private var legacyPriorityRaw = ""
+    @AppStorage(TodaySection.showHabitsKey) private var showHabits = true
 
     private func tabSlotBinding(_ index: Int) -> Binding<TabSection> {
         Binding(
@@ -235,6 +237,31 @@ struct ViewSettingsView: View {
                         Label("Show Times", systemImage: "clock.fill")
                             .labelStyle(.tile(AppTheme.warning))
                     }
+                    Toggle(isOn: $showHabits) {
+                        Label("Show Habits on Today", systemImage: "flame.fill")
+                            .labelStyle(.tile(AppTheme.success))
+                    }
+                }
+
+                Section {
+                    let order = TodaySection.order(from: sectionOrderRaw, legacyPriority: legacyPriorityRaw)
+                    ForEach(Array(order.enumerated()), id: \.element) { index, section in
+                        HStack(spacing: 12) {
+                            Label(section.title, systemImage: section.systemImage)
+                                .labelStyle(.tile(AppTheme.taskSchedule))
+                            Spacer()
+                            orderButton("arrow.up", label: "Move \(section.title) up", disabled: index == 0) {
+                                sectionOrderRaw = TodaySection.encode(TodaySection.moving(section, .up, in: order))
+                            }
+                            orderButton("arrow.down", label: "Move \(section.title) down", disabled: index == order.count - 1) {
+                                sectionOrderRaw = TodaySection.encode(TodaySection.moving(section, .down, in: order))
+                            }
+                        }
+                    }
+                } header: {
+                    Text("Order on Today")
+                } footer: {
+                    Text("You can also move a block from the arrows on its heading on Today.")
                 }
 
                 Section("Task Matrix") {
@@ -262,19 +289,6 @@ struct ViewSettingsView: View {
                                 }
                             }
                         }
-
-                    Picker(selection: $scheduleContentPriority) {
-                        ForEach(ScheduleContentPriority.allCases) { priority in
-                            Text(priority.title).tag(priority.rawValue)
-                        }
-                    } label: {
-                        Label("Show First", systemImage: "list.bullet")
-                            .labelStyle(.tile(AppTheme.taskSchedule))
-                    }
-
-                    Text("Choose whether Today leads with family tasks or calendar events.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
                 }
             }
             .navigationTitle("Appearance")
@@ -284,6 +298,19 @@ struct ViewSettingsView: View {
         }
     }
 
+    private func orderButton(_ systemImage: String, label: String, disabled: Bool, action: @escaping () -> Void) -> some View {
+        Button {
+            withAnimation(.snappy, action)
+        } label: {
+            Image(systemName: systemImage)
+                .font(.subheadline.weight(.semibold))
+                .frame(width: 36, height: 36)
+                .background(AppTheme.surfaceMuted, in: Circle())
+        }
+        .buttonStyle(.borderless)
+        .disabled(disabled)
+        .accessibilityLabel(label)
+    }
 }
 
 struct HealthSettingsView: View {
@@ -399,6 +426,7 @@ struct NotificationSettingsView: View {
     @AppStorage("notifications.dueSoon") private var dueSoonEnabled = true
     @AppStorage("notifications.familyCompletions") private var familyCompletionsEnabled = true
     @AppStorage("notifications.familyShopping") private var familyShoppingEnabled = true
+    @AppStorage("notifications.familyHabits") private var familyHabitsEnabled = true
     @AppStorage("notifications.todayDigestHour") private var todayDigestHour = 8
     @AppStorage("notifications.todayDigestMinute") private var todayDigestMinute = 0
     @AppStorage("notifications.eveningDigest") private var eveningDigestEnabled = true
@@ -517,10 +545,19 @@ struct NotificationSettingsView: View {
                         .onChange(of: familyShoppingEnabled) { _, _ in
                             updateFamilyAlerts()
                         }
+
+                    Toggle(isOn: $familyHabitsEnabled) {
+                        Label("When Family Finishes a Habit", systemImage: "flame.fill")
+                            .labelStyle(.tile(AppTheme.goldAccent))
+                    }
+                        .disabled(!notificationsEnabled)
+                        .onChange(of: familyHabitsEnabled) { _, _ in
+                            updateFamilyAlerts()
+                        }
                 } header: {
                     Text("From Your Family")
                 } footer: {
-                    Text("Nudges always come through. Tap the bell on a task to nudge everyone else on it.")
+                    Text("Nudges always come through. Tap the bell on a task to nudge everyone else on it. Habits only send news when they're shared.")
                 }
 
                 Section("Status") {

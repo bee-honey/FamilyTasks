@@ -4,14 +4,18 @@ struct TodayTasksView: View {
     @EnvironmentObject private var taskStore: TaskStore
     @EnvironmentObject private var organizerStore: OrganizerStore
     @EnvironmentObject private var calendarSync: CalendarSyncService
+    @EnvironmentObject private var habitStore: HabitStore
     @AppStorage("calendar.integration.enabled") private var calendarIntegrationEnabled = false
     @AppStorage("schedule.showTaskTime") private var showTaskTime = true
     @AppStorage("schedule.showPriorityTags") private var showPriorityTags = true
     @AppStorage("schedule.defaultDisplayMode") private var defaultDisplayModeRaw = ScheduleDisplayMode.week.rawValue
-    @AppStorage("schedule.contentPriority") private var contentPriorityRaw = ScheduleContentPriority.tasksFirst.rawValue
+    @AppStorage(TodaySection.storageKey) private var sectionOrderRaw = ""
+    @AppStorage(TodaySection.legacyPriorityKey) private var legacyPriorityRaw = ""
+    @AppStorage(TodaySection.showHabitsKey) private var showHabits = true
     @AppStorage("schedule.taskSortOrder") private var taskSortOrderRaw = ScheduleTaskSortOrder.priority.rawValue
     @State private var isAddingTask = false
     @State private var editingTask: FamilyTask?
+    @State private var editingHabit: Habit?
     @State private var selectedDate = Date()
     @State private var displayMode: ScheduleDisplayMode = .week
     @State private var hasLoaded = false
@@ -53,7 +57,8 @@ struct TodayTasksView: View {
                     selectedTasks: sortedTasks(taskStore.tasksScheduled(on: selectedDate)),
                     recurringTasks: organizerStore.recurringTasks(on: selectedDate),
                     calendarEvents: calendarSync.dayEvents,
-                    overdueTasks: overdueTasksForSelectedDay
+                    overdueTasks: overdueTasksForSelectedDay,
+                    habits: showHabits ? habitStore.myHabits(on: selectedDate) : []
                 )
 
                 if let message = calendarSync.lastErrorMessage, !message.isEmpty {
@@ -117,6 +122,9 @@ struct TodayTasksView: View {
             }
             .sheet(item: $editingTask) { task in
                 EditTaskView(task: task)
+            }
+            .sheet(item: $editingHabit) { habit in
+                HabitEditorView(habit: habit)
             }
             .sheet(isPresented: $isAddingTask, onDismiss: {
                 // Back to today, even when the new task is for another day.
@@ -221,8 +229,16 @@ struct TodayTasksView: View {
     }
 
     @ViewBuilder
-    private func dayContent(selectedTasks: [FamilyTask], recurringTasks: [RecurringTask], calendarEvents: [CalendarDayEvent], overdueTasks: [FamilyTask]) -> some View {
-        if selectedTasks.isEmpty && recurringTasks.isEmpty && calendarEvents.isEmpty {
+    private func dayContent(selectedTasks: [FamilyTask], recurringTasks: [RecurringTask], calendarEvents: [CalendarDayEvent], overdueTasks: [FamilyTask], habits: [Habit]) -> some View {
+        let hasTasks = !selectedTasks.isEmpty || !overdueTasks.isEmpty || !recurringTasks.isEmpty
+        let visible = sectionOrder.filter { section in
+            switch section {
+            case .tasks: hasTasks
+            case .habits: !habits.isEmpty
+            case .calendar: !calendarEvents.isEmpty
+            }
+        }
+        if selectedTasks.isEmpty && recurringTasks.isEmpty && calendarEvents.isEmpty && habits.isEmpty {
             Section {
                 Label(calendar.isDateInToday(selectedDate) ? "Nothing planned today" : "Nothing planned", systemImage: "checkmark.circle")
                     .font(.subheadline)
@@ -233,12 +249,31 @@ struct TodayTasksView: View {
             }
         }
 
-        if scheduleContentPriority == .tasksFirst {
-            scheduledTaskSections(selectedTasks: selectedTasks, recurringTasks: recurringTasks, overdueTasks: overdueTasks)
-            calendarSection(calendarEvents)
-        } else {
-            calendarSection(calendarEvents)
-            scheduledTaskSections(selectedTasks: selectedTasks, recurringTasks: recurringTasks, overdueTasks: overdueTasks)
+        ForEach(visible) { section in
+            let arrange: SectionArrangeMenu? = visible.count > 1 ? SectionArrangeMenu(section: section, visible: visible) { direction in
+                moveSection(section, direction, among: visible)
+            } : nil
+            switch section {
+            case .tasks:
+                scheduledTaskSections(selectedTasks: selectedTasks, recurringTasks: recurringTasks, overdueTasks: overdueTasks, arrange: arrange)
+            case .habits:
+                habitSection(habits, arrange: arrange)
+            case .calendar:
+                calendarSection(calendarEvents, arrange: arrange)
+            }
+        }
+    }
+
+    /// Tasks, Habits and Calendar in the order chosen here or in Appearance.
+    private var sectionOrder: [TodaySection] {
+        TodaySection.order(from: sectionOrderRaw, legacyPriority: legacyPriorityRaw)
+    }
+
+    /// Swaps `section` with the block shown just above or below it, so a move always
+    /// changes what's on screen even when a block in between is empty today.
+    private func moveSection(_ section: TodaySection, _ direction: TodaySection.Direction, among visible: [TodaySection]) {
+        withAnimation(.snappy) {
+            sectionOrderRaw = TodaySection.encode(TodaySection.moving(section, direction, in: sectionOrder, among: visible))
         }
     }
 
@@ -253,10 +288,6 @@ struct TodayTasksView: View {
         if calendar.isDateInTomorrow(selectedDate) { return "Tomorrow" }
         if calendar.isDateInYesterday(selectedDate) { return "Yesterday" }
         return selectedDate.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())
-    }
-
-    private var scheduleContentPriority: ScheduleContentPriority {
-        ScheduleContentPriority(rawValue: contentPriorityRaw) ?? .tasksFirst
     }
 
     private var taskSortOrder: ScheduleTaskSortOrder {
@@ -296,14 +327,16 @@ struct TodayTasksView: View {
     }
 
     @ViewBuilder
-    private func scheduledTaskSections(selectedTasks: [FamilyTask], recurringTasks: [RecurringTask], overdueTasks: [FamilyTask]) -> some View {
+    private func scheduledTaskSections(selectedTasks: [FamilyTask], recurringTasks: [RecurringTask], overdueTasks: [FamilyTask], arrange: SectionArrangeMenu?) -> some View {
+        // The block's arrange menu sits on whichever of its headers comes first.
+        let firstHeader = !selectedTasks.isEmpty ? 0 : (!overdueTasks.isEmpty ? 1 : 2)
         if !selectedTasks.isEmpty {
             Section {
                 ForEach(selectedTasks) { task in
                     taskRow(task)
                 }
             } header: {
-                SectionTitle(text: Self.counted(dayTitle, selectedTasks.count))
+                SectionHeader(title: Self.counted(dayTitle, selectedTasks.count), arrange: arrange)
             }
         }
 
@@ -314,7 +347,7 @@ struct TodayTasksView: View {
                     taskRow(task, isOverdue: true)
                 }
             } header: {
-                SectionTitle(text: Self.counted("Overdue", overdueTasks.count), color: AppTheme.overdue)
+                SectionHeader(title: Self.counted("Overdue", overdueTasks.count), color: AppTheme.overdue, arrange: firstHeader == 1 ? arrange : nil)
             }
         }
 
@@ -334,13 +367,31 @@ struct TodayTasksView: View {
                     }
                 }
             } header: {
-                SectionTitle(text: Self.counted("Recurring", recurringTasks.count))
+                SectionHeader(title: Self.counted("Recurring", recurringTasks.count), arrange: firstHeader == 2 ? arrange : nil)
+            }
+        }
+    }
+
+    /// The day's habits, apart from the tasks. Days ahead can't be checked off yet.
+    @ViewBuilder
+    private func habitSection(_ habits: [Habit], arrange: SectionArrangeMenu?) -> some View {
+        if !habits.isEmpty {
+            let done = habits.filter { habitStore.isDone($0, on: selectedDate) }.count
+            Section {
+                ForEach(habits) { habit in
+                    HabitRow(habit: habit, date: selectedDate, canLog: selectedDate <= Date()) {
+                        editingHabit = habit
+                    }
+                    .listRowBackground(AppTheme.surface)
+                }
+            } header: {
+                SectionHeader(title: "Habits (\(done)/\(habits.count))", arrange: arrange)
             }
         }
     }
 
     @ViewBuilder
-    private func calendarSection(_ calendarEvents: [CalendarDayEvent]) -> some View {
+    private func calendarSection(_ calendarEvents: [CalendarDayEvent], arrange: SectionArrangeMenu?) -> some View {
         if !calendarEvents.isEmpty {
             Section {
                 ForEach(calendarEvents) { event in
@@ -355,7 +406,7 @@ struct TodayTasksView: View {
                         }
                 }
             } header: {
-                SectionTitle(text: "Calendar")
+                SectionHeader(title: "Calendar", arrange: arrange)
             }
         }
     }
@@ -768,16 +819,111 @@ private struct PriorityTag: View {
     }
 }
 
-enum ScheduleContentPriority: String, CaseIterable, Identifiable {
-    case tasksFirst
-    case calendarFirst
+/// The blocks Today shows below the week, in an order the family picks.
+enum TodaySection: String, CaseIterable, Identifiable {
+    case tasks
+    case habits
+    case calendar
+
+    enum Direction {
+        case up
+        case down
+    }
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
-        case .tasksFirst: "Tasks First"
-        case .calendarFirst: "Calendar First"
+        case .tasks: "Tasks"
+        case .habits: "Habits"
+        case .calendar: "Calendar"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .tasks: "checklist"
+        case .habits: "flame"
+        case .calendar: "calendar"
+        }
+    }
+
+    static let storageKey = "schedule.sectionOrder"
+    static let showHabitsKey = "schedule.showHabits"
+    /// The earlier Tasks First / Calendar First choice, read once there's no order saved.
+    static let legacyPriorityKey = "schedule.contentPriority"
+
+    /// The saved order, each block once, with any missing ones added at the end.
+    static func order(from raw: String, legacyPriority: String = "") -> [TodaySection] {
+        var order: [TodaySection] = []
+        for section in raw.split(separator: ",").compactMap({ TodaySection(rawValue: String($0)) }) where !order.contains(section) {
+            order.append(section)
+        }
+        if order.isEmpty {
+            order = legacyPriority == "calendarFirst" ? [.calendar, .tasks, .habits] : [.tasks, .habits, .calendar]
+        }
+        return order + allCases.filter { !order.contains($0) }
+    }
+
+    /// Swaps `section` with its neighbor among `visible` (all of them when nil).
+    static func moving(_ section: TodaySection, _ direction: Direction, in order: [TodaySection], among visible: [TodaySection]? = nil) -> [TodaySection] {
+        let shown = visible ?? order
+        guard let index = shown.firstIndex(of: section) else { return order }
+        let neighborIndex = direction == .up ? index - 1 : index + 1
+        guard shown.indices.contains(neighborIndex),
+              let from = order.firstIndex(of: section),
+              let to = order.firstIndex(of: shown[neighborIndex]) else { return order }
+        var updated = order
+        updated.swapAt(from, to)
+        return updated
+    }
+
+    static func encode(_ order: [TodaySection]) -> String {
+        order.map(\.rawValue).joined(separator: ",")
+    }
+}
+
+/// What a section header needs to offer Move Up and Move Down.
+struct SectionArrangeMenu {
+    let section: TodaySection
+    let visible: [TodaySection]
+    let move: (TodaySection.Direction) -> Void
+}
+
+/// A section title with, when there's more than one block, a small menu to move its block.
+private struct SectionHeader: View {
+    let title: String
+    var color: Color = .secondary
+    let arrange: SectionArrangeMenu?
+
+    var body: some View {
+        HStack {
+            SectionTitle(text: title, color: color)
+            Spacer(minLength: 8)
+            if let arrange {
+                Menu {
+                    Button {
+                        arrange.move(.up)
+                    } label: {
+                        Label("Move \(arrange.section.title) Up", systemImage: "arrow.up")
+                    }
+                    .disabled(arrange.visible.first == arrange.section)
+                    Button {
+                        arrange.move(.down)
+                    } label: {
+                        Label("Move \(arrange.section.title) Down", systemImage: "arrow.down")
+                    }
+                    .disabled(arrange.visible.last == arrange.section)
+                } label: {
+                    Image(systemName: "arrow.up.arrow.down")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 32, height: 28)
+                        .contentShape(Rectangle())
+                }
+                .accessibilityLabel("Arrange \(arrange.section.title)")
+                .textCase(nil)
+            }
         }
     }
 }

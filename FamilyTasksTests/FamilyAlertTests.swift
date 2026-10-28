@@ -166,6 +166,29 @@ final class FamilyAlertTests: XCTestCase {
         ).isEmpty)
     }
 
+    // MARK: Habits
+
+    func testFinishingASharedHabitTellsEveryoneElse() {
+        let water = Habit(name: "Drink water", timesPerDay: 8, ownerEmail: sam, isShared: true)
+
+        let alerts = FamilyAlert.habitDone(water, streak: 12, sender: sam, senderName: "Sam", familyMembers: family)
+
+        XCTAssertEqual(alerts.map(\.recipient), [kid, mum])
+        XCTAssertTrue(alerts.allSatisfy { $0.kind == .habit })
+        XCTAssertEqual(alerts[0].body, "Sam did Drink water today (8 of 8) · 🔥 12 days in a row")
+    }
+
+    func testAFirstDayOnceADayHabitReadsSimply() {
+        let read = Habit(name: "Read", ownerEmail: sam, isShared: true)
+        let alerts = FamilyAlert.habitDone(read, streak: 1, sender: sam, senderName: "Sam", familyMembers: family)
+        XCTAssertEqual(alerts.first?.body, "Sam did Read today")
+    }
+
+    func testPrivateHabitsSendNothing() {
+        let diary = Habit(name: "Diary", ownerEmail: sam, isShared: false)
+        XCTAssertTrue(FamilyAlert.habitDone(diary, streak: 3, sender: sam, senderName: "Sam", familyMembers: family).isEmpty)
+    }
+
     // MARK: Delivery
 
     func testRecipientKeyHidesTheEmailButMatchesAnySpelling() {
@@ -184,11 +207,12 @@ final class FamilyAlertTests: XCTestCase {
         XCTAssertEqual(FamilyAlertService.wantedKinds(defaults: defaults), [])
 
         defaults.set(true, forKey: "notifications.enabled")
-        XCTAssertEqual(FamilyAlertService.wantedKinds(defaults: defaults), [.nudge, .assigned, .updated, .completed, .shopping])
+        XCTAssertEqual(FamilyAlertService.wantedKinds(defaults: defaults), [.nudge, .assigned, .updated, .completed, .shopping, .habit])
 
         defaults.set(false, forKey: "notifications.taskChanges")
         defaults.set(false, forKey: "notifications.familyCompletions")
         defaults.set(false, forKey: "notifications.familyShopping")
+        defaults.set(false, forKey: "notifications.familyHabits")
         XCTAssertEqual(FamilyAlertService.wantedKinds(defaults: defaults), [.nudge])
     }
 

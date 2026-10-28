@@ -29,6 +29,7 @@ final class NotificationHistory: ObservableObject {
         case assigned
         case updated
         case completed
+        case habit
         case other
 
         var systemImage: String {
@@ -41,6 +42,7 @@ final class NotificationHistory: ObservableObject {
             case .assigned: "plus.circle"
             case .updated: "square.and.pencil"
             case .completed: "checkmark.circle"
+            case .habit: "flame"
             case .other: "bell"
             }
         }

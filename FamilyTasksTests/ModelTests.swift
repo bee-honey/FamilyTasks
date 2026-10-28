@@ -224,6 +224,24 @@ final class ModelTests: XCTestCase {
         XCTAssertEqual(TabSection.replacing(slots, at: 1, with: .tasks), [.mealPlan, .tasks])
     }
 
+    // MARK: Today order
+
+    func testTodayOrderDefaultsAndFollowsTheOldShowFirstChoice() {
+        XCTAssertEqual(TodaySection.order(from: ""), [.tasks, .habits, .calendar])
+        XCTAssertEqual(TodaySection.order(from: "", legacyPriority: "calendarFirst"), [.calendar, .tasks, .habits])
+        // Once an order is saved, the old choice no longer matters.
+        XCTAssertEqual(TodaySection.order(from: "habits", legacyPriority: "calendarFirst"), [.habits, .tasks, .calendar])
+        XCTAssertEqual(TodaySection.order(from: "calendar,calendar,junk"), [.calendar, .tasks, .habits])
+    }
+
+    func testMovingATodayBlockSkipsBlocksNotShown() {
+        let order: [TodaySection] = [.tasks, .habits, .calendar]
+        XCTAssertEqual(TodaySection.moving(.habits, .up, in: order), [.habits, .tasks, .calendar])
+        XCTAssertEqual(TodaySection.moving(.tasks, .up, in: order), order)
+        // With no habits today, Calendar moving up goes above Tasks.
+        XCTAssertEqual(TodaySection.moving(.calendar, .up, in: order, among: [.tasks, .calendar]), [.calendar, .habits, .tasks])
+    }
+
     // MARK: Locations
 
     func testTaskLocationIsSavedAndSynced() throws {

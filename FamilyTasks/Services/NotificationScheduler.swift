@@ -30,6 +30,7 @@ final class NotificationScheduler: ObservableObject {
         static let familyCompletions = "notifications.familyCompletions"
         static let taskChanges = "notifications.taskChanges"
         static let familyShopping = "notifications.familyShopping"
+        static let familyHabits = "notifications.familyHabits"
     }
 
     /// iOS keeps at most 64 pending local notifications per app; leave room for
@@ -157,6 +158,7 @@ final class NotificationScheduler: ObservableObject {
             DefaultsKey.dueSoon: true,
             DefaultsKey.familyCompletions: true,
             DefaultsKey.familyShopping: true,
+            DefaultsKey.familyHabits: true,
             DefaultsKey.todayDigestHour: 8,
             DefaultsKey.todayDigestMinute: 0,
             DefaultsKey.eveningDigest: true,

@@ -21,6 +21,7 @@ struct SharedHouseholdPayload: Codable {
     var deletions: [String: Date]
     var memberAdditions: [String: Date]
     var chores: ChoresPayload
+    var habits: HabitsPayload
 
     init(
         schemaVersion: Int = SharedHouseholdPayload.currentSchemaVersion,
@@ -36,7 +37,8 @@ struct SharedHouseholdPayload: Codable {
         healthSnapshots: [HealthSnapshot] = [],
         deletions: [String: Date] = [:],
         memberAdditions: [String: Date] = [:],
-        chores: ChoresPayload = ChoresPayload()
+        chores: ChoresPayload = ChoresPayload(),
+        habits: HabitsPayload = HabitsPayload()
     ) {
         self.schemaVersion = schemaVersion
         self.updatedAt = updatedAt
@@ -52,6 +54,7 @@ struct SharedHouseholdPayload: Codable {
         self.deletions = deletions
         self.memberAdditions = memberAdditions
         self.chores = chores
+        self.habits = habits
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -69,6 +72,7 @@ struct SharedHouseholdPayload: Codable {
         case deletions
         case memberAdditions
         case chores
+        case habits
     }
 
     init(from decoder: Decoder) throws {
@@ -87,6 +91,7 @@ struct SharedHouseholdPayload: Codable {
         deletions = (try? container.decode([String: Date].self, forKey: .deletions)) ?? [:]
         memberAdditions = (try? container.decode([String: Date].self, forKey: .memberAdditions)) ?? [:]
         chores = (try? container.decode(ChoresPayload.self, forKey: .chores)) ?? ChoresPayload()
+        habits = (try? container.decode(HabitsPayload.self, forKey: .habits)) ?? HabitsPayload()
     }
 
     /// Merges two copies of the household item by item: the newer `updatedAt` wins,
@@ -129,6 +134,10 @@ struct SharedHouseholdPayload: Codable {
                 completions: mergeItems(local.chores.completions, remote.chores.completions, deletions: deletions, localOrderWins: keepLocalOrder),
                 payouts: mergeItems(local.chores.payouts, remote.chores.payouts, deletions: deletions, localOrderWins: keepLocalOrder),
                 settings: local.chores.settings.updatedAt > remote.chores.settings.updatedAt ? local.chores.settings : remote.chores.settings
+            ),
+            habits: HabitsPayload(
+                habits: mergeItems(local.habits.habits, remote.habits.habits, deletions: deletions, localOrderWins: keepLocalOrder),
+                days: mergeItems(local.habits.days, remote.habits.days, deletions: deletions, localOrderWins: keepLocalOrder)
             )
         )
     }
@@ -195,6 +204,8 @@ extension KidProfile: SyncMergeable { var syncID: String { id.uuidString } }
 extension Chore: SyncMergeable { var syncID: String { id.uuidString } }
 extension ChoreCompletion: SyncMergeable { var syncID: String { id.uuidString } }
 extension ChorePayout: SyncMergeable { var syncID: String { id.uuidString } }
+extension Habit: SyncMergeable { var syncID: String { id.uuidString } }
+extension HabitDay: SyncMergeable { var syncID: String { id } }
 
 /// Remembers what this device deleted (and which family members it re-added) so a
 /// merge with an older copy of the household does not bring removed items back.
@@ -783,7 +794,8 @@ final class SharedHouseholdStore: ObservableObject, HouseholdDataSource {
             healthSnapshots: organizerStore.exportHealthSnapshots(),
             deletions: SyncLedger.shared.deletions,
             memberAdditions: SyncLedger.shared.memberAdditions,
-            chores: ChoreStore.shared.exportPayload()
+            chores: ChoreStore.shared.exportPayload(),
+            habits: HabitStore.shared.exportPayload()
         )
     }
 
@@ -801,6 +813,7 @@ final class SharedHouseholdStore: ObservableObject, HouseholdDataSource {
             healthSnapshots: payload.healthSnapshots
         )
         ChoreStore.shared.applySharedData(payload.chores)
+        HabitStore.shared.applySharedData(payload.habits)
     }
 
     private func userFacingMessage(for error: Error) -> String {

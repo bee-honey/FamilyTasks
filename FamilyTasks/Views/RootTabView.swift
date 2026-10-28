@@ -8,6 +8,7 @@ enum TabSection: String, CaseIterable, Identifiable {
     case mealPlan
     case chores
     case recurring
+    case habits
     case ideas
 
     var id: String { rawValue }
@@ -19,6 +20,7 @@ enum TabSection: String, CaseIterable, Identifiable {
         case .mealPlan: "Meal Plan"
         case .chores: "Chores"
         case .recurring: "Recurring"
+        case .habits: "Habits"
         case .ideas: "Ideas"
         }
     }
@@ -30,6 +32,7 @@ enum TabSection: String, CaseIterable, Identifiable {
         case .mealPlan: "fork.knife"
         case .chores: "star.circle"
         case .recurring: "repeat"
+        case .habits: "flame"
         case .ideas: "lightbulb"
         }
     }
@@ -163,6 +166,7 @@ struct TabSectionScreen: View {
         case .mealPlan: MealPlanView(isPushed: isPushed)
         case .chores: ChoresView(isPushed: isPushed)
         case .recurring: RecurringTasksView(isPushed: isPushed)
+        case .habits: HabitsView(isPushed: isPushed)
         case .ideas: IdeaNotebookView(isPushed: isPushed)
         }
     }
@@ -174,6 +178,7 @@ struct FamilyHubView: View {
     @EnvironmentObject private var organizerStore: OrganizerStore
     @EnvironmentObject private var choreStore: ChoreStore
     @EnvironmentObject private var taskStore: TaskStore
+    @EnvironmentObject private var habitStore: HabitStore
     @AppStorage(TabSection.storageKey) private var slotsRaw = ""
     @AppStorage("health.section.enabled") private var healthSectionEnabled = false
 
@@ -230,6 +235,7 @@ struct FamilyHubView: View {
         case .mealPlan: AppTheme.brightAccent
         case .chores: AppTheme.softAccent
         case .recurring: AppTheme.primary
+        case .habits: AppTheme.success
         case .ideas: SettingsTint.ideas
         }
     }
@@ -255,6 +261,13 @@ struct FamilyHubView: View {
             let active = organizerStore.visibleRecurringTasks.filter(\.isActive)
             guard let next = active.min(by: { $0.nextDueDate < $1.nextDueDate }) else { return "Bills and routines" }
             return "\(next.title) · \(next.nextDueDate.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))"
+        case .habits:
+            let today = habitStore.myHabits(on: Date())
+            if today.isEmpty {
+                let count = habitStore.myHabits.count
+                return count == 0 ? "Build a routine" : "None on today"
+            }
+            return "\(today.filter { habitStore.isDone($0) }.count) of \(today.count) done today"
         case .ideas:
             let count = organizerStore.ideaNotes.count
             return count == 0 ? "Notes for later" : "\(count) \(count == 1 ? "idea" : "ideas")"

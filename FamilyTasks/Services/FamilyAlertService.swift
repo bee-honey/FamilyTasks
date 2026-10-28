@@ -62,6 +62,7 @@ final class FamilyAlertService {
         static let lastSendError = "familyAlerts.lastSendError"
         static let lastSubscriptionError = "familyAlerts.lastSubscriptionError"
         static let lastNudge = "familyAlerts.lastNudge"
+        static let habitsAnnounced = "familyAlerts.habitsAnnounced"
     }
 
     private struct SentRecord: Codable {
@@ -163,8 +164,21 @@ final class FamilyAlertService {
         return alerts.map { Assignee.memberName(for: $0.recipient) }
     }
 
+    /// The day each habit was last announced, by habit ID, so undoing and redoing it
+    /// doesn't tell the family twice.
+    private var habitsAnnounced: [String: String] {
+        get { defaults.dictionary(forKey: DefaultsKey.habitsAnnounced) as? [String: String] ?? [:] }
+        set { defaults.set(newValue, forKey: DefaultsKey.habitsAnnounced) }
+    }
+
     private func handle(_ change: LocalItemChange) {
         guard SharedHouseholdStore.shared.isSharingConfigured else { return }
+        if case let .habitDone(habit, day, _) = change {
+            let key = habit.id.uuidString
+            guard habitsAnnounced[key] != day else { return }
+            // Only today's entry is ever checked, so older ones are dropped.
+            habitsAnnounced = habitsAnnounced.filter { $0.value == day }.merging([key: day]) { $1 }
+        }
         let alerts: [FamilyAlert] = switch change {
         case let .task(before, after):
             FamilyAlert.taskAlerts(
@@ -188,6 +202,14 @@ final class FamilyAlertService {
                 trip: ShoppingTripNews(who: senderName, shopName: shopName, itemCount: itemCount),
                 shopID: shopID,
                 sender: senderEmail,
+                familyMembers: familyMembers
+            )
+        case let .habitDone(habit, _, streak):
+            FamilyAlert.habitDone(
+                habit,
+                streak: streak,
+                sender: senderEmail,
+                senderName: senderName,
                 familyMembers: familyMembers
             )
         }
@@ -323,6 +345,9 @@ final class FamilyAlertService {
         }
         if defaults.object(forKey: "notifications.familyShopping") as? Bool ?? true {
             kinds.append(.shopping)
+        }
+        if defaults.object(forKey: "notifications.familyHabits") as? Bool ?? true {
+            kinds.append(.habit)
         }
         return kinds
     }

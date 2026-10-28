@@ -80,6 +80,7 @@ struct NotificationHistoryView: View {
         case .nudge: AppTheme.warmAccent
         case .assigned, .updated: AppTheme.primary
         case .completed: AppTheme.success
+        case .habit: AppTheme.goldAccent
         case .other: AppTheme.softAccent
         }
     }
