@@ -256,6 +256,45 @@ final class OrganizerStore: ObservableObject {
         mealIdeas.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 
+    /// The saved meal for a catalog dish, adding it to the family's meals the first time.
+    /// A meal already saved under the same name and type is reused (and linked) instead.
+    @discardableResult
+    func addCatalogMeal(_ dish: CatalogMeal) -> UUID {
+        if let existing = mealIdeas.first(where: { $0.catalogID == dish.id }) {
+            return existing.id
+        }
+        if let index = mealIdeas.firstIndex(where: { $0.category == dish.category && $0.name.caseInsensitiveCompare(dish.name) == .orderedSame }) {
+            var linked = mealIdeas[index]
+            linked.catalogID = dish.id
+            linked.updatedAt = Date()
+            mealIdeas[index] = linked
+            return linked.id
+        }
+        let meal = MealIdea(
+            name: dish.name,
+            category: dish.category,
+            ingredients: cleanedIngredients(dish.ingredients.map { MealIngredient(name: $0, defaultShopID: defaultShopID(forIngredient: $0)) }),
+            catalogID: dish.id
+        )
+        mealIdeas.append(meal)
+        mealIdeas.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        return meal.id
+    }
+
+    /// Whether this catalog dish is already one of the family's meals.
+    func hasCatalogMeal(_ dish: CatalogMeal) -> Bool {
+        mealIdeas.contains { $0.catalogID == dish.id || ($0.category == dish.category && $0.name.caseInsensitiveCompare(dish.name) == .orderedSame) }
+    }
+
+    /// The shop an ingredient of this name was last set to in any saved meal, so catalog
+    /// meals land at the same shops as the family's own.
+    private func defaultShopID(forIngredient name: String) -> UUID? {
+        mealIdeas.lazy
+            .flatMap(\.ingredients)
+            .first { $0.name.caseInsensitiveCompare(name) == .orderedSame && $0.defaultShopID != nil }?
+            .defaultShopID
+    }
+
     /// "Don't suggest this again" from the meal plan generator.
     func setSkipInGeneratedPlans(_ skip: Bool, for mealID: UUID) {
         guard let index = mealIdeas.firstIndex(where: { $0.id == mealID }), mealIdeas[index].skipInGeneratedPlans != skip else { return }

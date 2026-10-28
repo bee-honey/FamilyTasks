@@ -353,7 +353,7 @@ private struct MealIdeaCard: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(meal.name)
                         .font(.footnote.weight(.semibold))
-                    Text("\(meal.ingredients.count) ingredients")
+                    Text(subtitle)
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
@@ -402,6 +402,13 @@ private struct MealIdeaCard: View {
         .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14))
         .contentShape(Rectangle())
     }
+
+    /// "350 kcal · 7 g protein · 8 ingredients" for catalog meals, else the ingredient count.
+    private var subtitle: String {
+        let ingredients = "\(meal.ingredients.count) ingredients"
+        guard let dish = MealCatalog.shared.meal(for: meal) else { return ingredients }
+        return "\(dish.nutritionSummary) · \(ingredients)"
+    }
 }
 
 struct MealEditorView: View {
@@ -448,6 +455,15 @@ struct MealEditorView: View {
                                     category = choice
                                 }
                             }
+                        }
+                    }
+
+                    if let dish = meal.flatMap(MealCatalog.shared.meal(for:)) {
+                        EditorSection("Nutrition · \(dish.serving)") {
+                            NutritionGrid(nutrition: dish.nutrition)
+                            Text("Approximate, from the \(dish.name) recipe in Browse Recipes.")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
                         }
                     }
 
@@ -929,6 +945,30 @@ struct MealLibraryView: View {
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 12) {
+                NavigationLink {
+                    MealCatalogView()
+                } label: {
+                    HStack(spacing: 12) {
+                        IconTile(systemImage: "book.pages", tint: AppTheme.brightAccent, size: 40)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Browse Recipes")
+                                .font(.body.weight(.semibold))
+                                .foregroundStyle(AppTheme.ink)
+                            Text(catalogSummary)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                        Spacer(minLength: 0)
+                        Image(systemName: "chevron.right")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .padding(12)
+                    .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                }
+                .buttonStyle(.plain)
+
                 HStack(spacing: 8) {
                     ForEach(MealCategory.allCases) { choice in
                         ChoiceChip(title: choice.title, isSelected: category == choice) {
@@ -990,6 +1030,13 @@ struct MealLibraryView: View {
         .sheet(item: $planningMeal) { meal in
             PlanMealView(meal: meal, initialDate: Date(), initialSlot: meal.category == .breakfast ? .breakfast : .dinner)
         }
+    }
+
+    /// "48 Indian dishes with nutrition"
+    private var catalogSummary: String {
+        let catalog = MealCatalog.shared
+        let names = ListFormatter.localizedString(byJoining: catalog.cuisines.map(\.name))
+        return "\(catalog.meals.count) \(names) dishes with nutrition"
     }
 
     private var meals: [MealIdea] {

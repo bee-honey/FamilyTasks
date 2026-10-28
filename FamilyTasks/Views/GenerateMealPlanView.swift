@@ -276,40 +276,71 @@ struct GenerateMealPlanView: View {
     }
 }
 
-/// Every meal of one type, to pick for a slot, with a way to add a new one.
+/// Every meal of one type, to pick for a slot, then the catalog's dishes of that type
+/// that aren't saved yet (picking one saves it). Searchable, with a way to add a new meal.
 struct ChooseMealView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var organizerStore: OrganizerStore
     let category: MealCategory
     /// "Wednesday Breakfast"; the meal type when not given.
     var title: String? = nil
+    var catalog = MealCatalog.shared
     let onChoose: (UUID) -> Void
     @State private var isAddingMeal = false
+    @State private var searchText = ""
 
     var body: some View {
+        let saved = savedMeals
         NavigationStack {
-            List(organizerStore.mealIdeas.filter { $0.category == category }.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }) { meal in
-                Button {
-                    onChoose(meal.id)
-                    dismiss()
-                } label: {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(meal.name)
-                            .foregroundStyle(AppTheme.ink)
-                        if meal.skipInGeneratedPlans {
-                            Text("Not suggested in generated plans")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+            List {
+                if !saved.isEmpty {
+                    Section {
+                        ForEach(saved) { meal in
+                            Button {
+                                onChoose(meal.id)
+                                dismiss()
+                            } label: {
+                                savedRow(meal)
+                            }
+                            .listRowBackground(AppTheme.surface)
+                        }
+                    } header: {
+                        SectionTitle(text: "Your Meals")
+                    }
+                }
+                ForEach(catalog.cuisines) { cuisine in
+                    let dishes = catalogDishes(in: cuisine)
+                    if !dishes.isEmpty {
+                        Section {
+                            ForEach(dishes) { dish in
+                                Button {
+                                    onChoose(organizerStore.addCatalogMeal(dish))
+                                    dismiss()
+                                } label: {
+                                    CatalogMealRow(dish: dish)
+                                }
+                                .listRowBackground(AppTheme.surface)
+                            }
+                        } header: {
+                            SectionTitle(text: "\(cuisine.name) Recipes")
+                        } footer: {
+                            Text("Picking one adds it to your meals, with its ingredients.")
                         }
                     }
                 }
-                .listRowBackground(AppTheme.surface)
             }
+            .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
+            .scrollDismissesKeyboard(.interactively)
             .background(AppTheme.background)
+            .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search meals or ingredients")
             .overlay {
-                if !organizerStore.mealIdeas.contains(where: { $0.category == category }) {
-                    ContentUnavailableView("No \(category.title) Meals", systemImage: "fork.knife", description: Text("Add one with New Meal."))
+                if saved.isEmpty && catalog.cuisines.allSatisfy({ catalogDishes(in: $0).isEmpty }) {
+                    if searchText.isEmpty {
+                        ContentUnavailableView("No \(category.title) Meals", systemImage: "fork.knife", description: Text("Add one with New Meal."))
+                    } else {
+                        ContentUnavailableView.search(text: searchText)
+                    }
                 }
             }
             .navigationTitle(title ?? category.title)
@@ -328,5 +359,49 @@ struct ChooseMealView: View {
             }
         }
         .presentationDetents([.medium, .large])
+    }
+
+    private var query: String {
+        searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var savedMeals: [MealIdea] {
+        organizerStore.mealIdeas
+            .filter { $0.category == category }
+            .filter { meal in
+                query.isEmpty
+                || meal.name.localizedCaseInsensitiveContains(query)
+                || meal.ingredients.contains { $0.name.localizedCaseInsensitiveContains(query) }
+            }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
+    private func catalogDishes(in cuisine: CatalogCuisine) -> [CatalogMeal] {
+        cuisine.meals
+            .filter { $0.category == category && $0.matches(query) && !organizerStore.hasCatalogMeal($0) }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
+    private func savedRow(_ meal: MealIdea) -> some View {
+        let dish = catalog.meal(for: meal)
+        return HStack(spacing: 12) {
+            if let dish {
+                DietMark(diet: dish.diet)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(meal.name)
+                    .foregroundStyle(AppTheme.ink)
+                if let dish {
+                    Text(dish.nutritionSummary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                if meal.skipInGeneratedPlans {
+                    Text("Not suggested in generated plans")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
     }
 }

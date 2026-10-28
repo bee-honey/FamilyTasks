@@ -1,0 +1,1708 @@
+{
+  "cuisine": "Indian",
+  "id": "indian",
+  "about": "Everyday Indian breakfasts and main courses. Nutrition is approximate, for one typical home-cooked serving; it changes with recipe, oil and portion.",
+  "meals": [
+    {
+      "id": "indian.masala-dosa",
+      "name": "Masala Dosa",
+      "category": "breakfast",
+      "region": "South Indian",
+      "diet": "vegan",
+      "glutenFree": true,
+      "serving": "1 dosa with potato filling",
+      "minutes": 30,
+      "nutrition": {
+        "calories": 350,
+        "protein": 7,
+        "carbs": 52,
+        "fat": 12,
+        "fiber": 4
+      },
+      "goodSourceOf": [
+        "Carbohydrates",
+        "Vitamin B6",
+        "Potassium"
+      ],
+      "highlights": [
+        "The fermented rice and urad dal batter is easy to digest.",
+        "The potato filling adds potassium and vitamin B6."
+      ],
+      "ingredients": [
+        "Dosa batter",
+        "Potatoes",
+        "Onions",
+        "Green chillies",
+        "Mustard seeds",
+        "Curry leaves",
+        "Turmeric",
+        "Oil"
+      ]
+    },
+    {
+      "id": "indian.idli-sambar",
+      "name": "Idli with Sambar",
+      "category": "breakfast",
+      "region": "South Indian",
+      "diet": "vegan",
+      "glutenFree": true,
+      "serving": "3 idlis and 1 cup sambar",
+      "minutes": 30,
+      "nutrition": {
+        "calories": 300,
+        "protein": 11,
+        "carbs": 56,
+        "fat": 4,
+        "fiber": 7
+      },
+      "goodSourceOf": [
+        "Protein",
+        "Fiber",
+        "Folate"
+      ],
+      "highlights": [
+        "Steamed, so it's low in fat.",
+        "Sambar's toor dal and vegetables add protein and fibre."
+      ],
+      "ingredients": [
+        "Idli batter",
+        "Toor dal",
+        "Tamarind",
+        "Sambar powder",
+        "Drumsticks",
+        "Shallots",
+        "Tomatoes",
+        "Curry leaves"
+      ]
+    },
+    {
+      "id": "indian.medu-vada",
+      "name": "Medu Vada",
+      "category": "breakfast",
+      "region": "South Indian",
+      "diet": "vegan",
+      "glutenFree": true,
+      "serving": "2 vadas",
+      "minutes": 40,
+      "nutrition": {
+        "calories": 280,
+        "protein": 9,
+        "carbs": 26,
+        "fat": 16,
+        "fiber": 5
+      },
+      "goodSourceOf": [
+        "Protein",
+        "Fiber"
+      ],
+      "highlights": [
+        "Urad dal gives it a good amount of plant protein.",
+        "Deep fried, so best as an occasional treat."
+      ],
+      "ingredients": [
+        "Urad dal",
+        "Green chillies",
+        "Ginger",
+        "Curry leaves",
+        "Black pepper",
+        "Oil"
+      ]
+    },
+    {
+      "id": "indian.rava-upma",
+      "name": "Rava Upma",
+      "category": "breakfast",
+      "region": "South Indian",
+      "diet": "vegetarian",
+      "glutenFree": false,
+      "serving": "1 cup",
+      "minutes": 20,
+      "nutrition": {
+        "calories": 250,
+        "protein": 6,
+        "carbs": 38,
+        "fat": 8,
+        "fiber": 3
+      },
+      "goodSourceOf": [
+        "Carbohydrates",
+        "Iron"
+      ],
+      "highlights": [
+        "Quick to make and filling.",
+        "Add peas and carrots for extra fibre and vitamin A."
+      ],
+      "ingredients": [
+        "Semolina (rava)",
+        "Onions",
+        "Green chillies",
+        "Mustard seeds",
+        "Urad dal",
+        "Curry leaves",
+        "Ghee",
+        "Peas",
+        "Carrots"
+      ]
+    },
+    {
+      "id": "indian.poha",
+      "name": "Kanda Poha",
+      "category": "breakfast",
+      "region": "Maharashtrian",
+      "diet": "vegan",
+      "glutenFree": true,
+      "serving": "1 cup",
+      "minutes": 15,
+      "nutrition": {
+        "calories": 250,
+        "protein": 5,
+        "carbs": 42,
+        "fat": 7,
+        "fiber": 2
+      },
+      "goodSourceOf": [
+        "Carbohydrates",
+        "Iron",
+        "Vitamin C"
+      ],
+      "highlights": [
+        "Flattened rice is light and quick to cook.",
+        "A squeeze of lemon adds vitamin C, which helps the body absorb iron."
+      ],
+      "ingredients": [
+        "Poha (flattened rice)",
+        "Onions",
+        "Potatoes",
+        "Peanuts",
+        "Green chillies",
+        "Turmeric",
+        "Curry leaves",
+        "Lemon"
+      ]
+    },
+    {
+      "id": "indian.aloo-paratha",
+      "name": "Aloo Paratha",
+      "category": "breakfast",
+      "region": "North Indian",
+      "diet": "vegetarian",
+      "glutenFree": false,
+      "serving": "1 paratha",
+      "minutes": 35,
+      "nutrition": {
+        "calories": 300,
+        "protein": 7,
+        "carbs": 42,
+        "fat": 12,
+        "fiber": 4
+      },
+      "goodSourceOf": [
+        "Carbohydrates",
+        "Fiber",
+        "Potassium"
+      ],
+      "highlights": [
+        "Whole-wheat flour adds fibre.",
+        "Serve with curd for protein and calcium."
+      ],
+      "ingredients": [
+        "Whole wheat flour",
+        "Potatoes",
+        "Green chillies",
+        "Coriander leaves",
+        "Ajwain",
+        "Ghee"
+      ]
+    },
+    {
+      "id": "indian.methi-thepla",
+      "name": "Methi Thepla",
+      "category": "breakfast",
+      "region": "Gujarati",
+      "diet": "vegetarian",
+      "glutenFree": false,
+      "serving": "2 theplas",
+      "minutes": 30,
+      "nutrition": {
+        "calories": 240,
+        "protein": 7,
+        "carbs": 32,
+        "fat": 9,
+        "fiber": 5
+      },
+      "goodSourceOf": [
+        "Fiber",
+        "Iron",
+        "Vitamin K"
+      ],
+      "highlights": [
+        "Fenugreek leaves add iron and vitamin K.",
+        "Keeps well, so it's good for travel and lunch boxes."
+      ],
+      "ingredients": [
+        "Whole wheat flour",
+        "Fenugreek leaves (methi)",
+        "Curd",
+        "Besan",
+        "Turmeric",
+        "Chilli powder",
+        "Oil"
+      ]
+    },
+    {
+      "id": "indian.besan-chilla",
+      "name": "Besan Chilla",
+      "category": "breakfast",
+      "region": "North Indian",
+      "diet": "vegan",
+      "glutenFree": true,
+      "serving": "2 chillas",
+      "minutes": 20,
+      "nutrition": {
+        "calories": 260,
+        "protein": 13,
+        "carbs": 28,
+        "fat": 10,
+        "fiber": 6
+      },
+      "goodSourceOf": [
+        "Protein",
+        "Fiber",
+        "Folate"
+      ],
+      "highlights": [
+        "Chickpea flour is high in plant protein and folate.",
+        "A quick high-protein breakfast."
+      ],
+      "ingredients": [
+        "Besan (gram flour)",
+        "Onions",
+        "Tomatoes",
+        "Green chillies",
+        "Coriander leaves",
+        "Ajwain",
+        "Oil"
+      ]
+    },
+    {
+      "id": "indian.pesarattu",
+      "name": "Pesarattu",
+      "category": "breakfast",
+      "region": "Andhra",
+      "diet": "vegan",
+      "glutenFree": true,
+      "serving": "2 pesarattus",
+      "minutes": 25,
+      "nutrition": {
+        "calories": 250,
+        "protein": 14,
+        "carbs": 34,
+        "fat": 6,
+        "fiber": 7
+      },
+      "goodSourceOf": [
+        "Protein",
+        "Fiber",
+        "Folate"
+      ],
+      "highlights": [
+        "Whole green moong is rich in protein, fibre and folate.",
+        "No fermenting needed; soak the moong overnight."
+      ],
+      "ingredients": [
+        "Whole green moong",
+        "Ginger",
+        "Green chillies",
+        "Cumin seeds",
+        "Onions",
+        "Oil"
+      ]
+    },
+    {
+      "id": "indian.onion-uttapam",
+      "name": "Onion Uttapam",
+      "category": "breakfast",
+      "region": "South Indian",
+      "diet": "vegan",
+      "glutenFree": true,
+      "serving": "2 small uttapams",
+      "minutes": 25,
+      "nutrition": {
+        "calories": 300,
+        "protein": 8,
+        "carbs": 50,
+        "fat": 8,
+        "fiber": 4
+      },
+      "goodSourceOf": [
+        "Carbohydrates",
+        "Fiber"
+      ],
+      "highlights": [
+        "Made from the same fermented batter as dosa.",
+        "Top with tomatoes and capsicum for more vitamins."
+      ],
+      "ingredients": [
+        "Dosa batter",
+        "Onions",
+        "Tomatoes",
+        "Green chillies",
+        "Coriander leaves",
+        "Oil"
+      ]
+    },
+    {
+      "id": "indian.ven-pongal",
+      "name": "Ven Pongal",
+      "category": "breakfast",
+      "region": "Tamil",
+      "diet": "vegetarian",
+      "glutenFree": true,
+      "serving": "1 cup",
+      "minutes": 30,
+      "nutrition": {
+        "calories": 330,
+        "protein": 10,
+        "carbs": 48,
+        "fat": 11,
+        "fiber": 4
+      },
+      "goodSourceOf": [
+        "Protein",
+        "Carbohydrates"
+      ],
+      "highlights": [
+        "Rice and moong dal together give a complete protein.",
+        "Black pepper and cumin are traditional for digestion."
+      ],
+      "ingredients": [
+        "Rice",
+        "Moong dal",
+        "Ghee",
+        "Black pepper",
+        "Cumin seeds",
+        "Ginger",
+        "Cashews",
+        "Curry leaves"
+      ]
+    },
+    {
+      "id": "indian.puri-bhaji",
+      "name": "Puri Bhaji",
+      "category": "breakfast",
+      "region": "North Indian",
+      "diet": "vegan",
+      "glutenFree": false,
+      "serving": "3 puris with potato bhaji",
+      "minutes": 40,
+      "nutrition": {
+        "calories": 460,
+        "protein": 9,
+        "carbs": 58,
+        "fat": 22,
+        "fiber": 5
+      },
+      "goodSourceOf": [
+        "Carbohydrates",
+        "Potassium"
+      ],
+      "highlights": [
+        "A festive favourite.",
+        "Deep fried, so best as an occasional treat."
+      ],
+      "ingredients": [
+        "Whole wheat flour",
+        "Potatoes",
+        "Onions",
+        "Green chillies",
+        "Mustard seeds",
+        "Turmeric",
+        "Oil"
+      ]
+    },
+    {
+      "id": "indian.masala-omelette",
+      "name": "Masala Omelette",
+      "category": "breakfast",
+      "region": "Pan-Indian",
+      "diet": "eggetarian",
+      "glutenFree": true,
+      "serving": "2-egg omelette",
+      "minutes": 10,
+      "nutrition": {
+        "calories": 200,
+        "protein": 13,
+        "carbs": 4,
+        "fat": 15,
+        "fiber": 1
+      },
+      "goodSourceOf": [
+        "Protein",
+        "Vitamin B12",
+        "Vitamin D",
+        "Choline"
+      ],
+      "highlights": [
+        "Eggs give complete protein, vitamin B12 and choline.",
+        "Ready in 10 minutes."
+      ],
+      "ingredients": [
+        "Eggs",
+        "Onions",
+        "Tomatoes",
+        "Green chillies",
+        "Coriander leaves",
+        "Oil"
+      ]
+    },
+    {
+      "id": "indian.egg-bhurji",
+      "name": "Egg Bhurji",
+      "category": "breakfast",
+      "region": "Pan-Indian",
+      "diet": "eggetarian",
+      "glutenFree": true,
+      "serving": "2 eggs",
+      "minutes": 15,
+      "nutrition": {
+        "calories": 220,
+        "protein": 14,
+        "carbs": 5,
+        "fat": 16,
+        "fiber": 1
+      },
+      "goodSourceOf": [
+        "Protein",
+        "Vitamin B12",
+        "Choline"
+      ],
+      "highlights": [
+        "Indian-style scrambled eggs with onion and tomato.",
+        "Good with toast or rotis."
+      ],
+      "ingredients": [
+        "Eggs",
+        "Onions",
+        "Tomatoes",
+        "Green chillies",
+        "Turmeric",
+        "Coriander leaves",
+        "Butter"
+      ]
+    },
+    {
+      "id": "indian.sabudana-khichdi",
+      "name": "Sabudana Khichdi",
+      "category": "breakfast",
+      "region": "Maharashtrian",
+      "diet": "vegetarian",
+      "glutenFree": true,
+      "serving": "1 cup",
+      "minutes": 25,
+      "nutrition": {
+        "calories": 350,
+        "protein": 5,
+        "carbs": 58,
+        "fat": 11,
+        "fiber": 2
+      },
+      "goodSourceOf": [
+        "Carbohydrates",
+        "Healthy fats"
+      ],
+      "highlights": [
+        "Popular on fasting days.",
+        "Peanuts add protein and healthy fats; it's mostly quick energy."
+      ],
+      "ingredients": [
+        "Sabudana (tapioca pearls)",
+        "Peanuts",
+        "Potatoes",
+        "Green chillies",
+        "Cumin seeds",
+        "Ghee",
+        "Lemon"
+      ]
+    },
+    {
+      "id": "indian.appam-stew",
+      "name": "Appam with Vegetable Stew",
+      "category": "breakfast",
+      "region": "Kerala",
+      "diet": "vegan",
+      "glutenFree": true,
+      "serving": "2 appams and 1 cup stew",
+      "minutes": 40,
+      "nutrition": {
+        "calories": 360,
+        "protein": 7,
+        "carbs": 52,
+        "fat": 14,
+        "fiber": 5
+      },
+      "goodSourceOf": [
+        "Carbohydrates",
+        "Fiber",
+        "Vitamin A"
+      ],
+      "highlights": [
+        "Coconut milk makes the stew creamy.",
+        "Carrots and beans add vitamin A and fibre."
+      ],
+      "ingredients": [
+        "Appam batter",
+        "Coconut milk",
+        "Potatoes",
+        "Carrots",
+        "Beans",
+        "Peas",
+        "Ginger",
+        "Green chillies",
+        "Curry leaves"
+      ]
+    },
+    {
+      "id": "indian.paneer-paratha",
+      "name": "Paneer Paratha",
+      "category": "breakfast",
+      "region": "North Indian",
+      "diet": "vegetarian",
+      "glutenFree": false,
+      "serving": "1 paratha",
+      "minutes": 30,
+      "nutrition": {
+        "calories": 320,
+        "protein": 13,
+        "carbs": 36,
+        "fat": 14,
+        "fiber": 4
+      },
+      "goodSourceOf": [
+        "Protein",
+        "Calcium"
+      ],
+      "highlights": [
+        "Paneer adds protein and calcium.",
+        "Filling enough for a late breakfast."
+      ],
+      "ingredients": [
+        "Whole wheat flour",
+        "Paneer",
+        "Onions",
+        "Green chillies",
+        "Coriander leaves",
+        "Ghee"
+      ]
+    },
+    {
+      "id": "indian.khaman-dhokla",
+      "name": "Khaman Dhokla",
+      "category": "breakfast",
+      "region": "Gujarati",
+      "diet": "vegan",
+      "glutenFree": true,
+      "serving": "4 pieces",
+      "minutes": 30,
+      "nutrition": {
+        "calories": 220,
+        "protein": 9,
+        "carbs": 30,
+        "fat": 7,
+        "fiber": 3
+      },
+      "goodSourceOf": [
+        "Protein",
+        "Folate"
+      ],
+      "highlights": [
+        "Steamed chickpea-flour cake: light and spongy.",
+        "Low in fat for a savoury snack."
+      ],
+      "ingredients": [
+        "Besan (gram flour)",
+        "Lemon",
+        "Ginger",
+        "Green chillies",
+        "Fruit salt (Eno)",
+        "Mustard seeds",
+        "Curry leaves"
+      ]
+    },
+    {
+      "id": "indian.semiya-upma",
+      "name": "Semiya Upma",
+      "category": "breakfast",
+      "region": "South Indian",
+      "diet": "vegetarian",
+      "glutenFree": false,
+      "serving": "1 cup",
+      "minutes": 20,
+      "nutrition": {
+        "calories": 260,
+        "protein": 6,
+        "carbs": 42,
+        "fat": 8,
+        "fiber": 3
+      },
+      "goodSourceOf": [
+        "Carbohydrates"
+      ],
+      "highlights": [
+        "Vermicelli cooks in minutes.",
+        "Add vegetables to make it more filling."
+      ],
+      "ingredients": [
+        "Vermicelli (semiya)",
+        "Onions",
+        "Carrots",
+        "Peas",
+        "Green chillies",
+        "Mustard seeds",
+        "Curry leaves",
+        "Ghee"
+      ]
+    },
+    {
+      "id": "indian.ragi-dosa",
+      "name": "Ragi Dosa",
+      "category": "breakfast",
+      "region": "Karnataka",
+      "diet": "vegan",
+      "glutenFree": true,
+      "serving": "2 dosas",
+      "minutes": 20,
+      "nutrition": {
+        "calories": 230,
+        "protein": 6,
+        "carbs": 40,
+        "fat": 5,
+        "fiber": 5
+      },
+      "goodSourceOf": [
+        "Calcium",
+        "Fiber",
+        "Iron"
+      ],
+      "highlights": [
+        "Finger millet (ragi) is one of the richest plant sources of calcium.",
+        "Instant: no fermenting needed."
+      ],
+      "ingredients": [
+        "Ragi flour",
+        "Rice flour",
+        "Onions",
+        "Green chillies",
+        "Cumin seeds",
+        "Curry leaves",
+        "Oil"
+      ]
+    },
+    {
+      "id": "indian.dal-tadka",
+      "name": "Dal Tadka",
+      "category": "mainCourse",
+      "region": "North Indian",
+      "diet": "vegetarian",
+      "glutenFree": true,
+      "serving": "1 cup",
+      "minutes": 30,
+      "nutrition": {
+        "calories": 200,
+        "protein": 10,
+        "carbs": 26,
+        "fat": 6,
+        "fiber": 6
+      },
+      "goodSourceOf": [
+        "Protein",
+        "Fiber",
+        "Folate",
+        "Iron"
+      ],
+      "highlights": [
+        "Lentils are a staple source of plant protein and folate.",
+        "Pair with rice or rotis for a complete protein."
+      ],
+      "ingredients": [
+        "Toor dal",
+        "Onions",
+        "Tomatoes",
+        "Garlic",
+        "Cumin seeds",
+        "Ghee",
+        "Turmeric",
+        "Red chillies"
+      ]
+    },
+    {
+      "id": "indian.dal-makhani",
+      "name": "Dal Makhani",
+      "category": "mainCourse",
+      "region": "Punjabi",
+      "diet": "vegetarian",
+      "glutenFree": true,
+      "serving": "1 cup",
+      "minutes": 60,
+      "nutrition": {
+        "calories": 330,
+        "protein": 13,
+        "carbs": 32,
+        "fat": 17,
+        "fiber": 9
+      },
+      "goodSourceOf": [
+        "Protein",
+        "Fiber",
+        "Iron"
+      ],
+      "highlights": [
+        "Whole urad and rajma make it high in fibre.",
+        "Rich with butter and cream: a weekend dish."
+      ],
+      "ingredients": [
+        "Whole urad dal",
+        "Kidney beans (rajma)",
+        "Tomatoes",
+        "Butter",
+        "Cream",
+        "Ginger",
+        "Garlic",
+        "Garam masala"
+      ]
+    },
+    {
+      "id": "indian.rajma",
+      "name": "Rajma",
+      "category": "mainCourse",
+      "region": "Punjabi",
+      "diet": "vegan",
+      "glutenFree": true,
+      "serving": "1 cup",
+      "minutes": 50,
+      "nutrition": {
+        "calories": 240,
+        "protein": 12,
+        "carbs": 34,
+        "fat": 6,
+        "fiber": 10
+      },
+      "goodSourceOf": [
+        "Protein",
+        "Fiber",
+        "Folate",
+        "Iron"
+      ],
+      "highlights": [
+        "Kidney beans are very high in fibre and plant protein.",
+        "Classic with steamed rice."
+      ],
+      "ingredients": [
+        "Kidney beans (rajma)",
+        "Onions",
+        "Tomatoes",
+        "Ginger",
+        "Garlic",
+        "Cumin seeds",
+        "Garam masala",
+        "Oil"
+      ]
+    },
+    {
+      "id": "indian.chana-masala",
+      "name": "Chana Masala",
+      "category": "mainCourse",
+      "region": "Punjabi",
+      "diet": "vegan",
+      "glutenFree": true,
+      "serving": "1 cup",
+      "minutes": 45,
+      "nutrition": {
+        "calories": 270,
+        "protein": 12,
+        "carbs": 38,
+        "fat": 8,
+        "fiber": 11
+      },
+      "goodSourceOf": [
+        "Protein",
+        "Fiber",
+        "Folate",
+        "Iron"
+      ],
+      "highlights": [
+        "Chickpeas are rich in fibre, protein and folate.",
+        "Keeps you full for a long time."
+      ],
+      "ingredients": [
+        "Chickpeas (chana)",
+        "Onions",
+        "Tomatoes",
+        "Ginger",
+        "Garlic",
+        "Chana masala powder",
+        "Amchur",
+        "Oil"
+      ]
+    },
+    {
+      "id": "indian.palak-paneer",
+      "name": "Palak Paneer",
+      "category": "mainCourse",
+      "region": "Punjabi",
+      "diet": "vegetarian",
+      "glutenFree": true,
+      "serving": "1 cup",
+      "minutes": 35,
+      "nutrition": {
+        "calories": 300,
+        "protein": 14,
+        "carbs": 10,
+        "fat": 23,
+        "fiber": 3
+      },
+      "goodSourceOf": [
+        "Protein",
+        "Calcium",
+        "Vitamin A",
+        "Vitamin K"
+      ],
+      "highlights": [
+        "Spinach adds vitamins A and K; paneer adds protein and calcium.",
+        "Pair with lemon or tomatoes to help absorb the spinach's iron."
+      ],
+      "ingredients": [
+        "Spinach (palak)",
+        "Paneer",
+        "Onions",
+        "Tomatoes",
+        "Ginger",
+        "Garlic",
+        "Green chillies",
+        "Cream"
+      ]
+    },
+    {
+      "id": "indian.matar-paneer",
+      "name": "Matar Paneer",
+      "category": "mainCourse",
+      "region": "North Indian",
+      "diet": "vegetarian",
+      "glutenFree": true,
+      "serving": "1 cup",
+      "minutes": 35,
+      "nutrition": {
+        "calories": 320,
+        "protein": 14,
+        "carbs": 16,
+        "fat": 22,
+        "fiber": 5
+      },
+      "goodSourceOf": [
+        "Protein",
+        "Calcium",
+        "Fiber"
+      ],
+      "highlights": [
+        "Peas add fibre and a little extra protein.",
+        "A good everyday paneer curry."
+      ],
+      "ingredients": [
+        "Paneer",
+        "Green peas",
+        "Onions",
+        "Tomatoes",
+        "Ginger",
+        "Garlic",
+        "Garam masala",
+        "Oil"
+      ]
+    },
+    {
+      "id": "indian.paneer-butter-masala",
+      "name": "Paneer Butter Masala",
+      "category": "mainCourse",
+      "region": "Punjabi",
+      "diet": "vegetarian",
+      "glutenFree": true,
+      "serving": "1 cup",
+      "minutes": 40,
+      "nutrition": {
+        "calories": 400,
+        "protein": 15,
+        "carbs": 14,
+        "fat": 32,
+        "fiber": 2
+      },
+      "goodSourceOf": [
+        "Protein",
+        "Calcium"
+      ],
+      "highlights": [
+        "Paneer is a good vegetarian source of protein and calcium.",
+        "Rich with butter and cream: a treat dish."
+      ],
+      "ingredients": [
+        "Paneer",
+        "Tomatoes",
+        "Butter",
+        "Cream",
+        "Cashews",
+        "Kasuri methi",
+        "Ginger",
+        "Garlic"
+      ]
+    },
+    {
+      "id": "indian.chicken-curry",
+      "name": "Chicken Curry",
+      "category": "mainCourse",
+      "region": "Pan-Indian",
+      "diet": "nonVegetarian",
+      "glutenFree": true,
+      "serving": "1 cup",
+      "minutes": 45,
+      "nutrition": {
+        "calories": 300,
+        "protein": 25,
+        "carbs": 8,
+        "fat": 18,
+        "fiber": 2
+      },
+      "goodSourceOf": [
+        "Protein",
+        "Niacin (B3)",
+        "Vitamin B6"
+      ],
+      "highlights": [
+        "Chicken is a lean, complete protein.",
+        "Home style: onion and tomato gravy."
+      ],
+      "ingredients": [
+        "Chicken",
+        "Onions",
+        "Tomatoes",
+        "Ginger",
+        "Garlic",
+        "Curd",
+        "Garam masala",
+        "Oil"
+      ]
+    },
+    {
+      "id": "indian.butter-chicken",
+      "name": "Butter Chicken",
+      "category": "mainCourse",
+      "region": "Punjabi",
+      "diet": "nonVegetarian",
+      "glutenFree": true,
+      "serving": "1 cup",
+      "minutes": 60,
+      "nutrition": {
+        "calories": 440,
+        "protein": 28,
+        "carbs": 12,
+        "fat": 31,
+        "fiber": 2
+      },
+      "goodSourceOf": [
+        "Protein",
+        "Niacin (B3)"
+      ],
+      "highlights": [
+        "High in protein.",
+        "Rich with butter and cream: a weekend dish."
+      ],
+      "ingredients": [
+        "Chicken",
+        "Curd",
+        "Tomatoes",
+        "Butter",
+        "Cream",
+        "Kasuri methi",
+        "Ginger",
+        "Garlic",
+        "Kashmiri chilli powder"
+      ]
+    },
+    {
+      "id": "indian.tandoori-chicken",
+      "name": "Tandoori Chicken",
+      "category": "mainCourse",
+      "region": "Punjabi",
+      "diet": "nonVegetarian",
+      "glutenFree": true,
+      "serving": "2 pieces (about 200 g)",
+      "minutes": 60,
+      "nutrition": {
+        "calories": 300,
+        "protein": 40,
+        "carbs": 6,
+        "fat": 13,
+        "fiber": 1
+      },
+      "goodSourceOf": [
+        "Protein",
+        "Niacin (B3)",
+        "Selenium"
+      ],
+      "highlights": [
+        "Grilled or baked rather than fried.",
+        "One of the highest-protein dishes here."
+      ],
+      "ingredients": [
+        "Chicken",
+        "Curd",
+        "Lemon",
+        "Ginger",
+        "Garlic",
+        "Kashmiri chilli powder",
+        "Garam masala",
+        "Oil"
+      ]
+    },
+    {
+      "id": "indian.chicken-biryani",
+      "name": "Chicken Biryani",
+      "category": "mainCourse",
+      "region": "Hyderabadi",
+      "diet": "nonVegetarian",
+      "glutenFree": true,
+      "serving": "1½ cups",
+      "minutes": 90,
+      "nutrition": {
+        "calories": 500,
+        "protein": 25,
+        "carbs": 60,
+        "fat": 17,
+        "fiber": 3
+      },
+      "goodSourceOf": [
+        "Protein",
+        "Carbohydrates"
+      ],
+      "highlights": [
+        "A full meal in one pot.",
+        "Serve with raita for calcium and probiotics."
+      ],
+      "ingredients": [
+        "Basmati rice",
+        "Chicken",
+        "Curd",
+        "Onions",
+        "Mint leaves",
+        "Biryani masala",
+        "Saffron",
+        "Ghee"
+      ]
+    },
+    {
+      "id": "indian.veg-biryani",
+      "name": "Vegetable Biryani",
+      "category": "mainCourse",
+      "region": "Hyderabadi",
+      "diet": "vegetarian",
+      "glutenFree": true,
+      "serving": "1½ cups",
+      "minutes": 60,
+      "nutrition": {
+        "calories": 400,
+        "protein": 9,
+        "carbs": 66,
+        "fat": 11,
+        "fiber": 5
+      },
+      "goodSourceOf": [
+        "Carbohydrates",
+        "Fiber",
+        "Vitamin A"
+      ],
+      "highlights": [
+        "Mixed vegetables add fibre and vitamins.",
+        "Add paneer or chickpeas for more protein."
+      ],
+      "ingredients": [
+        "Basmati rice",
+        "Carrots",
+        "Beans",
+        "Peas",
+        "Potatoes",
+        "Onions",
+        "Curd",
+        "Biryani masala",
+        "Ghee"
+      ]
+    },
+    {
+      "id": "indian.egg-curry",
+      "name": "Egg Curry",
+      "category": "mainCourse",
+      "region": "Pan-Indian",
+      "diet": "eggetarian",
+      "glutenFree": true,
+      "serving": "2 eggs with gravy",
+      "minutes": 35,
+      "nutrition": {
+        "calories": 300,
+        "protein": 15,
+        "carbs": 10,
+        "fat": 22,
+        "fiber": 2
+      },
+      "goodSourceOf": [
+        "Protein",
+        "Vitamin B12",
+        "Choline"
+      ],
+      "highlights": [
+        "Eggs give complete protein and vitamin B12.",
+        "A quick curry for busy evenings."
+      ],
+      "ingredients": [
+        "Eggs",
+        "Onions",
+        "Tomatoes",
+        "Ginger",
+        "Garlic",
+        "Garam masala",
+        "Turmeric",
+        "Oil"
+      ]
+    },
+    {
+      "id": "indian.kerala-fish-curry",
+      "name": "Kerala Fish Curry",
+      "category": "mainCourse",
+      "region": "Kerala",
+      "diet": "nonVegetarian",
+      "glutenFree": true,
+      "serving": "1 cup",
+      "minutes": 40,
+      "nutrition": {
+        "calories": 280,
+        "protein": 24,
+        "carbs": 7,
+        "fat": 17,
+        "fiber": 1
+      },
+      "goodSourceOf": [
+        "Protein",
+        "Omega-3",
+        "Vitamin D"
+      ],
+      "highlights": [
+        "Fish adds omega-3 fats, especially oily fish like mackerel or sardines.",
+        "Kodampuli (gamboge) gives the classic tang."
+      ],
+      "ingredients": [
+        "Fish",
+        "Coconut milk",
+        "Kodampuli (gamboge)",
+        "Shallots",
+        "Ginger",
+        "Garlic",
+        "Curry leaves",
+        "Coconut oil"
+      ]
+    },
+    {
+      "id": "indian.mutton-rogan-josh",
+      "name": "Mutton Rogan Josh",
+      "category": "mainCourse",
+      "region": "Kashmiri",
+      "diet": "nonVegetarian",
+      "glutenFree": true,
+      "serving": "1 cup",
+      "minutes": 90,
+      "nutrition": {
+        "calories": 380,
+        "protein": 26,
+        "carbs": 8,
+        "fat": 27,
+        "fiber": 2
+      },
+      "goodSourceOf": [
+        "Protein",
+        "Iron",
+        "Zinc",
+        "Vitamin B12"
+      ],
+      "highlights": [
+        "Red meat is rich in easily absorbed iron, zinc and B12.",
+        "Slow cooked until tender."
+      ],
+      "ingredients": [
+        "Mutton",
+        "Curd",
+        "Kashmiri chilli powder",
+        "Fennel powder",
+        "Ginger powder",
+        "Cardamom",
+        "Cloves",
+        "Ghee"
+      ]
+    },
+    {
+      "id": "indian.sambar-rice",
+      "name": "Sambar Rice",
+      "category": "mainCourse",
+      "region": "South Indian",
+      "diet": "vegan",
+      "glutenFree": true,
+      "serving": "1 cup sambar with 1 cup rice",
+      "minutes": 45,
+      "nutrition": {
+        "calories": 400,
+        "protein": 12,
+        "carbs": 76,
+        "fat": 5,
+        "fiber": 8
+      },
+      "goodSourceOf": [
+        "Protein",
+        "Fiber",
+        "Folate"
+      ],
+      "highlights": [
+        "Dal and vegetables in one comforting bowl.",
+        "Add a spoon of ghee if you like it richer."
+      ],
+      "ingredients": [
+        "Rice",
+        "Toor dal",
+        "Tamarind",
+        "Sambar powder",
+        "Drumsticks",
+        "Brinjal",
+        "Shallots",
+        "Tomatoes"
+      ]
+    },
+    {
+      "id": "indian.rasam-rice",
+      "name": "Rasam Rice",
+      "category": "mainCourse",
+      "region": "South Indian",
+      "diet": "vegan",
+      "glutenFree": true,
+      "serving": "1 cup rasam with 1 cup rice",
+      "minutes": 30,
+      "nutrition": {
+        "calories": 320,
+        "protein": 7,
+        "carbs": 66,
+        "fat": 3,
+        "fiber": 3
+      },
+      "goodSourceOf": [
+        "Vitamin C",
+        "Carbohydrates"
+      ],
+      "highlights": [
+        "Light and soothing, often made when someone's under the weather.",
+        "Tomato and tamarind give it a tangy, peppery broth."
+      ],
+      "ingredients": [
+        "Rice",
+        "Tomatoes",
+        "Tamarind",
+        "Rasam powder",
+        "Black pepper",
+        "Garlic",
+        "Toor dal",
+        "Curry leaves"
+      ]
+    },
+    {
+      "id": "indian.curd-rice",
+      "name": "Curd Rice",
+      "category": "mainCourse",
+      "region": "South Indian",
+      "diet": "vegetarian",
+      "glutenFree": true,
+      "serving": "1½ cups",
+      "minutes": 15,
+      "nutrition": {
+        "calories": 330,
+        "protein": 10,
+        "carbs": 50,
+        "fat": 10,
+        "fiber": 1
+      },
+      "goodSourceOf": [
+        "Calcium",
+        "Probiotics",
+        "Protein"
+      ],
+      "highlights": [
+        "Curd has live cultures and calcium.",
+        "Cooling on hot days and gentle on the stomach."
+      ],
+      "ingredients": [
+        "Rice",
+        "Curd",
+        "Milk",
+        "Ginger",
+        "Green chillies",
+        "Mustard seeds",
+        "Curry leaves",
+        "Pomegranate"
+      ]
+    },
+    {
+      "id": "indian.lemon-rice",
+      "name": "Lemon Rice",
+      "category": "mainCourse",
+      "region": "South Indian",
+      "diet": "vegan",
+      "glutenFree": true,
+      "serving": "1½ cups",
+      "minutes": 20,
+      "nutrition": {
+        "calories": 330,
+        "protein": 6,
+        "carbs": 54,
+        "fat": 10,
+        "fiber": 2
+      },
+      "goodSourceOf": [
+        "Carbohydrates",
+        "Vitamin C"
+      ],
+      "highlights": [
+        "A good way to use leftover rice.",
+        "Peanuts add crunch and some protein."
+      ],
+      "ingredients": [
+        "Rice",
+        "Lemon",
+        "Peanuts",
+        "Mustard seeds",
+        "Chana dal",
+        "Turmeric",
+        "Curry leaves",
+        "Oil"
+      ]
+    },
+    {
+      "id": "indian.moong-dal-khichdi",
+      "name": "Moong Dal Khichdi",
+      "category": "mainCourse",
+      "region": "Pan-Indian",
+      "diet": "vegetarian",
+      "glutenFree": true,
+      "serving": "1½ cups",
+      "minutes": 30,
+      "nutrition": {
+        "calories": 330,
+        "protein": 12,
+        "carbs": 55,
+        "fat": 7,
+        "fiber": 6
+      },
+      "goodSourceOf": [
+        "Protein",
+        "Fiber",
+        "Folate"
+      ],
+      "highlights": [
+        "Rice and dal together give a complete protein.",
+        "Easy to digest; a go-to when someone's unwell."
+      ],
+      "ingredients": [
+        "Rice",
+        "Moong dal",
+        "Ghee",
+        "Cumin seeds",
+        "Turmeric",
+        "Ginger",
+        "Asafoetida"
+      ]
+    },
+    {
+      "id": "indian.kadhi-pakora",
+      "name": "Kadhi Pakora",
+      "category": "mainCourse",
+      "region": "Punjabi",
+      "diet": "vegetarian",
+      "glutenFree": true,
+      "serving": "1 cup",
+      "minutes": 45,
+      "nutrition": {
+        "calories": 260,
+        "protein": 9,
+        "carbs": 20,
+        "fat": 16,
+        "fiber": 2
+      },
+      "goodSourceOf": [
+        "Calcium",
+        "Protein"
+      ],
+      "highlights": [
+        "Curd and besan make a tangy, comforting curry.",
+        "Pakoras are fried, so it's on the richer side."
+      ],
+      "ingredients": [
+        "Curd",
+        "Besan (gram flour)",
+        "Onions",
+        "Fenugreek seeds",
+        "Cumin seeds",
+        "Turmeric",
+        "Oil"
+      ]
+    },
+    {
+      "id": "indian.aloo-gobi",
+      "name": "Aloo Gobi",
+      "category": "mainCourse",
+      "region": "Punjabi",
+      "diet": "vegan",
+      "glutenFree": true,
+      "serving": "1 cup",
+      "minutes": 30,
+      "nutrition": {
+        "calories": 180,
+        "protein": 4,
+        "carbs": 22,
+        "fat": 9,
+        "fiber": 5
+      },
+      "goodSourceOf": [
+        "Vitamin C",
+        "Fiber",
+        "Potassium"
+      ],
+      "highlights": [
+        "Cauliflower is a good source of vitamin C.",
+        "A simple dry sabzi for rotis."
+      ],
+      "ingredients": [
+        "Cauliflower",
+        "Potatoes",
+        "Onions",
+        "Tomatoes",
+        "Ginger",
+        "Turmeric",
+        "Coriander powder",
+        "Oil"
+      ]
+    },
+    {
+      "id": "indian.bhindi-masala",
+      "name": "Bhindi Masala",
+      "category": "mainCourse",
+      "region": "North Indian",
+      "diet": "vegan",
+      "glutenFree": true,
+      "serving": "1 cup",
+      "minutes": 30,
+      "nutrition": {
+        "calories": 160,
+        "protein": 3,
+        "carbs": 14,
+        "fat": 11,
+        "fiber": 5
+      },
+      "goodSourceOf": [
+        "Fiber",
+        "Vitamin K",
+        "Folate"
+      ],
+      "highlights": [
+        "Okra is rich in fibre and vitamin K.",
+        "Dry the okra well before cutting so it doesn't go slimy."
+      ],
+      "ingredients": [
+        "Okra (bhindi)",
+        "Onions",
+        "Tomatoes",
+        "Amchur",
+        "Coriander powder",
+        "Turmeric",
+        "Oil"
+      ]
+    },
+    {
+      "id": "indian.baingan-bharta",
+      "name": "Baingan Bharta",
+      "category": "mainCourse",
+      "region": "Punjabi",
+      "diet": "vegan",
+      "glutenFree": true,
+      "serving": "1 cup",
+      "minutes": 40,
+      "nutrition": {
+        "calories": 150,
+        "protein": 3,
+        "carbs": 15,
+        "fat": 9,
+        "fiber": 6
+      },
+      "goodSourceOf": [
+        "Fiber",
+        "Potassium"
+      ],
+      "highlights": [
+        "Roasting the brinjal gives it a smoky flavour.",
+        "Low in calories and high in fibre."
+      ],
+      "ingredients": [
+        "Brinjal (large)",
+        "Onions",
+        "Tomatoes",
+        "Garlic",
+        "Green chillies",
+        "Coriander leaves",
+        "Oil"
+      ]
+    },
+    {
+      "id": "indian.avial",
+      "name": "Avial",
+      "category": "mainCourse",
+      "region": "Kerala",
+      "diet": "vegetarian",
+      "glutenFree": true,
+      "serving": "1 cup",
+      "minutes": 35,
+      "nutrition": {
+        "calories": 200,
+        "protein": 4,
+        "carbs": 16,
+        "fat": 14,
+        "fiber": 5
+      },
+      "goodSourceOf": [
+        "Fiber",
+        "Vitamin A",
+        "Vitamin C"
+      ],
+      "highlights": [
+        "Many vegetables in one dish.",
+        "Coconut and curd make it creamy."
+      ],
+      "ingredients": [
+        "Drumsticks",
+        "Raw banana",
+        "Carrots",
+        "Beans",
+        "Yam",
+        "Grated coconut",
+        "Curd",
+        "Coconut oil",
+        "Curry leaves"
+      ]
+    },
+    {
+      "id": "indian.mixed-veg-curry",
+      "name": "Mixed Vegetable Curry",
+      "category": "mainCourse",
+      "region": "North Indian",
+      "diet": "vegan",
+      "glutenFree": true,
+      "serving": "1 cup",
+      "minutes": 30,
+      "nutrition": {
+        "calories": 180,
+        "protein": 5,
+        "carbs": 18,
+        "fat": 10,
+        "fiber": 5
+      },
+      "goodSourceOf": [
+        "Fiber",
+        "Vitamin A",
+        "Vitamin C"
+      ],
+      "highlights": [
+        "A way to use whatever vegetables are in the fridge.",
+        "Light enough for weeknights."
+      ],
+      "ingredients": [
+        "Carrots",
+        "Beans",
+        "Peas",
+        "Potatoes",
+        "Cauliflower",
+        "Onions",
+        "Tomatoes",
+        "Garam masala",
+        "Oil"
+      ]
+    },
+    {
+      "id": "indian.chole-bhature",
+      "name": "Chole Bhature",
+      "category": "mainCourse",
+      "region": "Punjabi",
+      "diet": "vegetarian",
+      "glutenFree": false,
+      "serving": "2 bhaturas with chole",
+      "minutes": 60,
+      "nutrition": {
+        "calories": 650,
+        "protein": 18,
+        "carbs": 80,
+        "fat": 29,
+        "fiber": 12
+      },
+      "goodSourceOf": [
+        "Protein",
+        "Fiber"
+      ],
+      "highlights": [
+        "Chickpeas bring protein and fibre.",
+        "Fried bhaturas make it heavy: a weekend special."
+      ],
+      "ingredients": [
+        "Chickpeas (chana)",
+        "Maida",
+        "Curd",
+        "Onions",
+        "Tomatoes",
+        "Chana masala powder",
+        "Ginger",
+        "Oil"
+      ]
+    },
+    {
+      "id": "indian.pav-bhaji",
+      "name": "Pav Bhaji",
+      "category": "mainCourse",
+      "region": "Mumbai",
+      "diet": "vegetarian",
+      "glutenFree": false,
+      "serving": "2 pavs with bhaji",
+      "minutes": 40,
+      "nutrition": {
+        "calories": 450,
+        "protein": 10,
+        "carbs": 62,
+        "fat": 18,
+        "fiber": 7
+      },
+      "goodSourceOf": [
+        "Fiber",
+        "Vitamin C",
+        "Vitamin A"
+      ],
+      "highlights": [
+        "The bhaji is packed with mashed vegetables.",
+        "Go easy on the butter to keep it lighter."
+      ],
+      "ingredients": [
+        "Pav buns",
+        "Potatoes",
+        "Cauliflower",
+        "Peas",
+        "Capsicum",
+        "Tomatoes",
+        "Onions",
+        "Pav bhaji masala",
+        "Butter",
+        "Lemon"
+      ]
+    }
+  ]
+}

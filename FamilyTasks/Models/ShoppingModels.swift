@@ -121,6 +121,8 @@ struct MealIdea: Identifiable, Codable, Equatable {
     var timesPerWeek: Int
     /// Left out of generated plans (it can still be planned by hand).
     var skipInGeneratedPlans: Bool
+    /// The meal catalog dish it was added from, for its nutrition.
+    var catalogID: String?
     var createdAt: Date
     var updatedAt: Date
 
@@ -132,6 +134,7 @@ struct MealIdea: Identifiable, Codable, Equatable {
         notes: String = "",
         timesPerWeek: Int = 1,
         skipInGeneratedPlans: Bool = false,
+        catalogID: String? = nil,
         createdAt: Date = Date(),
         updatedAt: Date = Date()
     ) {
@@ -142,6 +145,7 @@ struct MealIdea: Identifiable, Codable, Equatable {
         self.notes = notes
         self.timesPerWeek = timesPerWeek
         self.skipInGeneratedPlans = skipInGeneratedPlans
+        self.catalogID = catalogID
         self.createdAt = createdAt
         self.updatedAt = updatedAt
     }
@@ -154,6 +158,7 @@ struct MealIdea: Identifiable, Codable, Equatable {
         case notes
         case timesPerWeek
         case skipInGeneratedPlans
+        case catalogID
         case createdAt
         case updatedAt
     }
@@ -162,6 +167,7 @@ struct MealIdea: Identifiable, Codable, Equatable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(UUID.self, forKey: .id)
         name = try container.decode(String.self, forKey: .name)
+        catalogID = try? container.decodeIfPresent(String.self, forKey: .catalogID)
         timesPerWeek = min(max((try? container.decode(Int.self, forKey: .timesPerWeek)) ?? 1, 1), 7)
         skipInGeneratedPlans = (try? container.decode(Bool.self, forKey: .skipInGeneratedPlans)) ?? false
         category = (try? container.decode(MealCategory.self, forKey: .category)) ?? .mainCourse
