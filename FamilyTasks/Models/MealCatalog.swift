@@ -101,6 +101,8 @@ struct CatalogMeal: Codable, Identifiable, Equatable, Hashable {
     var name: String
     var category: MealCategory
     var region: String?
+    /// The wider part of the country, such as "South Indian", for filtering.
+    var area: String?
     var diet: Diet
     var glutenFree: Bool
     var serving: String
@@ -129,6 +131,7 @@ struct CatalogMeal: Codable, Identifiable, Equatable, Hashable {
         guard !query.isEmpty else { return true }
         return name.localizedCaseInsensitiveContains(query)
             || (region?.localizedCaseInsensitiveContains(query) ?? false)
+            || (area?.localizedCaseInsensitiveContains(query) ?? false)
             || ingredients.contains { $0.localizedCaseInsensitiveContains(query) }
             || goodSourceOf.contains { $0.localizedCaseInsensitiveContains(query) }
     }

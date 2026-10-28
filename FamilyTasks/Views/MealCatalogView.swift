@@ -7,6 +7,8 @@ struct MealCatalogView: View {
     var catalog = MealCatalog.shared
     @State private var category: MealCategory = .breakfast
     @State private var vegetarianOnly = false
+    /// One area, such as "South Indian", or nil for all.
+    @State private var area: String?
     @State private var searchText = ""
     @State private var showingDish: CatalogMeal?
 
@@ -21,6 +23,16 @@ struct MealCatalogView: View {
                             }
                         }
                         Spacer(minLength: 0)
+                    }
+                    if areas.count > 1 {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ChoiceChip(title: "All Regions", isSelected: area == nil) { area = nil }
+                                ForEach(areas, id: \.self) { choice in
+                                    ChoiceChip(title: choice, isSelected: area == choice) { area = choice }
+                                }
+                            }
+                        }
                     }
                     Toggle(isOn: $vegetarianOnly) {
                         HStack(spacing: 8) {
@@ -72,9 +84,16 @@ struct MealCatalogView: View {
         }
     }
 
+    /// Every area in the catalog, most dishes first.
+    private var areas: [String] {
+        let counts = Dictionary(grouping: catalog.meals.compactMap(\.area), by: { $0 }).mapValues(\.count)
+        return counts.keys.sorted { (counts[$0] ?? 0, $1) > (counts[$1] ?? 0, $0) }
+    }
+
     private func dishes(in cuisine: CatalogCuisine) -> [CatalogMeal] {
         cuisine.meals
             .filter { $0.category == category && (!vegetarianOnly || $0.diet.isVegetarian) && $0.matches(searchText) }
+            .filter { area == nil || $0.area == area }
             .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 }

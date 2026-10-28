@@ -8,6 +8,7 @@
       "name": "Masala Dosa",
       "category": "breakfast",
       "region": "South Indian",
+      "area": "South Indian",
       "diet": "vegan",
       "glutenFree": true,
       "serving": "1 dosa with potato filling",
@@ -44,6 +45,7 @@
       "name": "Idli with Sambar",
       "category": "breakfast",
       "region": "South Indian",
+      "area": "South Indian",
       "diet": "vegan",
       "glutenFree": true,
       "serving": "3 idlis and 1 cup sambar",
@@ -80,6 +82,7 @@
       "name": "Medu Vada",
       "category": "breakfast",
       "region": "South Indian",
+      "area": "South Indian",
       "diet": "vegan",
       "glutenFree": true,
       "serving": "2 vadas",
@@ -113,6 +116,7 @@
       "name": "Rava Upma",
       "category": "breakfast",
       "region": "South Indian",
+      "area": "South Indian",
       "diet": "vegetarian",
       "glutenFree": false,
       "serving": "1 cup",
@@ -149,6 +153,7 @@
       "name": "Kanda Poha",
       "category": "breakfast",
       "region": "Maharashtrian",
+      "area": "West Indian",
       "diet": "vegan",
       "glutenFree": true,
       "serving": "1 cup",
@@ -185,6 +190,7 @@
       "name": "Aloo Paratha",
       "category": "breakfast",
       "region": "North Indian",
+      "area": "North Indian",
       "diet": "vegetarian",
       "glutenFree": false,
       "serving": "1 paratha",
@@ -219,6 +225,7 @@
       "name": "Methi Thepla",
       "category": "breakfast",
       "region": "Gujarati",
+      "area": "West Indian",
       "diet": "vegetarian",
       "glutenFree": false,
       "serving": "2 theplas",
@@ -254,6 +261,7 @@
       "name": "Besan Chilla",
       "category": "breakfast",
       "region": "North Indian",
+      "area": "North Indian",
       "diet": "vegan",
       "glutenFree": true,
       "serving": "2 chillas",
@@ -289,6 +297,7 @@
       "name": "Pesarattu",
       "category": "breakfast",
       "region": "Andhra",
+      "area": "South Indian",
       "diet": "vegan",
       "glutenFree": true,
       "serving": "2 pesarattus",
@@ -323,6 +332,7 @@
       "name": "Onion Uttapam",
       "category": "breakfast",
       "region": "South Indian",
+      "area": "South Indian",
       "diet": "vegan",
       "glutenFree": true,
       "serving": "2 small uttapams",
@@ -356,6 +366,7 @@
       "name": "Ven Pongal",
       "category": "breakfast",
       "region": "Tamil",
+      "area": "South Indian",
       "diet": "vegetarian",
       "glutenFree": true,
       "serving": "1 cup",
@@ -391,6 +402,7 @@
       "name": "Puri Bhaji",
       "category": "breakfast",
       "region": "North Indian",
+      "area": "North Indian",
       "diet": "vegan",
       "glutenFree": false,
       "serving": "3 puris with potato bhaji",
@@ -495,6 +507,7 @@
       "name": "Sabudana Khichdi",
       "category": "breakfast",
       "region": "Maharashtrian",
+      "area": "West Indian",
       "diet": "vegetarian",
       "glutenFree": true,
       "serving": "1 cup",
@@ -529,6 +542,7 @@
       "name": "Appam with Vegetable Stew",
       "category": "breakfast",
       "region": "Kerala",
+      "area": "South Indian",
       "diet": "vegan",
       "glutenFree": true,
       "serving": "2 appams and 1 cup stew",
@@ -566,6 +580,7 @@
       "name": "Paneer Paratha",
       "category": "breakfast",
       "region": "North Indian",
+      "area": "North Indian",
       "diet": "vegetarian",
       "glutenFree": false,
       "serving": "1 paratha",
@@ -599,6 +614,7 @@
       "name": "Khaman Dhokla",
       "category": "breakfast",
       "region": "Gujarati",
+      "area": "West Indian",
       "diet": "vegan",
       "glutenFree": true,
       "serving": "4 pieces",
@@ -633,6 +649,7 @@
       "name": "Semiya Upma",
       "category": "breakfast",
       "region": "South Indian",
+      "area": "South Indian",
       "diet": "vegetarian",
       "glutenFree": false,
       "serving": "1 cup",
@@ -667,6 +684,7 @@
       "name": "Ragi Dosa",
       "category": "breakfast",
       "region": "Karnataka",
+      "area": "South Indian",
       "diet": "vegan",
       "glutenFree": true,
       "serving": "2 dosas",
@@ -702,6 +720,7 @@
       "name": "Dal Tadka",
       "category": "mainCourse",
       "region": "North Indian",
+      "area": "North Indian",
       "diet": "vegetarian",
       "glutenFree": true,
       "serving": "1 cup",
@@ -739,6 +758,7 @@
       "name": "Dal Makhani",
       "category": "mainCourse",
       "region": "Punjabi",
+      "area": "North Indian",
       "diet": "vegetarian",
       "glutenFree": true,
       "serving": "1 cup",
@@ -775,6 +795,7 @@
       "name": "Rajma",
       "category": "mainCourse",
       "region": "Punjabi",
+      "area": "North Indian",
       "diet": "vegan",
       "glutenFree": true,
       "serving": "1 cup",
@@ -812,6 +833,7 @@
       "name": "Chana Masala",
       "category": "mainCourse",
       "region": "Punjabi",
+      "area": "North Indian",
       "diet": "vegan",
       "glutenFree": true,
       "serving": "1 cup",
@@ -849,6 +871,7 @@
       "name": "Palak Paneer",
       "category": "mainCourse",
       "region": "Punjabi",
+      "area": "North Indian",
       "diet": "vegetarian",
       "glutenFree": true,
       "serving": "1 cup",
@@ -886,6 +909,7 @@
       "name": "Matar Paneer",
       "category": "mainCourse",
       "region": "North Indian",
+      "area": "North Indian",
       "diet": "vegetarian",
       "glutenFree": true,
       "serving": "1 cup",
@@ -922,6 +946,7 @@
       "name": "Paneer Butter Masala",
       "category": "mainCourse",
       "region": "Punjabi",
+      "area": "North Indian",
       "diet": "vegetarian",
       "glutenFree": true,
       "serving": "1 cup",
@@ -993,6 +1018,7 @@
       "name": "Butter Chicken",
       "category": "mainCourse",
       "region": "Punjabi",
+      "area": "North Indian",
       "diet": "nonVegetarian",
       "glutenFree": true,
       "serving": "1 cup",
@@ -1029,6 +1055,7 @@
       "name": "Tandoori Chicken",
       "category": "mainCourse",
       "region": "Punjabi",
+      "area": "North Indian",
       "diet": "nonVegetarian",
       "glutenFree": true,
       "serving": "2 pieces (about 200 g)",
@@ -1065,6 +1092,7 @@
       "name": "Chicken Biryani",
       "category": "mainCourse",
       "region": "Hyderabadi",
+      "area": "South Indian",
       "diet": "nonVegetarian",
       "glutenFree": true,
       "serving": "1½ cups",
@@ -1100,6 +1128,7 @@
       "name": "Vegetable Biryani",
       "category": "mainCourse",
       "region": "Hyderabadi",
+      "area": "South Indian",
       "diet": "vegetarian",
       "glutenFree": true,
       "serving": "1½ cups",
@@ -1173,6 +1202,7 @@
       "name": "Kerala Fish Curry",
       "category": "mainCourse",
       "region": "Kerala",
+      "area": "South Indian",
       "diet": "nonVegetarian",
       "glutenFree": true,
       "serving": "1 cup",
@@ -1209,6 +1239,7 @@
       "name": "Mutton Rogan Josh",
       "category": "mainCourse",
       "region": "Kashmiri",
+      "area": "North Indian",
       "diet": "nonVegetarian",
       "glutenFree": true,
       "serving": "1 cup",
@@ -1246,6 +1277,7 @@
       "name": "Sambar Rice",
       "category": "mainCourse",
       "region": "South Indian",
+      "area": "South Indian",
       "diet": "vegan",
       "glutenFree": true,
       "serving": "1 cup sambar with 1 cup rice",
@@ -1282,6 +1314,7 @@
       "name": "Rasam Rice",
       "category": "mainCourse",
       "region": "South Indian",
+      "area": "South Indian",
       "diet": "vegan",
       "glutenFree": true,
       "serving": "1 cup rasam with 1 cup rice",
@@ -1317,6 +1350,7 @@
       "name": "Curd Rice",
       "category": "mainCourse",
       "region": "South Indian",
+      "area": "South Indian",
       "diet": "vegetarian",
       "glutenFree": true,
       "serving": "1½ cups",
@@ -1353,6 +1387,7 @@
       "name": "Lemon Rice",
       "category": "mainCourse",
       "region": "South Indian",
+      "area": "South Indian",
       "diet": "vegan",
       "glutenFree": true,
       "serving": "1½ cups",
@@ -1423,6 +1458,7 @@
       "name": "Kadhi Pakora",
       "category": "mainCourse",
       "region": "Punjabi",
+      "area": "North Indian",
       "diet": "vegetarian",
       "glutenFree": true,
       "serving": "1 cup",
@@ -1457,6 +1493,7 @@
       "name": "Aloo Gobi",
       "category": "mainCourse",
       "region": "Punjabi",
+      "area": "North Indian",
       "diet": "vegan",
       "glutenFree": true,
       "serving": "1 cup",
@@ -1493,6 +1530,7 @@
       "name": "Bhindi Masala",
       "category": "mainCourse",
       "region": "North Indian",
+      "area": "North Indian",
       "diet": "vegan",
       "glutenFree": true,
       "serving": "1 cup",
@@ -1528,6 +1566,7 @@
       "name": "Baingan Bharta",
       "category": "mainCourse",
       "region": "Punjabi",
+      "area": "North Indian",
       "diet": "vegan",
       "glutenFree": true,
       "serving": "1 cup",
@@ -1562,6 +1601,7 @@
       "name": "Avial",
       "category": "mainCourse",
       "region": "Kerala",
+      "area": "South Indian",
       "diet": "vegetarian",
       "glutenFree": true,
       "serving": "1 cup",
@@ -1599,6 +1639,7 @@
       "name": "Mixed Vegetable Curry",
       "category": "mainCourse",
       "region": "North Indian",
+      "area": "North Indian",
       "diet": "vegan",
       "glutenFree": true,
       "serving": "1 cup",
@@ -1636,6 +1677,7 @@
       "name": "Chole Bhature",
       "category": "mainCourse",
       "region": "Punjabi",
+      "area": "North Indian",
       "diet": "vegetarian",
       "glutenFree": false,
       "serving": "2 bhaturas with chole",
@@ -1671,6 +1713,7 @@
       "name": "Pav Bhaji",
       "category": "mainCourse",
       "region": "Mumbai",
+      "area": "West Indian",
       "diet": "vegetarian",
       "glutenFree": false,
       "serving": "2 pavs with bhaji",
@@ -1702,6 +1745,1176 @@
         "Pav bhaji masala",
         "Butter",
         "Lemon"
+      ]
+    },
+    {
+      "id": "indian.plain-dosa",
+      "name": "Plain Dosa with Coconut Chutney",
+      "category": "breakfast",
+      "region": "South Indian",
+      "area": "South Indian",
+      "diet": "vegan",
+      "glutenFree": true,
+      "serving": "2 dosas with chutney",
+      "minutes": 20,
+      "nutrition": {
+        "calories": 300,
+        "protein": 7,
+        "carbs": 46,
+        "fat": 10,
+        "fiber": 4
+      },
+      "goodSourceOf": [
+        "Carbohydrates",
+        "Fiber"
+      ],
+      "highlights": [
+        "The everyday dosa: fermented rice and urad dal.",
+        "Coconut chutney with roasted chana dal adds a little protein."
+      ],
+      "ingredients": [
+        "Dosa batter",
+        "Grated coconut",
+        "Roasted chana dal",
+        "Green chillies",
+        "Ginger",
+        "Mustard seeds",
+        "Curry leaves",
+        "Oil"
+      ]
+    },
+    {
+      "id": "indian.rava-dosa",
+      "name": "Rava Dosa",
+      "category": "breakfast",
+      "region": "South Indian",
+      "area": "South Indian",
+      "diet": "vegan",
+      "glutenFree": false,
+      "serving": "2 dosas",
+      "minutes": 25,
+      "nutrition": {
+        "calories": 320,
+        "protein": 6,
+        "carbs": 44,
+        "fat": 13,
+        "fiber": 2
+      },
+      "goodSourceOf": [
+        "Carbohydrates"
+      ],
+      "highlights": [
+        "Crisp and lacy, with no fermenting needed.",
+        "Pour the thin batter from a height for the classic holes."
+      ],
+      "ingredients": [
+        "Semolina (rava)",
+        "Rice flour",
+        "Maida",
+        "Onions",
+        "Green chillies",
+        "Cumin seeds",
+        "Black pepper",
+        "Curry leaves",
+        "Oil"
+      ]
+    },
+    {
+      "id": "indian.mysore-masala-dosa",
+      "name": "Mysore Masala Dosa",
+      "category": "breakfast",
+      "region": "Karnataka",
+      "area": "South Indian",
+      "diet": "vegetarian",
+      "glutenFree": true,
+      "serving": "1 dosa with filling",
+      "minutes": 40,
+      "nutrition": {
+        "calories": 420,
+        "protein": 8,
+        "carbs": 56,
+        "fat": 18,
+        "fiber": 5
+      },
+      "goodSourceOf": [
+        "Carbohydrates",
+        "Potassium",
+        "Vitamin B6"
+      ],
+      "highlights": [
+        "Spread with a spicy red garlic chutney before the potato filling.",
+        "Richer than masala dosa, often finished with butter."
+      ],
+      "ingredients": [
+        "Dosa batter",
+        "Potatoes",
+        "Onions",
+        "Dried red chillies",
+        "Garlic",
+        "Butter",
+        "Mustard seeds",
+        "Curry leaves"
+      ]
+    },
+    {
+      "id": "indian.set-dosa",
+      "name": "Set Dosa with Sagu",
+      "category": "breakfast",
+      "region": "Karnataka",
+      "area": "South Indian",
+      "diet": "vegan",
+      "glutenFree": true,
+      "serving": "3 small dosas with sagu",
+      "minutes": 30,
+      "nutrition": {
+        "calories": 360,
+        "protein": 9,
+        "carbs": 56,
+        "fat": 11,
+        "fiber": 5
+      },
+      "goodSourceOf": [
+        "Carbohydrates",
+        "Fiber"
+      ],
+      "highlights": [
+        "Soft, thick and spongy, cooked on one side only.",
+        "Traditionally served with a vegetable sagu."
+      ],
+      "ingredients": [
+        "Rice",
+        "Urad dal",
+        "Poha (flattened rice)",
+        "Fenugreek seeds",
+        "Carrots",
+        "Beans",
+        "Peas",
+        "Grated coconut",
+        "Oil"
+      ]
+    },
+    {
+      "id": "indian.neer-dosa",
+      "name": "Neer Dosa",
+      "category": "breakfast",
+      "region": "Mangalorean",
+      "area": "South Indian",
+      "diet": "vegan",
+      "glutenFree": true,
+      "serving": "3 dosas",
+      "minutes": 20,
+      "nutrition": {
+        "calories": 240,
+        "protein": 4,
+        "carbs": 46,
+        "fat": 4,
+        "fiber": 1
+      },
+      "goodSourceOf": [
+        "Carbohydrates"
+      ],
+      "highlights": [
+        "Thin, soft rice crepes with no fermenting.",
+        "Very light; good with chicken curry or coconut chutney."
+      ],
+      "ingredients": [
+        "Rice",
+        "Grated coconut",
+        "Oil"
+      ]
+    },
+    {
+      "id": "indian.adai",
+      "name": "Adai",
+      "category": "breakfast",
+      "region": "Tamil",
+      "area": "South Indian",
+      "diet": "vegan",
+      "glutenFree": true,
+      "serving": "2 adais",
+      "minutes": 30,
+      "nutrition": {
+        "calories": 320,
+        "protein": 14,
+        "carbs": 44,
+        "fat": 10,
+        "fiber": 7
+      },
+      "goodSourceOf": [
+        "Protein",
+        "Fiber",
+        "Iron",
+        "Folate"
+      ],
+      "highlights": [
+        "Several dals make it one of the highest-protein South Indian breakfasts.",
+        "Traditionally eaten with avial or jaggery."
+      ],
+      "ingredients": [
+        "Rice",
+        "Chana dal",
+        "Toor dal",
+        "Urad dal",
+        "Dried red chillies",
+        "Ginger",
+        "Onions",
+        "Curry leaves",
+        "Oil"
+      ]
+    },
+    {
+      "id": "indian.puttu-kadala-curry",
+      "name": "Puttu with Kadala Curry",
+      "category": "breakfast",
+      "region": "Kerala",
+      "area": "South Indian",
+      "diet": "vegan",
+      "glutenFree": true,
+      "serving": "1 puttu with 1 cup kadala curry",
+      "minutes": 40,
+      "nutrition": {
+        "calories": 450,
+        "protein": 15,
+        "carbs": 70,
+        "fat": 12,
+        "fiber": 12
+      },
+      "goodSourceOf": [
+        "Protein",
+        "Fiber",
+        "Iron",
+        "Folate"
+      ],
+      "highlights": [
+        "Steamed layers of rice flour and coconut with a black chickpea curry.",
+        "Black chickpeas add a lot of fibre and plant protein."
+      ],
+      "ingredients": [
+        "Puttu rice flour",
+        "Grated coconut",
+        "Black chickpeas (kala chana)",
+        "Onions",
+        "Tomatoes",
+        "Garam masala",
+        "Coconut oil",
+        "Curry leaves"
+      ]
+    },
+    {
+      "id": "indian.idiyappam-kurma",
+      "name": "Idiyappam with Vegetable Kurma",
+      "category": "breakfast",
+      "region": "Kerala",
+      "area": "South Indian",
+      "diet": "vegan",
+      "glutenFree": true,
+      "serving": "3 idiyappams with 1 cup kurma",
+      "minutes": 40,
+      "nutrition": {
+        "calories": 380,
+        "protein": 8,
+        "carbs": 58,
+        "fat": 13,
+        "fiber": 5
+      },
+      "goodSourceOf": [
+        "Carbohydrates",
+        "Fiber",
+        "Vitamin A"
+      ],
+      "highlights": [
+        "Steamed string hoppers are light and low in fat.",
+        "The coconut kurma makes it a filling meal."
+      ],
+      "ingredients": [
+        "Idiyappam rice flour",
+        "Coconut milk",
+        "Carrots",
+        "Beans",
+        "Peas",
+        "Potatoes",
+        "Cashews",
+        "Fennel seeds",
+        "Coconut oil"
+      ]
+    },
+    {
+      "id": "indian.kuzhi-paniyaram",
+      "name": "Kuzhi Paniyaram",
+      "category": "breakfast",
+      "region": "Chettinad",
+      "area": "South Indian",
+      "diet": "vegan",
+      "glutenFree": true,
+      "serving": "8 pieces",
+      "minutes": 25,
+      "nutrition": {
+        "calories": 280,
+        "protein": 7,
+        "carbs": 40,
+        "fat": 10,
+        "fiber": 3
+      },
+      "goodSourceOf": [
+        "Carbohydrates"
+      ],
+      "highlights": [
+        "A good use of leftover dosa batter.",
+        "Cooked in a paniyaram pan with very little oil."
+      ],
+      "ingredients": [
+        "Dosa batter",
+        "Onions",
+        "Green chillies",
+        "Grated coconut",
+        "Mustard seeds",
+        "Curry leaves",
+        "Oil"
+      ]
+    },
+    {
+      "id": "indian.akki-roti",
+      "name": "Akki Roti",
+      "category": "breakfast",
+      "region": "Karnataka",
+      "area": "South Indian",
+      "diet": "vegan",
+      "glutenFree": true,
+      "serving": "2 rotis",
+      "minutes": 25,
+      "nutrition": {
+        "calories": 300,
+        "protein": 6,
+        "carbs": 50,
+        "fat": 9,
+        "fiber": 4
+      },
+      "goodSourceOf": [
+        "Carbohydrates",
+        "Fiber"
+      ],
+      "highlights": [
+        "Rice-flour flatbread patted out by hand.",
+        "Dill and carrot add flavour and vitamins."
+      ],
+      "ingredients": [
+        "Rice flour",
+        "Onions",
+        "Carrots",
+        "Dill leaves",
+        "Green chillies",
+        "Grated coconut",
+        "Oil"
+      ]
+    },
+    {
+      "id": "indian.rava-idli",
+      "name": "Rava Idli",
+      "category": "breakfast",
+      "region": "Karnataka",
+      "area": "South Indian",
+      "diet": "vegetarian",
+      "glutenFree": false,
+      "serving": "3 idlis",
+      "minutes": 30,
+      "nutrition": {
+        "calories": 270,
+        "protein": 8,
+        "carbs": 38,
+        "fat": 9,
+        "fiber": 2
+      },
+      "goodSourceOf": [
+        "Carbohydrates",
+        "Calcium"
+      ],
+      "highlights": [
+        "Instant idli made with semolina and curd: no fermenting.",
+        "Said to have been created at Bengaluru's MTR during wartime rice shortages."
+      ],
+      "ingredients": [
+        "Semolina (rava)",
+        "Curd",
+        "Carrots",
+        "Cashews",
+        "Mustard seeds",
+        "Chana dal",
+        "Curry leaves",
+        "Ghee",
+        "Fruit salt (Eno)"
+      ]
+    },
+    {
+      "id": "indian.podi-idli",
+      "name": "Podi Idli",
+      "category": "breakfast",
+      "region": "Tamil",
+      "area": "South Indian",
+      "diet": "vegetarian",
+      "glutenFree": true,
+      "serving": "6 mini idlis",
+      "minutes": 15,
+      "nutrition": {
+        "calories": 300,
+        "protein": 9,
+        "carbs": 44,
+        "fat": 10,
+        "fiber": 4
+      },
+      "goodSourceOf": [
+        "Carbohydrates",
+        "Protein"
+      ],
+      "highlights": [
+        "Mini idlis tossed in spicy lentil powder and ghee.",
+        "Good for lunch boxes and travel."
+      ],
+      "ingredients": [
+        "Idli batter",
+        "Idli podi (gunpowder)",
+        "Ghee",
+        "Sesame oil",
+        "Curry leaves"
+      ]
+    },
+    {
+      "id": "indian.godhuma-dosa",
+      "name": "Godhuma Dosa",
+      "category": "breakfast",
+      "region": "Tamil",
+      "area": "South Indian",
+      "diet": "vegan",
+      "glutenFree": false,
+      "serving": "2 dosas",
+      "minutes": 15,
+      "nutrition": {
+        "calories": 260,
+        "protein": 8,
+        "carbs": 40,
+        "fat": 8,
+        "fiber": 5
+      },
+      "goodSourceOf": [
+        "Fiber",
+        "Carbohydrates"
+      ],
+      "highlights": [
+        "Instant whole-wheat dosa for busy mornings.",
+        "Whole wheat adds fibre."
+      ],
+      "ingredients": [
+        "Whole wheat flour",
+        "Rice flour",
+        "Onions",
+        "Green chillies",
+        "Cumin seeds",
+        "Curry leaves",
+        "Oil"
+      ]
+    },
+    {
+      "id": "indian.kanchipuram-idli",
+      "name": "Kanchipuram Idli",
+      "category": "breakfast",
+      "region": "Tamil",
+      "area": "South Indian",
+      "diet": "vegetarian",
+      "glutenFree": true,
+      "serving": "3 idlis",
+      "minutes": 30,
+      "nutrition": {
+        "calories": 330,
+        "protein": 10,
+        "carbs": 50,
+        "fat": 10,
+        "fiber": 3
+      },
+      "goodSourceOf": [
+        "Protein",
+        "Carbohydrates"
+      ],
+      "highlights": [
+        "Temple-style spiced idli steamed in cups or leaves.",
+        "Pepper, cumin and dry ginger give it a warm flavour."
+      ],
+      "ingredients": [
+        "Rice",
+        "Urad dal",
+        "Black pepper",
+        "Cumin seeds",
+        "Dry ginger",
+        "Cashews",
+        "Ghee",
+        "Curry leaves"
+      ]
+    },
+    {
+      "id": "indian.bisi-bele-bath",
+      "name": "Bisi Bele Bath",
+      "category": "mainCourse",
+      "region": "Karnataka",
+      "area": "South Indian",
+      "diet": "vegetarian",
+      "glutenFree": true,
+      "serving": "1½ cups",
+      "minutes": 50,
+      "nutrition": {
+        "calories": 420,
+        "protein": 13,
+        "carbs": 66,
+        "fat": 12,
+        "fiber": 9
+      },
+      "goodSourceOf": [
+        "Protein",
+        "Fiber",
+        "Folate",
+        "Vitamin A"
+      ],
+      "highlights": [
+        "Rice, dal and vegetables in one spiced pot.",
+        "Served with boondi or potato chips in Karnataka."
+      ],
+      "ingredients": [
+        "Rice",
+        "Toor dal",
+        "Bisi bele bath powder",
+        "Tamarind",
+        "Carrots",
+        "Beans",
+        "Peas",
+        "Shallots",
+        "Ghee",
+        "Cashews"
+      ]
+    },
+    {
+      "id": "indian.vatha-kuzhambu-rice",
+      "name": "Vatha Kuzhambu with Rice",
+      "category": "mainCourse",
+      "region": "Tamil",
+      "area": "South Indian",
+      "diet": "vegan",
+      "glutenFree": true,
+      "serving": "½ cup kuzhambu with 1 cup rice",
+      "minutes": 30,
+      "nutrition": {
+        "calories": 330,
+        "protein": 6,
+        "carbs": 58,
+        "fat": 9,
+        "fiber": 4
+      },
+      "goodSourceOf": [
+        "Carbohydrates",
+        "Fiber"
+      ],
+      "highlights": [
+        "A tangy tamarind gravy that keeps for days.",
+        "Sun-dried turkey berries are traditional; shallots work too."
+      ],
+      "ingredients": [
+        "Rice",
+        "Tamarind",
+        "Sundakkai (dried turkey berry)",
+        "Shallots",
+        "Garlic",
+        "Sambar powder",
+        "Sesame oil",
+        "Jaggery"
+      ]
+    },
+    {
+      "id": "indian.mor-kuzhambu-rice",
+      "name": "Mor Kuzhambu with Rice",
+      "category": "mainCourse",
+      "region": "Tamil",
+      "area": "South Indian",
+      "diet": "vegetarian",
+      "glutenFree": true,
+      "serving": "1 cup kuzhambu with 1 cup rice",
+      "minutes": 30,
+      "nutrition": {
+        "calories": 360,
+        "protein": 10,
+        "carbs": 56,
+        "fat": 10,
+        "fiber": 3
+      },
+      "goodSourceOf": [
+        "Calcium",
+        "Carbohydrates"
+      ],
+      "highlights": [
+        "Curd simmered with a coconut paste: mild and comforting.",
+        "Ash gourd or okra are the usual vegetables."
+      ],
+      "ingredients": [
+        "Rice",
+        "Curd",
+        "Grated coconut",
+        "Ash gourd",
+        "Green chillies",
+        "Ginger",
+        "Cumin seeds",
+        "Coconut oil",
+        "Curry leaves"
+      ]
+    },
+    {
+      "id": "indian.poricha-kootu",
+      "name": "Poricha Kootu",
+      "category": "mainCourse",
+      "region": "Tamil",
+      "area": "South Indian",
+      "diet": "vegan",
+      "glutenFree": true,
+      "serving": "1 cup",
+      "minutes": 30,
+      "nutrition": {
+        "calories": 200,
+        "protein": 9,
+        "carbs": 24,
+        "fat": 8,
+        "fiber": 6
+      },
+      "goodSourceOf": [
+        "Protein",
+        "Fiber",
+        "Folate"
+      ],
+      "highlights": [
+        "Vegetables cooked with moong dal and a pepper-coconut paste.",
+        "Mild, so it's good for kids."
+      ],
+      "ingredients": [
+        "Moong dal",
+        "Chayote",
+        "Grated coconut",
+        "Black pepper",
+        "Cumin seeds",
+        "Urad dal",
+        "Curry leaves",
+        "Coconut oil"
+      ]
+    },
+    {
+      "id": "indian.cabbage-thoran",
+      "name": "Cabbage Thoran",
+      "category": "mainCourse",
+      "region": "Kerala",
+      "area": "South Indian",
+      "diet": "vegan",
+      "glutenFree": true,
+      "serving": "1 cup",
+      "minutes": 20,
+      "nutrition": {
+        "calories": 150,
+        "protein": 4,
+        "carbs": 14,
+        "fat": 9,
+        "fiber": 5
+      },
+      "goodSourceOf": [
+        "Vitamin C",
+        "Vitamin K",
+        "Fiber"
+      ],
+      "highlights": [
+        "Finely chopped cabbage stir-fried with fresh coconut.",
+        "Cabbage is a good source of vitamins C and K."
+      ],
+      "ingredients": [
+        "Cabbage",
+        "Grated coconut",
+        "Green chillies",
+        "Shallots",
+        "Turmeric",
+        "Mustard seeds",
+        "Curry leaves",
+        "Coconut oil"
+      ]
+    },
+    {
+      "id": "indian.beans-poriyal",
+      "name": "Beans Poriyal",
+      "category": "mainCourse",
+      "region": "Tamil",
+      "area": "South Indian",
+      "diet": "vegan",
+      "glutenFree": true,
+      "serving": "1 cup",
+      "minutes": 20,
+      "nutrition": {
+        "calories": 140,
+        "protein": 4,
+        "carbs": 13,
+        "fat": 8,
+        "fiber": 5
+      },
+      "goodSourceOf": [
+        "Fiber",
+        "Vitamin K",
+        "Vitamin C"
+      ],
+      "highlights": [
+        "A quick dry stir-fry for rice and sambar.",
+        "Works with carrots, beetroot or cabbage too."
+      ],
+      "ingredients": [
+        "Green beans",
+        "Grated coconut",
+        "Mustard seeds",
+        "Urad dal",
+        "Dried red chillies",
+        "Curry leaves",
+        "Oil"
+      ]
+    },
+    {
+      "id": "indian.keerai-masiyal",
+      "name": "Keerai Masiyal",
+      "category": "mainCourse",
+      "region": "Tamil",
+      "area": "South Indian",
+      "diet": "vegetarian",
+      "glutenFree": true,
+      "serving": "1 cup",
+      "minutes": 25,
+      "nutrition": {
+        "calories": 160,
+        "protein": 8,
+        "carbs": 18,
+        "fat": 6,
+        "fiber": 6
+      },
+      "goodSourceOf": [
+        "Iron",
+        "Folate",
+        "Vitamin A",
+        "Vitamin K"
+      ],
+      "highlights": [
+        "Mashed greens with moong dal, eaten with rice and ghee.",
+        "Leafy greens bring vitamins A and K and folate."
+      ],
+      "ingredients": [
+        "Spinach or amaranth leaves",
+        "Moong dal",
+        "Garlic",
+        "Cumin seeds",
+        "Green chillies",
+        "Ghee",
+        "Mustard seeds"
+      ]
+    },
+    {
+      "id": "indian.andhra-tomato-pappu",
+      "name": "Andhra Tomato Pappu",
+      "category": "mainCourse",
+      "region": "Andhra",
+      "area": "South Indian",
+      "diet": "vegetarian",
+      "glutenFree": true,
+      "serving": "1 cup",
+      "minutes": 30,
+      "nutrition": {
+        "calories": 210,
+        "protein": 11,
+        "carbs": 28,
+        "fat": 6,
+        "fiber": 7
+      },
+      "goodSourceOf": [
+        "Protein",
+        "Fiber",
+        "Folate"
+      ],
+      "highlights": [
+        "Andhra's everyday dal, tangy with tomato.",
+        "Eaten with hot rice, ghee and pickle."
+      ],
+      "ingredients": [
+        "Toor dal",
+        "Tomatoes",
+        "Green chillies",
+        "Garlic",
+        "Tamarind",
+        "Mustard seeds",
+        "Dried red chillies",
+        "Ghee",
+        "Curry leaves"
+      ]
+    },
+    {
+      "id": "indian.puliyogare",
+      "name": "Puliyogare",
+      "category": "mainCourse",
+      "region": "Karnataka",
+      "area": "South Indian",
+      "diet": "vegan",
+      "glutenFree": true,
+      "serving": "1½ cups",
+      "minutes": 30,
+      "nutrition": {
+        "calories": 380,
+        "protein": 7,
+        "carbs": 60,
+        "fat": 13,
+        "fiber": 4
+      },
+      "goodSourceOf": [
+        "Carbohydrates",
+        "Fiber"
+      ],
+      "highlights": [
+        "Tamarind rice that keeps well, so it's a travel favourite.",
+        "Peanuts add crunch and some protein."
+      ],
+      "ingredients": [
+        "Rice",
+        "Tamarind",
+        "Puliyogare powder",
+        "Peanuts",
+        "Chana dal",
+        "Jaggery",
+        "Sesame oil",
+        "Curry leaves"
+      ]
+    },
+    {
+      "id": "indian.coconut-rice",
+      "name": "Coconut Rice",
+      "category": "mainCourse",
+      "region": "Tamil",
+      "area": "South Indian",
+      "diet": "vegan",
+      "glutenFree": true,
+      "serving": "1½ cups",
+      "minutes": 20,
+      "nutrition": {
+        "calories": 380,
+        "protein": 6,
+        "carbs": 55,
+        "fat": 15,
+        "fiber": 4
+      },
+      "goodSourceOf": [
+        "Carbohydrates",
+        "Fiber"
+      ],
+      "highlights": [
+        "Leftover rice tossed with fresh coconut.",
+        "Mild and kid-friendly."
+      ],
+      "ingredients": [
+        "Rice",
+        "Grated coconut",
+        "Cashews",
+        "Chana dal",
+        "Urad dal",
+        "Green chillies",
+        "Curry leaves",
+        "Coconut oil"
+      ]
+    },
+    {
+      "id": "indian.tomato-rice",
+      "name": "Tomato Rice",
+      "category": "mainCourse",
+      "region": "South Indian",
+      "area": "South Indian",
+      "diet": "vegan",
+      "glutenFree": true,
+      "serving": "1½ cups",
+      "minutes": 25,
+      "nutrition": {
+        "calories": 340,
+        "protein": 6,
+        "carbs": 56,
+        "fat": 10,
+        "fiber": 3
+      },
+      "goodSourceOf": [
+        "Carbohydrates",
+        "Vitamin C"
+      ],
+      "highlights": [
+        "One-pot rice for lunch boxes.",
+        "Serve with raita or a boiled egg for more protein."
+      ],
+      "ingredients": [
+        "Rice",
+        "Tomatoes",
+        "Onions",
+        "Green chillies",
+        "Ginger",
+        "Garlic",
+        "Garam masala",
+        "Mint leaves",
+        "Oil"
+      ]
+    },
+    {
+      "id": "indian.chettinad-chicken",
+      "name": "Chettinad Chicken Curry",
+      "category": "mainCourse",
+      "region": "Chettinad",
+      "area": "South Indian",
+      "diet": "nonVegetarian",
+      "glutenFree": true,
+      "serving": "1 cup",
+      "minutes": 50,
+      "nutrition": {
+        "calories": 350,
+        "protein": 27,
+        "carbs": 9,
+        "fat": 23,
+        "fiber": 2
+      },
+      "goodSourceOf": [
+        "Protein",
+        "Niacin (B3)",
+        "Vitamin B6"
+      ],
+      "highlights": [
+        "Freshly roasted spices with plenty of black pepper.",
+        "One of Tamil Nadu's best-known curries."
+      ],
+      "ingredients": [
+        "Chicken",
+        "Onions",
+        "Tomatoes",
+        "Grated coconut",
+        "Black pepper",
+        "Fennel seeds",
+        "Dried red chillies",
+        "Kalpasi (stone flower)",
+        "Curry leaves",
+        "Oil"
+      ]
+    },
+    {
+      "id": "indian.gongura-mutton",
+      "name": "Gongura Mutton",
+      "category": "mainCourse",
+      "region": "Andhra",
+      "area": "South Indian",
+      "diet": "nonVegetarian",
+      "glutenFree": true,
+      "serving": "1 cup",
+      "minutes": 75,
+      "nutrition": {
+        "calories": 380,
+        "protein": 26,
+        "carbs": 8,
+        "fat": 27,
+        "fiber": 3
+      },
+      "goodSourceOf": [
+        "Protein",
+        "Iron",
+        "Zinc",
+        "Vitamin B12"
+      ],
+      "highlights": [
+        "Sour gongura leaves are Andhra's signature flavour.",
+        "Red meat gives easily absorbed iron and B12."
+      ],
+      "ingredients": [
+        "Mutton",
+        "Gongura (sorrel leaves)",
+        "Onions",
+        "Green chillies",
+        "Ginger",
+        "Garlic",
+        "Garam masala",
+        "Oil"
+      ]
+    },
+    {
+      "id": "indian.chemmeen-curry",
+      "name": "Chemmeen Curry",
+      "category": "mainCourse",
+      "region": "Kerala",
+      "area": "South Indian",
+      "diet": "nonVegetarian",
+      "glutenFree": true,
+      "serving": "1 cup",
+      "minutes": 30,
+      "nutrition": {
+        "calories": 260,
+        "protein": 22,
+        "carbs": 8,
+        "fat": 16,
+        "fiber": 2
+      },
+      "goodSourceOf": [
+        "Protein",
+        "Selenium",
+        "Vitamin B12"
+      ],
+      "highlights": [
+        "Prawns in a tangy coconut gravy.",
+        "Prawns are high in protein and low in fat."
+      ],
+      "ingredients": [
+        "Prawns",
+        "Coconut milk",
+        "Kodampuli (gamboge)",
+        "Shallots",
+        "Ginger",
+        "Garlic",
+        "Kashmiri chilli powder",
+        "Coconut oil",
+        "Curry leaves"
+      ]
+    },
+    {
+      "id": "indian.meen-varuval",
+      "name": "Meen Varuval",
+      "category": "mainCourse",
+      "region": "Tamil",
+      "area": "South Indian",
+      "diet": "nonVegetarian",
+      "glutenFree": true,
+      "serving": "2 pieces (about 150 g)",
+      "minutes": 30,
+      "nutrition": {
+        "calories": 280,
+        "protein": 28,
+        "carbs": 6,
+        "fat": 16,
+        "fiber": 1
+      },
+      "goodSourceOf": [
+        "Protein",
+        "Omega-3",
+        "Vitamin D"
+      ],
+      "highlights": [
+        "Spice-marinated, shallow-fried fish.",
+        "Oily fish like seer or mackerel add omega-3 fats."
+      ],
+      "ingredients": [
+        "Fish (seer or pomfret)",
+        "Chilli powder",
+        "Turmeric",
+        "Ginger",
+        "Garlic",
+        "Lemon",
+        "Rice flour",
+        "Oil"
+      ]
+    },
+    {
+      "id": "indian.kerala-egg-roast",
+      "name": "Kerala Egg Roast",
+      "category": "mainCourse",
+      "region": "Kerala",
+      "area": "South Indian",
+      "diet": "eggetarian",
+      "glutenFree": true,
+      "serving": "2 eggs with masala",
+      "minutes": 30,
+      "nutrition": {
+        "calories": 320,
+        "protein": 15,
+        "carbs": 12,
+        "fat": 24,
+        "fiber": 3
+      },
+      "goodSourceOf": [
+        "Protein",
+        "Vitamin B12",
+        "Choline"
+      ],
+      "highlights": [
+        "Boiled eggs in a slow-cooked onion masala.",
+        "Classic with appam, parotta or rice."
+      ],
+      "ingredients": [
+        "Eggs",
+        "Onions",
+        "Tomatoes",
+        "Ginger",
+        "Garlic",
+        "Kashmiri chilli powder",
+        "Fennel powder",
+        "Coconut oil",
+        "Curry leaves"
+      ]
+    },
+    {
+      "id": "indian.ragi-mudde-saaru",
+      "name": "Ragi Mudde with Saaru",
+      "category": "mainCourse",
+      "region": "Karnataka",
+      "area": "South Indian",
+      "diet": "vegan",
+      "glutenFree": true,
+      "serving": "2 ragi balls with saaru",
+      "minutes": 30,
+      "nutrition": {
+        "calories": 380,
+        "protein": 11,
+        "carbs": 70,
+        "fat": 6,
+        "fiber": 9
+      },
+      "goodSourceOf": [
+        "Calcium",
+        "Fiber",
+        "Iron"
+      ],
+      "highlights": [
+        "Finger millet balls, eaten with a thin dal saaru.",
+        "Ragi is very high in calcium and keeps you full for a long time."
+      ],
+      "ingredients": [
+        "Ragi flour",
+        "Toor dal",
+        "Tomatoes",
+        "Rasam powder",
+        "Garlic",
+        "Tamarind",
+        "Curry leaves"
+      ]
+    },
+    {
+      "id": "indian.kothu-parotta",
+      "name": "Egg Kothu Parotta",
+      "category": "mainCourse",
+      "region": "Tamil",
+      "area": "South Indian",
+      "diet": "eggetarian",
+      "glutenFree": false,
+      "serving": "1 plate",
+      "minutes": 30,
+      "nutrition": {
+        "calories": 550,
+        "protein": 20,
+        "carbs": 62,
+        "fat": 25,
+        "fiber": 4
+      },
+      "goodSourceOf": [
+        "Protein",
+        "Carbohydrates"
+      ],
+      "highlights": [
+        "Shredded parotta stir-fried with egg and spicy salna.",
+        "Street-food style and filling; best as a treat."
+      ],
+      "ingredients": [
+        "Parotta",
+        "Eggs",
+        "Onions",
+        "Tomatoes",
+        "Green chillies",
+        "Salna (curry gravy)",
+        "Curry leaves",
+        "Oil"
       ]
     }
   ]

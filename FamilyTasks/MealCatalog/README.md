@@ -16,6 +16,7 @@ Edit the cuisine's file (for example `indian.json`) and add an entry to `meals`:
   "name": "Masala Dosa",
   "category": "breakfast",
   "region": "South Indian",
+  "area": "South Indian",
   "diet": "vegan",
   "glutenFree": true,
   "serving": "1 dosa with potato filling",
@@ -33,6 +34,7 @@ Edit the cuisine's file (for example `indian.json`) and add an entry to `meals`:
 | `name` | As people usually say it. |
 | `category` | `breakfast` or `mainCourse` (main courses are offered for lunch and dinner). |
 | `region` | Optional, such as "Kerala" or "Punjabi". |
+| `area` | Optional wider area for the region filter: for Indian dishes, `South Indian`, `North Indian` or `West Indian`. Leave it out for dishes eaten everywhere. |
 | `diet` | `vegan`, `vegetarian`, `eggetarian` or `nonVegetarian`, for the dish as usually made. |
 | `glutenFree` | Whether its usual ingredients are gluten-free. Packaged asafoetida (hing) often contains wheat, so the app reminds people to check. |
 | `serving` | What the nutrition numbers are for. |
