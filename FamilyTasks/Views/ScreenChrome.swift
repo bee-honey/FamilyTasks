@@ -189,7 +189,6 @@ final class AppNavigator: ObservableObject {
 /// Everything the More tab can open.
 enum FamilyDestination: Hashable {
     case section(TabSection)
-    case health
 }
 
 /// The red Delete at the bottom of an editor, so deleting doesn't depend on knowing to swipe.

@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct HealthView: View {
+    var isPushed = false
     @EnvironmentObject private var organizerStore: OrganizerStore
     @EnvironmentObject private var taskStore: TaskStore
     @EnvironmentObject private var sharedHouseholdStore: SharedHouseholdStore
@@ -27,7 +28,6 @@ struct HealthView: View {
     }
 
     var body: some View {
-        // Pushed from Family.
         List {
             Section {
                 ScreenHeader(eyebrow: "You and your family", title: "Health") {
@@ -116,8 +116,10 @@ struct HealthView: View {
         }
         .listRowBackground(AppTheme.surface)
         .scrollContentBackground(.hidden)
+        // Header at the same height on every tab.
+        .contentMargins(.top, 0, for: .scrollContent)
         .background(AppTheme.background)
-        .mainScreenNavigationBar(title: "Health", isPushed: true)
+        .mainScreenNavigationBar(title: "Health", isPushed: isPushed)
         .navigationDestination(isPresented: $isShowingSettings) {
             HealthSettingsView()
         }

@@ -210,6 +210,7 @@ final class ModelTests: XCTestCase {
         XCTAssertEqual(TabSection.slots(from: "tasks,ideas"), [.tasks, .ideas])
         XCTAssertEqual(TabSection.slots(from: "tasks,tasks"), [.tasks, .mealPlan])
         XCTAssertEqual(TabSection.slots(from: TabSection.encode([.chores, .ideas])), [.chores, .ideas])
+        XCTAssertEqual(TabSection.slots(from: "health,habits"), [.health, .habits])
     }
 
     func testTheOldThreeTabSettingGivesTheNewDefault() {

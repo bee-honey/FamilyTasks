@@ -10,6 +10,7 @@ enum TabSection: String, CaseIterable, Identifiable {
     case recurring
     case habits
     case ideas
+    case health
 
     var id: String { rawValue }
 
@@ -22,6 +23,7 @@ enum TabSection: String, CaseIterable, Identifiable {
         case .recurring: "Recurring"
         case .habits: "Habits"
         case .ideas: "Ideas"
+        case .health: "Health"
         }
     }
 
@@ -34,6 +36,7 @@ enum TabSection: String, CaseIterable, Identifiable {
         case .recurring: "repeat"
         case .habits: "flame"
         case .ideas: "lightbulb"
+        case .health: "heart.text.square"
         }
     }
 
@@ -168,11 +171,12 @@ struct TabSectionScreen: View {
         case .recurring: RecurringTasksView(isPushed: isPushed)
         case .habits: HabitsView(isPushed: isPushed)
         case .ideas: IdeaNotebookView(isPushed: isPushed)
+        case .health: HealthView(isPushed: isPushed)
         }
     }
 }
 
-/// The More tab: every section that isn't its own tab, plus Health, each with a live summary.
+/// The More tab: every section that isn't its own tab, each with a live summary.
 /// The family and invites are in Settings.
 struct FamilyHubView: View {
     @EnvironmentObject private var organizerStore: OrganizerStore
@@ -197,9 +201,6 @@ struct FamilyHubView: View {
                         HubRow(title: section.title, systemImage: section.systemImage, tint: tint(for: section), detail: detail(for: section))
                     }
                 }
-                NavigationLink(value: FamilyDestination.health) {
-                    HubRow(title: "Health", systemImage: "heart.text.square", tint: SettingsTint.health, detail: healthSectionEnabled ? "Activity, sleep, goals and family" : "Off · tap to set up")
-                }
             } header: {
                 SectionTitle(text: "Everything Else")
             }
@@ -213,13 +214,12 @@ struct FamilyHubView: View {
         .navigationDestination(for: FamilyDestination.self) { destination in
             switch destination {
             case .section(let section): TabSectionScreen(section: section, isPushed: true)
-            case .health: HealthView()
             }
         }
     }
 
     private var sectionCount: String {
-        "\(hubSections.count + 1) sections"
+        "\(hubSections.count) sections"
     }
 
     /// Sections already in the tab bar aren't listed again.
@@ -237,6 +237,7 @@ struct FamilyHubView: View {
         case .recurring: AppTheme.primary
         case .habits: AppTheme.success
         case .ideas: SettingsTint.ideas
+        case .health: SettingsTint.health
         }
     }
 
@@ -271,6 +272,8 @@ struct FamilyHubView: View {
         case .ideas:
             let count = organizerStore.ideaNotes.count
             return count == 0 ? "Notes for later" : "\(count) \(count == 1 ? "idea" : "ideas")"
+        case .health:
+            return healthSectionEnabled ? "Activity, sleep, goals and family" : "Off · tap to set up"
         }
     }
 }

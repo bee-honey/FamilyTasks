@@ -208,7 +208,7 @@ struct ViewSettingsView: View {
                 } header: {
                     Text("Tab Bar")
                 } footer: {
-                    Text("Today, Family and Settings always stay. Picking a section already in the other tab swaps them; everything not in the tab bar is in Family.")
+                    Text("Today, More and Settings always stay. Picking a section already in the other tab swaps them; everything not in the tab bar is in More.")
                 }
 
                 Section("Today") {
