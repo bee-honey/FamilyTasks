@@ -32,6 +32,8 @@ struct ShoppingItem: Identifiable, Codable, Equatable {
     var shopID: UUID
     var isNeeded: Bool
     var isPurchased: Bool
+    /// A detail for whoever shops, such as "2 bags" or "the low-fat one". Nil before notes existed.
+    var note: String?
     var createdAt: Date
     var updatedAt: Date
 
@@ -41,6 +43,7 @@ struct ShoppingItem: Identifiable, Codable, Equatable {
         shopID: UUID,
         isNeeded: Bool = true,
         isPurchased: Bool = false,
+        note: String? = nil,
         createdAt: Date = Date(),
         updatedAt: Date = Date()
     ) {
@@ -49,6 +52,7 @@ struct ShoppingItem: Identifiable, Codable, Equatable {
         self.shopID = shopID
         self.isNeeded = isNeeded
         self.isPurchased = isPurchased
+        self.note = note
         self.createdAt = createdAt
         self.updatedAt = updatedAt
     }

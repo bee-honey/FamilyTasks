@@ -244,4 +244,54 @@ final class OrganizerStoreTests: XCTestCase {
         XCTAssertFalse(range.contains(week.end))
         XCTAssertFalse(range.contains(week.start.addingTimeInterval(-1)))
     }
+
+    func testIngredientsOnHandAreKeptPerWeek() throws {
+        let week = try XCTUnwrap(calendar.dateInterval(of: .weekOfYear, for: Date())).start
+        let nextWeek = try XCTUnwrap(calendar.date(byAdding: .weekOfYear, value: 1, to: week))
+
+        var data = IngredientsOnHand.setting(["tomatoes"], in: Data(), weekStart: week, calendar: calendar)
+        XCTAssertEqual(IngredientsOnHand.keys(in: data, weekStart: week, calendar: calendar), ["tomatoes"])
+        XCTAssertTrue(IngredientsOnHand.keys(in: data, weekStart: nextWeek, calendar: calendar).isEmpty)
+
+        // Ticking it again clears it.
+        data = IngredientsOnHand.setting([], in: data, weekStart: week, calendar: calendar)
+        XCTAssertTrue(IngredientsOnHand.keys(in: data, weekStart: week, calendar: calendar).isEmpty)
+
+        // Only the latest weeks are kept.
+        for offset in 0..<10 {
+            let start = try XCTUnwrap(calendar.date(byAdding: .weekOfYear, value: offset, to: week))
+            data = IngredientsOnHand.setting(["onions"], in: data, weekStart: start, calendar: calendar)
+        }
+        XCTAssertTrue(IngredientsOnHand.keys(in: data, weekStart: week, calendar: calendar).isEmpty)
+        let last = try XCTUnwrap(calendar.date(byAdding: .weekOfYear, value: 9, to: week))
+        XCTAssertEqual(IngredientsOnHand.keys(in: data, weekStart: last, calendar: calendar), ["onions"])
+    }
+
+    func testDuplicateShoppingItemsMergeIntoTheFirstKeepingNotes() {
+        let shop = UUID(), other = UUID()
+        let start = Date(timeIntervalSince1970: 1_000)
+        let items = [
+            ShoppingItem(name: "Urad dal", shopID: shop, note: "1 kg", createdAt: start),
+            ShoppingItem(name: "Idly ravva", shopID: shop, createdAt: start.addingTimeInterval(1)),
+            ShoppingItem(name: "urad dal ", shopID: shop, note: "whole", createdAt: start.addingTimeInterval(2)),
+            ShoppingItem(name: "Urad dal", shopID: other, createdAt: start.addingTimeInterval(3)),
+            ShoppingItem(name: "Idly Ravva", shopID: shop, createdAt: start.addingTimeInterval(4)),
+            ShoppingItem(name: "Urad dal", shopID: shop, isNeeded: false, isPurchased: true, createdAt: start.addingTimeInterval(5))
+        ]
+
+        let merged = OrganizerStore.mergingDuplicates(items)
+
+        // One of each at a shop; other shops and the cart are left alone.
+        XCTAssertEqual(merged.map(\.id), [items[0].id, items[1].id, items[3].id, items[5].id])
+        XCTAssertEqual(merged[0].note, "1 kg; whole")
+        XCTAssertNil(merged[1].note)
+        XCTAssertEqual(OrganizerStore.mergingDuplicates(merged), merged)
+    }
+
+    func testShoppingItemsSavedBeforeNotesStillLoad() throws {
+        let json = #"{"id":"6F9619FF-8B86-D011-B42D-00C04FC964FF","name":"Milk","shopID":"6F9619FF-8B86-D011-B42D-00C04FC964FE","isNeeded":true,"isPurchased":false,"createdAt":0,"updatedAt":0}"#
+        let item = try JSONDecoder().decode(ShoppingItem.self, from: Data(json.utf8))
+        XCTAssertEqual(item.name, "Milk")
+        XCTAssertNil(item.note)
+    }
 }

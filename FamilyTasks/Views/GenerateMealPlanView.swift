@@ -17,6 +17,10 @@ struct GenerateMealPlanView: View {
     @State private var choosingFor: MealPlanGenerator.Proposal?
     @State private var skipQuestion: MealIdea?
     @State private var askedAbout: Set<UUID> = []
+    @State private var browsingCategory: MealCategory?
+    /// Catalog dishes offered for each type that's short, shuffled once so the list holds still.
+    @State private var catalogOrder: [MealCategory: [CatalogMeal]] = [:]
+    @State private var vegetarianOnly = false
 
     var body: some View {
         NavigationStack {
@@ -29,6 +33,7 @@ struct GenerateMealPlanView: View {
             }
             .scrollContentBackground(.hidden)
             .background(AppTheme.background)
+            .onAppear { if catalogOrder.isEmpty { shuffleCatalog() } }
             .navigationTitle(proposals == nil ? "Generate Meal Plan" : "Your Week")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -49,6 +54,16 @@ struct GenerateMealPlanView: View {
             }
             .sheet(item: $addingCategory) { category in
                 MealEditorView(initialCategory: category)
+            }
+            .sheet(item: $browsingCategory) { category in
+                NavigationStack {
+                    MealCatalogView(initialCategory: category)
+                        .toolbar {
+                            ToolbarItem(placement: .confirmationAction) {
+                                Button("Done") { browsingCategory = nil }
+                            }
+                        }
+                }
             }
             .sheet(item: $editingMeal) { meal in
                 MealEditorView(meal: meal)
@@ -124,11 +139,86 @@ struct GenerateMealPlanView: View {
                 Button {
                     addingCategory = shortfall.category
                 } label: {
-                    Label("Add \(shortfall.category.title) Meal", systemImage: "plus")
+                    Label("New \(shortfall.category.title) Meal", systemImage: "plus")
                 }
             }
             .listRowBackground(AppTheme.surface)
+
+            catalogSection(for: shortfall)
         }
+    }
+
+    /// Ready-made dishes from Browse Recipes to make up the shortfall: one tap adds a dish,
+    /// or add enough of them at once.
+    @ViewBuilder
+    private func catalogSection(for shortfall: MealPlanGenerator.Shortfall) -> some View {
+        let dishes = catalogSuggestions(for: shortfall.category)
+        let missing = shortfall.needed - shortfall.canFill
+        if !dishes.isEmpty || vegetarianOnly {
+            Section {
+                Toggle(isOn: $vegetarianOnly.animation()) {
+                    HStack(spacing: 8) {
+                        DietMark(diet: .vegetarian)
+                        Text("Vegetarian only")
+                            .font(.subheadline.weight(.semibold))
+                    }
+                }
+                if dishes.count >= missing {
+                    Button {
+                        addFromCatalog(Array(dishes.prefix(missing)))
+                    } label: {
+                        Label("Add \(missing) Suggested \(missing == 1 ? "Recipe" : "Recipes")", systemImage: "wand.and.stars")
+                            .fontWeight(.semibold)
+                    }
+                }
+                ForEach(dishes.prefix(missing + 5)) { dish in
+                    Button {
+                        addFromCatalog([dish])
+                    } label: {
+                        HStack {
+                            CatalogMealRow(dish: dish)
+                            Image(systemName: "plus.circle.fill")
+                                .font(.title3)
+                                .foregroundStyle(AppTheme.primary)
+                                .accessibilityHidden(true)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Adds it to your meals")
+                }
+                Button {
+                    browsingCategory = shortfall.category
+                } label: {
+                    Label("Browse All Recipes", systemImage: "book")
+                }
+            } header: {
+                Text("From Browse Recipes")
+            } footer: {
+                Text("Each one is added to your meals with its ingredients, so Shop for Week can use them.")
+            }
+            .listRowBackground(AppTheme.surface)
+        }
+    }
+
+    private func catalogSuggestions(for category: MealCategory) -> [CatalogMeal] {
+        let order = catalogOrder[category] ?? MealCatalog.shared.meals.filter { $0.category == category }
+        return order.filter { (!vegetarianOnly || $0.diet.isVegetarian) && !organizerStore.hasCatalogMeal($0) }
+    }
+
+    private func addFromCatalog(_ dishes: [CatalogMeal]) {
+        withAnimation {
+            dishes.forEach { _ = organizerStore.addCatalogMeal($0) }
+        }
+        let names = dishes.map(\.name)
+        ToastCenter.shared.show(names.count == 1 ? "\(names[0]) added to your meals" : "\(names.count) recipes added to your meals")
+    }
+
+    private func shuffleCatalog() {
+        var order: [MealCategory: [CatalogMeal]] = [:]
+        for category in MealCategory.allCases {
+            order[category] = MealCatalog.shared.meals.filter { $0.category == category }.shuffled()
+        }
+        catalogOrder = order
     }
 
     private func shortfallText(_ shortfall: MealPlanGenerator.Shortfall) -> String {

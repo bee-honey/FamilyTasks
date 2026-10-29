@@ -7,6 +7,7 @@ struct MealPlanView: View {
     @State private var choosingSlot: SlotChoice?
     @State private var isShoppingForWeek = false
     @State private var isGenerating = false
+    @AppStorage(IngredientsOnHand.storageKey) private var ingredientsOnHand = Data()
 
     /// An empty slot being filled.
     struct SlotChoice: Identifiable {
@@ -160,11 +161,13 @@ struct MealPlanView: View {
         }
     }
 
-    /// Ingredients for the shown week that are not on the shopping list yet.
+    /// Ingredients for the shown week that are not on the shopping list yet, leaving out
+    /// the ones the family said they have.
     private var weekIngredientsToBuy: Int {
         guard let range = shoppingRange else { return 0 }
+        let onHand = IngredientsOnHand.keys(in: ingredientsOnHand, weekStart: range.lowerBound)
         return organizerStore.weeklyIngredients(from: range.lowerBound, to: range.upperBound)
-            .filter { !$0.isAlreadyNeeded }
+            .filter { !$0.isAlreadyNeeded && !onHand.contains($0.id) }
             .count
     }
 
@@ -458,6 +461,15 @@ struct MealEditorView: View {
                         }
                     }
 
+                    if meal == nil, !recipeSuggestions.isEmpty {
+                        EditorSection(name.trimmingCharacters(in: .whitespaces).isEmpty ? "Or Pick a Recipe" : "Matching Recipes") {
+                            recipeSuggestionsCard
+                            Text("Adds the recipe with its ingredients and nutrition.")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
                     if let dish = meal.flatMap(MealCatalog.shared.meal(for:)) {
                         EditorSection("Nutrition · \(dish.serving)") {
                             NutritionGrid(nutrition: dish.nutrition)
@@ -531,6 +543,52 @@ struct MealEditorView: View {
                 if meal == nil { isNameFocused = true }
             }
         }
+    }
+
+    /// Catalog dishes of this type that aren't saved yet, matching what's typed, so a
+    /// common dish doesn't have to be entered by hand.
+    private var recipeSuggestions: [CatalogMeal] {
+        let query = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return MealCatalog.shared.meals
+            .filter { $0.category == category && !organizerStore.hasCatalogMeal($0) }
+            .filter { query.isEmpty || $0.name.localizedCaseInsensitiveContains(query) || $0.ingredients.contains { $0.localizedCaseInsensitiveContains(query) } }
+            .sorted { lhs, rhs in
+                // Names that start with what's typed come first.
+                let lhsPrefix = !query.isEmpty && lhs.name.lowercased().hasPrefix(query.lowercased())
+                let rhsPrefix = !query.isEmpty && rhs.name.lowercased().hasPrefix(query.lowercased())
+                if lhsPrefix != rhsPrefix { return lhsPrefix }
+                return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+            }
+            .prefix(4)
+            .map { $0 }
+    }
+
+    private var recipeSuggestionsCard: some View {
+        VStack(spacing: 0) {
+            ForEach(Array(recipeSuggestions.enumerated()), id: \.element.id) { index, dish in
+                if index > 0 {
+                    Divider().padding(.leading, 40)
+                }
+                Button {
+                    organizerStore.addCatalogMeal(dish)
+                    ToastCenter.shared.show("\(dish.name) added to your meals")
+                    dismiss()
+                } label: {
+                    HStack {
+                        CatalogMealRow(dish: dish)
+                        Image(systemName: "plus.circle.fill")
+                            .font(.title3)
+                            .foregroundStyle(AppTheme.primary)
+                            .accessibilityHidden(true)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Adds it to your meals")
+            }
+        }
+        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
     private var ingredientsCard: some View {
@@ -775,9 +833,13 @@ private struct WeeklyShoppingView: View {
     let title: String
     let range: Range<Date>?
 
+    @AppStorage(IngredientsOnHand.storageKey) private var ingredientsOnHand = Data()
+
     @State private var ingredients: [WeeklyIngredient] = []
     @State private var selectedIDs: Set<String> = []
     @State private var shopIDs: [String: UUID] = [:]
+    /// Ingredients unticked earlier this week because the family has them.
+    @State private var onHandIDs: Set<String> = []
 
     var body: some View {
         NavigationStack {
@@ -791,11 +853,28 @@ private struct WeeklyShoppingView: View {
                 }
 
                 ForEach(organizerStore.shops) { shop in
-                    let rows = toBuy.filter { shopIDs[$0.id] == shop.id }
+                    let rows = toBuy.filter { shopIDs[$0.id] == shop.id && !onHandIDs.contains($0.id) }
                     if !rows.isEmpty {
-                        Section(shop.name) {
+                        Section {
                             ForEach(rows) { ingredientRow($0) }
+                        } header: {
+                            Text(shop.name)
+                        } footer: {
+                            if shop.id == firstShopWithRows {
+                                Text("Untick anything you already have; it won't be offered again this week.")
+                            }
                         }
+                    }
+                }
+
+                let haveIt = toBuy.filter { onHandIDs.contains($0.id) }
+                if !haveIt.isEmpty {
+                    Section {
+                        ForEach(haveIt) { ingredientRow($0) }
+                    } header: {
+                        Text("You Have These")
+                    } footer: {
+                        Text("Tick any you need to buy after all.")
                     }
                 }
 
@@ -819,8 +898,10 @@ private struct WeeklyShoppingView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button(addTitle) {
                         let count = itemsToAdd.count
+                        rememberOnHand()
                         organizerStore.addNeededItems(itemsToAdd)
                         dismiss()
+                        guard count > 0 else { return }
                         ToastCenter.shared.show(
                             "\(count) \(count == 1 ? "item" : "items") added to Shopping",
                             systemImage: "cart.fill.badge.plus",
@@ -829,7 +910,7 @@ private struct WeeklyShoppingView: View {
                             AppNavigator.shared.open(.section(.shopping))
                         }
                     }
-                    .disabled(itemsToAdd.isEmpty)
+                    .disabled(ingredients.isEmpty)
                 }
             }
             .onAppear(perform: load)
@@ -855,20 +936,35 @@ private struct WeeklyShoppingView: View {
         }
     }
 
+    /// "Done" when nothing is ticked, so unticking everything still saves what's on hand.
     private var addTitle: String {
-        itemsToAdd.isEmpty ? "Add" : "Add \(itemsToAdd.count)"
+        itemsToAdd.isEmpty ? "Done" : "Add \(itemsToAdd.count)"
+    }
+
+    private var firstShopWithRows: UUID? {
+        organizerStore.shops.first { shop in
+            toBuy.contains { shopIDs[$0.id] == shop.id && !onHandIDs.contains($0.id) }
+        }?.id
     }
 
     private func load() {
         guard let range else { return }
         ingredients = organizerStore.weeklyIngredients(from: range.lowerBound, to: range.upperBound)
+        onHandIDs = IngredientsOnHand.keys(in: ingredientsOnHand, weekStart: range.lowerBound)
         let fallbackShopID = organizerStore.shops.first?.id
         for ingredient in ingredients {
             shopIDs[ingredient.id] = ingredient.shopID ?? fallbackShopID
-            if !ingredient.isAlreadyNeeded {
+            if !ingredient.isAlreadyNeeded && !onHandIDs.contains(ingredient.id) {
                 selectedIDs.insert(ingredient.id)
             }
         }
+    }
+
+    /// Every ingredient left unticked that isn't already on the list is one the family has.
+    private func rememberOnHand() {
+        guard let range else { return }
+        let onHand = Set(toBuy.map(\.id)).subtracting(selectedIDs)
+        ingredientsOnHand = IngredientsOnHand.setting(onHand, in: ingredientsOnHand, weekStart: range.lowerBound)
     }
 
     private func ingredientRow(_ ingredient: WeeklyIngredient) -> some View {

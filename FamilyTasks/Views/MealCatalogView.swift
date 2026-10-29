@@ -5,12 +5,16 @@ import SwiftUI
 struct MealCatalogView: View {
     @EnvironmentObject private var organizerStore: OrganizerStore
     var catalog = MealCatalog.shared
-    @State private var category: MealCategory = .breakfast
+    @State private var category: MealCategory
     @State private var vegetarianOnly = false
     /// One area, such as "South Indian", or nil for all.
     @State private var area: String?
     @State private var searchText = ""
     @State private var showingDish: CatalogMeal?
+
+    init(initialCategory: MealCategory = .breakfast) {
+        _category = State(initialValue: initialCategory)
+    }
 
     var body: some View {
         List {

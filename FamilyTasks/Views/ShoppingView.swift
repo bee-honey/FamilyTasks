@@ -12,6 +12,8 @@ struct ShoppingView: View {
     @State private var editingShop: Shop?
     @State private var shopToDelete: Shop?
     @State private var itemToMove: ShoppingItem?
+    @State private var itemForNote: ShoppingItem?
+    @State private var noteText = ""
 
     var body: some View {
         // Shown inside a tab's NavigationStack, or pushed from Family.
@@ -91,7 +93,22 @@ struct ShoppingView: View {
                     }
                 }
             }
+            .alert(
+                "Note for \(itemForNote?.name ?? "item")",
+                isPresented: Binding(get: { itemForNote != nil }, set: { if !$0 { itemForNote = nil } }),
+                presenting: itemForNote
+            ) { item in
+                TextField("Such as 2 bags or the low-fat one", text: $noteText)
+                Button("Save") { organizerStore.setNote(noteText, for: item) }
+                Button("Cancel", role: .cancel) {}
+            }
+            .onAppear { organizerStore.mergeDuplicateShoppingItems() }
         }
+    }
+
+    private func editNote(for item: ShoppingItem) {
+        noteText = item.note ?? ""
+        itemForNote = item
     }
 
     private var selectedShop: Shop? {
@@ -205,7 +222,10 @@ struct ShoppingView: View {
     }
 
     private func addItem(to shop: Shop) {
-        organizerStore.addNeededItem(newItemName, to: shop)
+        let name = newItemName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !name.isEmpty, !organizerStore.addNeededItem(name, to: shop) {
+            ToastCenter.shared.show("\(name) is already on the list", systemImage: "checklist")
+        }
         newItemName = ""
     }
 
@@ -268,6 +288,12 @@ struct ShoppingView: View {
                     organizerStore.togglePurchased(item)
                 }
                 .listRowBackground(AppTheme.surface)
+                .swipeActions(edge: .leading) {
+                    Button(item.note == nil ? "Add Note" : "Edit Note", systemImage: "note.text") {
+                        editNote(for: item)
+                    }
+                    .tint(AppTheme.coolAccent)
+                }
                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                     Button("Delete", systemImage: "trash", role: .destructive) {
                         organizerStore.deleteShoppingItem(item)
@@ -280,6 +306,9 @@ struct ShoppingView: View {
                     }
                 }
                 .contextMenu {
+                    Button(item.note == nil ? "Add Note" : "Edit Note", systemImage: "note.text") {
+                        editNote(for: item)
+                    }
                     if organizerStore.shops.count > 1 {
                         Menu("Move To", systemImage: "arrow.left.arrow.right") {
                             ForEach(organizerStore.shops.filter { $0.id != item.shopID }) { other in
@@ -346,7 +375,7 @@ struct ShoppingView: View {
     }
 
     private func shareText(for shop: Shop) -> String {
-        let bullets = toBuy(at: shop).map { "- \($0.name)" }.joined(separator: "\n")
+        let bullets = toBuy(at: shop).map { item in item.note.map { "- \(item.name) (\($0))" } ?? "- \(item.name)" }.joined(separator: "\n")
         return "\(shop.name) shopping list\n\n\(bullets)"
     }
 }
@@ -384,11 +413,18 @@ private struct ShoppingItemRow: View {
                     .font(.body.weight(.semibold))
                     .strikethrough(item.isPurchased)
                     .foregroundStyle(item.isPurchased ? .secondary : .primary)
+                if let note = item.note {
+                    Label(note, systemImage: "note.text")
+                        .font(.footnote)
+                        .foregroundStyle(AppTheme.coolAccent)
+                        .labelStyle(.titleAndIcon)
+                        .lineLimit(2)
+                }
                 if !forMeals.isEmpty {
                     Text("For \(forMeals.joined(separator: ", "))")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                        .lineLimit(2)
                 }
             }
 

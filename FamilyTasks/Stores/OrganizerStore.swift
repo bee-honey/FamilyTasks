@@ -140,11 +140,66 @@ final class OrganizerStore: ObservableObject {
         shops[index].updatedAt = Date()
     }
 
-    func addNeededItem(_ itemName: String, to shop: Shop) {
+    /// Adds an item unless it's already on the list at that shop. Returns whether it was added.
+    @discardableResult
+    func addNeededItem(_ itemName: String, to shop: Shop) -> Bool {
         let trimmed = itemName.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
+        guard !trimmed.isEmpty else { return false }
+        guard !isNeeded(trimmed, at: shop.id, in: shoppingItems) else { return false }
         shoppingItems.append(ShoppingItem(name: trimmed, shopID: shop.id))
         addUsualItem(trimmed, to: shop)
+        return true
+    }
+
+    /// Whether an item of this name (ignoring case, accents and spaces) is still to buy at the shop.
+    private func isNeeded(_ name: String, at shopID: UUID, in items: [ShoppingItem]) -> Bool {
+        let key = WeeklyIngredient.key(for: name)
+        return items.contains { $0.shopID == shopID && $0.isNeeded && !$0.isPurchased && WeeklyIngredient.key(for: $0.name) == key }
+    }
+
+    /// Folds items listed more than once at the same shop (added from several recipes, or
+    /// by two people at once) into the first one, keeping every note.
+    func mergeDuplicateShoppingItems() {
+        let merged = Self.mergingDuplicates(shoppingItems)
+        if merged != shoppingItems { shoppingItems = merged }
+    }
+
+    static func mergingDuplicates(_ items: [ShoppingItem], now: Date = Date()) -> [ShoppingItem] {
+        var result: [ShoppingItem] = []
+        var indexByKey: [String: Int] = [:]
+        for item in items.sorted(by: { $0.createdAt < $1.createdAt }) {
+            guard item.isNeeded && !item.isPurchased else {
+                result.append(item)
+                continue
+            }
+            let key = "\(item.shopID.uuidString)|\(WeeklyIngredient.key(for: item.name))"
+            guard let index = indexByKey[key] else {
+                indexByKey[key] = result.count
+                result.append(item)
+                continue
+            }
+            let notes = [result[index].note, item.note]
+                .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+            let combined = notes.reduce(into: [String]()) { if !$0.contains($1) { $0.append($1) } }.joined(separator: "; ")
+            if combined != (result[index].note ?? "") {
+                result[index].note = combined.isEmpty ? nil : combined
+                result[index].updatedAt = now
+            }
+        }
+        // Keep the list's own order for the items that stay.
+        let kept = Set(result.map(\.id))
+        let byID = Dictionary(uniqueKeysWithValues: result.map { ($0.id, $0) })
+        return items.filter { kept.contains($0.id) }.compactMap { byID[$0.id] }
+    }
+
+    func setNote(_ note: String, for item: ShoppingItem) {
+        guard let index = shoppingItems.firstIndex(where: { $0.id == item.id }) else { return }
+        let trimmed = note.trimmingCharacters(in: .whitespacesAndNewlines)
+        let value = trimmed.isEmpty ? nil : trimmed
+        guard shoppingItems[index].note != value else { return }
+        shoppingItems[index].note = value
+        shoppingItems[index].updatedAt = Date()
     }
 
     /// Adds several items at once (one save and one sync), skipping any already needed
@@ -157,10 +212,7 @@ final class OrganizerStore: ObservableObject {
         for (name, shopID) in items {
             let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !trimmed.isEmpty, let shopIndex = updatedShops.firstIndex(where: { $0.id == shopID }) else { continue }
-            let alreadyNeeded = updatedItems.contains { item in
-                item.shopID == shopID && item.isNeeded && !item.isPurchased && item.name.caseInsensitiveCompare(trimmed) == .orderedSame
-            }
-            guard !alreadyNeeded else { continue }
+            guard !isNeeded(trimmed, at: shopID, in: updatedItems) else { continue }
 
             updatedItems.append(ShoppingItem(name: trimmed, shopID: shopID, createdAt: now, updatedAt: now))
             if !updatedShops[shopIndex].usualItems.contains(where: { $0.caseInsensitiveCompare(trimmed) == .orderedSame }) {
@@ -836,6 +888,33 @@ struct WeeklyIngredient: Identifiable, Equatable {
     static func key(for name: String) -> String {
         name.trimmingCharacters(in: .whitespacesAndNewlines)
             .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
+    }
+}
+
+/// Ingredients someone unticked in "Shop for This Week" because they already have them,
+/// by week, so they stop being offered and counted for that week. Kept on this phone.
+enum IngredientsOnHand {
+    static let storageKey = "mealPlan.ingredientsOnHand"
+    /// Weeks kept, newest first; older ones can't come up again.
+    private static let weeksKept = 6
+
+    /// The ingredient keys on hand for the week starting at `weekStart`, from the stored data.
+    static func keys(in data: Data, weekStart: Date, calendar: Calendar = .current) -> Set<String> {
+        Set(decode(data)[HabitMath.dayKey(for: weekStart, calendar: calendar)] ?? [])
+    }
+
+    /// The stored data with the week's on-hand keys replaced.
+    static func setting(_ keys: Set<String>, in data: Data, weekStart: Date, calendar: Calendar = .current) -> Data {
+        var weeks = decode(data)
+        weeks[HabitMath.dayKey(for: weekStart, calendar: calendar)] = keys.isEmpty ? nil : keys.sorted()
+        // Day keys sort by date, so the newest weeks are the largest.
+        let kept = weeks.keys.sorted(by: >).prefix(weeksKept)
+        weeks = weeks.filter { kept.contains($0.key) }
+        return (try? JSONEncoder().encode(weeks)) ?? Data()
+    }
+
+    private static func decode(_ data: Data) -> [String: [String]] {
+        (try? JSONDecoder().decode([String: [String]].self, from: data)) ?? [:]
     }
 }
 
