@@ -322,6 +322,8 @@ final class HealthMetricsService: ObservableObject {
     @Published private(set) var lastNight: SleepNight?
     @Published private(set) var height: HealthReading?
     @Published private(set) var weight: HealthReading?
+    /// Whether any recent night came with deep or REM sleep.
+    @Published private(set) var receivesSleepStages = false
     @Published private(set) var isLoading = false
 
     private let healthStore = HKHealthStore()
@@ -412,8 +414,25 @@ final class HealthMetricsService: ObservableObject {
             snapshot(for: $0, data: data, memberEmail: HabitStore.currentProfileEmail(), memberInitials: "", heightMeters: height?.value, now: now)
         }
         lastNight = data.night(in: DateInterval(start: today, end: now), now: now)
+        receivesSleepStages = !data.restorative.isEmpty
         self.height = height
         self.weight = weight
+        await refreshAccessStatus()
+    }
+
+    /// Whether Family Tasks has asked for everything it reads. iOS doesn't say what was
+    /// allowed, only whether there's anything left to ask.
+    func refreshAccessStatus() async {
+        guard isHealthAvailable else { return }
+        let status = try? await healthStore.statusForAuthorizationRequest(toShare: [], read: Self.readTypes)
+        switch status {
+        case .unnecessary:
+            authorizationStatus = "You've answered Family Tasks' request for Health access. To change what it can read, use the Health app."
+        case .shouldRequest:
+            authorizationStatus = "Some Health data hasn't been asked for yet. Tap Allow Health Access."
+        default:
+            authorizationStatus = "Health access status is unknown."
+        }
     }
 
     func dailySnapshots(memberEmail: String, memberInitials: String, daysBack: Int = 370) async -> [HealthSnapshot] {

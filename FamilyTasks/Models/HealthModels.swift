@@ -454,3 +454,69 @@ enum WindDownSettings {
         return date.formatted(date: .omitted, time: .shortened)
     }
 }
+
+// MARK: Data from Health
+
+/// Each kind of data Health can send, for showing which ones are arriving. iOS never tells
+/// an app what it may read, so arriving data is the only sign access was allowed.
+enum HealthDataKind: String, CaseIterable, Identifiable {
+    case steps, exercise, activeEnergy, sleep, sleepStages, restingHeartRate, hrv, vo2Max, weight, height
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .steps: "Steps"
+        case .exercise: "Exercise Minutes"
+        case .activeEnergy: "Active Energy"
+        case .sleep: "Sleep"
+        case .sleepStages: "Sleep Stages"
+        case .restingHeartRate: "Resting Heart Rate"
+        case .hrv: "Heart Rate Variability"
+        case .vo2Max: "Cardio Fitness (VO₂ Max)"
+        case .weight: "Weight"
+        case .height: "Height"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .steps: "figure.walk"
+        case .exercise: "figure.run"
+        case .activeEnergy: "flame.fill"
+        case .sleep: "bed.double.fill"
+        case .sleepStages: "moon.stars.fill"
+        case .restingHeartRate: "heart.fill"
+        case .hrv: "waveform.path.ecg"
+        case .vo2Max: "lungs.fill"
+        case .weight: "scalemass.fill"
+        case .height: "ruler"
+        }
+    }
+
+    /// What usually records it, when that's not the iPhone itself.
+    var source: String? {
+        switch self {
+        case .exercise, .sleepStages, .restingHeartRate, .hrv, .vo2Max: "Needs Apple Watch"
+        case .sleep: "Apple Watch or Sleep in the Health app"
+        case .weight, .height: "A scale, or enter it in Health"
+        case .steps, .activeEnergy: nil
+        }
+    }
+
+    /// Whether any of this kind arrived in `days`, or as the latest weight and height.
+    func isArriving(in days: [HealthSnapshot], sleepStages: Bool, weight: HealthReading?, height: HealthReading?) -> Bool {
+        switch self {
+        case .steps: days.contains { $0.steps > 0 }
+        case .exercise: days.contains { $0.exerciseMinutes != nil }
+        case .activeEnergy: days.contains { $0.activeEnergy != nil }
+        case .sleep: days.contains { $0.sleepSeconds > 0 }
+        case .sleepStages: sleepStages
+        case .restingHeartRate: days.contains { $0.restingHeartRate != nil }
+        case .hrv: days.contains { $0.hrv != nil }
+        case .vo2Max: days.contains { $0.vo2Max != nil }
+        case .weight: weight != nil
+        case .height: height != nil
+        }
+    }
+}

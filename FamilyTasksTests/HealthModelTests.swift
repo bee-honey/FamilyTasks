@@ -236,6 +236,22 @@ final class HealthModelTests: XCTestCase {
         XCTAssertEqual(announced, ["steps"])
     }
 
+    // MARK: Data from Health
+
+    func testArrivingDataIsWhatShowsAsReceiving() {
+        var day = snapshot(me, daysAgo: 1, steps: 4_000)
+        day.restingHeartRate = 60
+        let days = [day, snapshot(me, daysAgo: 0)]
+        let weight = HealthReading(value: 70, date: Date())
+
+        let arriving = HealthDataKind.allCases.filter {
+            $0.isArriving(in: days, sleepStages: false, weight: weight, height: nil)
+        }
+
+        XCTAssertEqual(arriving, [.steps, .restingHeartRate, .weight])
+        XCTAssertTrue(HealthDataKind.sleepStages.isArriving(in: [], sleepStages: true, weight: nil, height: nil))
+    }
+
     // MARK: Sharing
 
     func testOlderSummariesStillRead() throws {

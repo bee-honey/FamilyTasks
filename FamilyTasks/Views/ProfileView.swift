@@ -363,7 +363,22 @@ struct HealthSettingsView: View {
                 }
 
                 if healthSectionEnabled {
-                    Section("Family Sharing") {
+                    Section {
+                        ForEach(HealthDataKind.allCases) { kind in
+                            dataRow(kind)
+                        }
+                        Button {
+                            openHealthApp()
+                        } label: {
+                            Label("Open the Health App", systemImage: "heart.text.square")
+                        }
+                    } header: {
+                        Text("Data From Health")
+                    } footer: {
+                        Text("iOS doesn't let apps see which Health permissions you allowed, only the data that arrives. If something you allowed shows No Data, nothing has recorded it in the last few weeks. To change access: Health app → your picture → Apps → Family Tasks.")
+                    }
+
+                    Section {
                         Toggle(isOn: $healthSharingEnabled) {
                             Label("Share With Family", systemImage: "person.2.fill")
                                 .labelStyle(.tile(AppTheme.primary))
@@ -386,13 +401,13 @@ struct HealthSettingsView: View {
 
                         if healthSharingEnabled {
                             Toggle(isOn: $shareHeart) {
-                                Label("Include Heart", systemImage: "heart.fill")
+                                Label("Also Share Heart", systemImage: "heart.fill")
                                     .labelStyle(.tile(AppTheme.warmAccent))
                             }
                             .onChange(of: shareHeart) { _, _ in resyncAll() }
 
                             Toggle(isOn: $shareBody) {
-                                Label("Include Weight and BMI", systemImage: "scalemass.fill")
+                                Label("Also Share Weight and BMI", systemImage: "scalemass.fill")
                                     .labelStyle(.tile(AppTheme.coolAccent))
                             }
                             .onChange(of: shareBody) { _, _ in resyncAll() }
@@ -407,9 +422,10 @@ struct HealthSettingsView: View {
                         }
                         .disabled(!healthSharingEnabled)
 
-                        Text("When sharing is on, this phone sends a small daily summary to your family: steps, exercise, active energy, sleep and sleep score, plus heart and weight only if you include them. It's sent around 6 AM and when you open Health. Raw Health data stays on this phone.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                    } header: {
+                        Text("What Your Family Sees")
+                    } footer: {
+                        Text("These only decide what your family sees, not what Family Tasks can read. Sharing sends a small daily summary: steps, exercise, active energy, sleep and sleep score, plus heart and weight if you add them. It goes around 6 AM and when you open Health. Raw Health data stays on this phone.")
                     }
 
                 }
@@ -449,7 +465,7 @@ struct HealthSettingsView: View {
 
                 if healthSectionEnabled {
                     Section("Access") {
-                        RefreshRow(title: "Refresh Health Access", busyTitle: "Refreshing Health Access", systemImage: "heart") {
+                        RefreshRow(title: "Allow Health Access", busyTitle: "Asking for Health Access", systemImage: "heart") {
                             await healthService.requestAccessAndRefresh()
                         }
                         .disabled(!healthService.isHealthAvailable)
@@ -481,6 +497,44 @@ struct HealthSettingsView: View {
     private func openAppSettings() {
         guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
         UIApplication.shared.open(url)
+    }
+
+    private func openHealthApp() {
+        guard let url = URL(string: "x-apple-health://") else { return }
+        UIApplication.shared.open(url)
+    }
+
+    /// One kind of Health data, with whether any of it is arriving.
+    private func dataRow(_ kind: HealthDataKind) -> some View {
+        let arriving = kind.isArriving(
+            in: healthService.recentDays,
+            sleepStages: healthService.receivesSleepStages,
+            weight: healthService.weight,
+            height: healthService.height
+        )
+        return HStack(spacing: 12) {
+            Label {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(kind.title)
+                    if !arriving, let source = kind.source {
+                        Text(source)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            } icon: {
+                Image(systemName: kind.systemImage)
+            }
+            Spacer(minLength: 8)
+            if healthService.isLoading && healthService.recentDays.isEmpty {
+                ProgressView()
+            } else {
+                Text(arriving ? "Receiving" : "No Data")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(arriving ? AppTheme.success : .secondary)
+            }
+        }
+        .accessibilityElement(children: .combine)
     }
 
     /// Sends every day again, so heart or weight numbers already shared are taken back
