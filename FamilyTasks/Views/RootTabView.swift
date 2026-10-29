@@ -198,7 +198,7 @@ struct FamilyHubView: View {
                     }
                 }
                 NavigationLink(value: FamilyDestination.health) {
-                    HubRow(title: "Health", systemImage: "heart.text.square", tint: SettingsTint.health, detail: healthSectionEnabled ? "Steps and sleep" : "Off · tap to set up")
+                    HubRow(title: "Health", systemImage: "heart.text.square", tint: SettingsTint.health, detail: healthSectionEnabled ? "Activity, sleep, goals and family" : "Off · tap to set up")
                 }
             } header: {
                 SectionTitle(text: "Everything Else")

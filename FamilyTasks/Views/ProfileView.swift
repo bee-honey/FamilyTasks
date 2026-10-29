@@ -325,6 +325,16 @@ struct HealthSettingsView: View {
     @StateObject private var healthService = HealthMetricsService()
     @AppStorage("health.section.enabled") private var healthSectionEnabled = false
     @AppStorage("health.share.enabled") private var healthSharingEnabled = false
+    @AppStorage(HealthSyncCoordinator.shareHeartKey) private var shareHeart = false
+    @AppStorage(HealthSyncCoordinator.shareBodyKey) private var shareBody = false
+    @AppStorage(WindDownSettings.dailyTipKey) private var dailyTip = false
+    @AppStorage(WindDownSettings.dailyTipHourKey) private var dailyTipHour = WindDownSettings.defaultTipHour
+    @AppStorage(WindDownSettings.dailyTipMinuteKey) private var dailyTipMinute = 0
+    @AppStorage(WindDownSettings.enabledKey) private var windDownEnabled = false
+    @AppStorage(WindDownStep.food.settingsKey) private var windDownFood = true
+    @AppStorage(WindDownStep.drinks.settingsKey) private var windDownDrinks = true
+    @AppStorage(WindDownStep.screens.settingsKey) private var windDownScreens = true
+    @AppStorage("notifications.enabled") private var notificationsEnabled = false
 
     var body: some View {
         // Shown inside a tab's NavigationStack.
@@ -347,7 +357,7 @@ struct HealthSettingsView: View {
                             }
                         }
 
-                    Text(healthSectionEnabled ? "Your steps and sleep show in Family → Health once Health access is allowed." : "Turn on to see steps and sleep in Family → Health. You'll be asked for Health access.")
+                    Text(healthSectionEnabled ? "Your activity, sleep, heart and body numbers show in More → Health once Health access is allowed." : "Turn on to see activity, sleep score, heart and BMI in More → Health. You'll be asked for Health access.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -355,7 +365,7 @@ struct HealthSettingsView: View {
                 if healthSectionEnabled {
                     Section("Family Sharing") {
                         Toggle(isOn: $healthSharingEnabled) {
-                            Label("Share Steps and Sleep With Family", systemImage: "person.2.fill")
+                            Label("Share With Family", systemImage: "person.2.fill")
                                 .labelStyle(.tile(AppTheme.primary))
                         }
                             .disabled(!healthService.isHealthAvailable)
@@ -374,6 +384,20 @@ struct HealthSettingsView: View {
                                 }
                             }
 
+                        if healthSharingEnabled {
+                            Toggle(isOn: $shareHeart) {
+                                Label("Include Heart", systemImage: "heart.fill")
+                                    .labelStyle(.tile(AppTheme.warmAccent))
+                            }
+                            .onChange(of: shareHeart) { _, _ in resyncAll() }
+
+                            Toggle(isOn: $shareBody) {
+                                Label("Include Weight and BMI", systemImage: "scalemass.fill")
+                                    .labelStyle(.tile(AppTheme.coolAccent))
+                            }
+                            .onChange(of: shareBody) { _, _ in resyncAll() }
+                        }
+
                         RefreshRow(title: "Sync Health Summary Now", busyTitle: "Syncing Health Summary") {
                             await HealthSyncCoordinator.shared.syncNow(
                                 taskStore: taskStore,
@@ -383,11 +407,47 @@ struct HealthSettingsView: View {
                         }
                         .disabled(!healthSharingEnabled)
 
-                        Text("When sharing is enabled, this device sends one small daily steps and sleep summary to your family around 6 AM. Raw Health data stays on this device.")
+                        Text("When sharing is on, this phone sends a small daily summary to your family: steps, exercise, active energy, sleep and sleep score, plus heart and weight only if you include them. It's sent around 6 AM and when you open Health. Raw Health data stays on this phone.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
 
+                }
+
+                Section {
+                    Toggle(isOn: $windDownEnabled) {
+                        Label("3-2-1 Wind-Down", systemImage: "moon.zzz.fill")
+                            .labelStyle(.tile(AppTheme.softAccent))
+                    }
+                    .onChange(of: windDownEnabled) { _, on in
+                        HealthReminders.changed(turningOn: on, notificationsEnabled: $notificationsEnabled)
+                    }
+                    if windDownEnabled {
+                        Toggle("No Food, 3 Hours Before", isOn: $windDownFood)
+                            .onChange(of: windDownFood) { _, _ in HealthReminders.reschedule() }
+                        Toggle("No Drinks, 2 Hours Before", isOn: $windDownDrinks)
+                            .onChange(of: windDownDrinks) { _, _ in HealthReminders.reschedule() }
+                        Toggle("No Screens, 1 Hour Before", isOn: $windDownScreens)
+                            .onChange(of: windDownScreens) { _, _ in HealthReminders.reschedule() }
+                    }
+
+                    Toggle(isOn: $dailyTip) {
+                        Label("Daily Health Tip", systemImage: "lightbulb.fill")
+                            .labelStyle(.tile(AppTheme.success))
+                    }
+                    .onChange(of: dailyTip) { _, on in
+                        HealthReminders.changed(turningOn: on, notificationsEnabled: $notificationsEnabled)
+                    }
+                    if dailyTip {
+                        DatePicker("Tip Time", selection: tipTime, displayedComponents: .hourAndMinute)
+                    }
+                } header: {
+                    Text("Reminders")
+                } footer: {
+                    Text("Set your bedtime on the Health screen. Reminders work without Health access.")
+                }
+
+                if healthSectionEnabled {
                     Section("Access") {
                         RefreshRow(title: "Refresh Health Access", busyTitle: "Refreshing Health Access", systemImage: "heart") {
                             await healthService.requestAccessAndRefresh()
@@ -422,6 +482,30 @@ struct HealthSettingsView: View {
         guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
         UIApplication.shared.open(url)
     }
+
+    /// Sends every day again, so heart or weight numbers already shared are taken back
+    /// when they're turned off.
+    private func resyncAll() {
+        Task {
+            await HealthSyncCoordinator.shared.syncNow(
+                taskStore: taskStore,
+                organizerStore: organizerStore,
+                sharedHouseholdStore: sharedHouseholdStore
+            )
+        }
+    }
+
+    private var tipTime: Binding<Date> {
+        Binding(
+            get: { Calendar.current.date(bySettingHour: dailyTipHour, minute: dailyTipMinute, second: 0, of: Date()) ?? Date() },
+            set: { date in
+                let parts = Calendar.current.dateComponents([.hour, .minute], from: date)
+                dailyTipHour = parts.hour ?? dailyTipHour
+                dailyTipMinute = parts.minute ?? dailyTipMinute
+                HealthReminders.reschedule()
+            }
+        )
+    }
 }
 
 struct NotificationSettingsView: View {
@@ -432,6 +516,7 @@ struct NotificationSettingsView: View {
     @AppStorage("notifications.familyCompletions") private var familyCompletionsEnabled = true
     @AppStorage("notifications.familyShopping") private var familyShoppingEnabled = true
     @AppStorage("notifications.familyHabits") private var familyHabitsEnabled = true
+    @AppStorage("notifications.familyHealth") private var familyHealthEnabled = true
     @AppStorage("notifications.todayDigestHour") private var todayDigestHour = 8
     @AppStorage("notifications.todayDigestMinute") private var todayDigestMinute = 0
     @AppStorage("notifications.eveningDigest") private var eveningDigestEnabled = true
@@ -559,10 +644,19 @@ struct NotificationSettingsView: View {
                         .onChange(of: familyHabitsEnabled) { _, _ in
                             updateFamilyAlerts()
                         }
+
+                    Toggle(isOn: $familyHealthEnabled) {
+                        Label("When Family Reaches a Health Goal", systemImage: "trophy.fill")
+                            .labelStyle(.tile(SettingsTint.health))
+                    }
+                        .disabled(!notificationsEnabled)
+                        .onChange(of: familyHealthEnabled) { _, _ in
+                            updateFamilyAlerts()
+                        }
                 } header: {
                     Text("From Your Family")
                 } footer: {
-                    Text("Nudges always come through. Tap the bell on a task to nudge everyone else on it. Habits only send news when they're shared.")
+                    Text("Nudges and cheers always come through. Tap the bell on a task to nudge everyone else on it. Habits and health goals only send news when they're shared.")
                 }
 
                 Section("Status") {

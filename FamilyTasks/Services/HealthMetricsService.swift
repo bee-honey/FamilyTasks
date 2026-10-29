@@ -12,6 +12,16 @@ struct HealthSnapshot: Identifiable, Codable, Equatable {
     var steps: Double
     var sleepSeconds: TimeInterval
     var updatedAt: Date
+    // Optional, so summaries from older versions still read. Heart and body numbers are
+    // only shared when their owner turns that on.
+    var activeEnergy: Double?
+    var exerciseMinutes: Double?
+    var sleepScore: Int?
+    var restingHeartRate: Double?
+    var hrv: Double?
+    var vo2Max: Double?
+    var weightKg: Double?
+    var bmi: Double?
 
     init(
         memberEmail: String,
@@ -20,7 +30,15 @@ struct HealthSnapshot: Identifiable, Codable, Equatable {
         dayID: String,
         steps: Double,
         sleepSeconds: TimeInterval,
-        updatedAt: Date = Date()
+        updatedAt: Date = Date(),
+        activeEnergy: Double? = nil,
+        exerciseMinutes: Double? = nil,
+        sleepScore: Int? = nil,
+        restingHeartRate: Double? = nil,
+        hrv: Double? = nil,
+        vo2Max: Double? = nil,
+        weightKg: Double? = nil,
+        bmi: Double? = nil
     ) {
         let normalizedEmail = memberEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         self.id = "\(normalizedEmail)|\(dayID)"
@@ -31,6 +49,29 @@ struct HealthSnapshot: Identifiable, Codable, Equatable {
         self.steps = steps
         self.sleepSeconds = sleepSeconds
         self.updatedAt = updatedAt
+        self.activeEnergy = activeEnergy
+        self.exerciseMinutes = exerciseMinutes
+        self.sleepScore = sleepScore
+        self.restingHeartRate = restingHeartRate
+        self.hrv = hrv
+        self.vo2Max = vo2Max
+        self.weightKg = weightKg
+        self.bmi = bmi
+    }
+
+    /// The same day with heart or body numbers left out, for sharing.
+    func sharing(heart: Bool, body: Bool) -> HealthSnapshot {
+        var copy = self
+        if !heart {
+            copy.restingHeartRate = nil
+            copy.hrv = nil
+            copy.vo2Max = nil
+        }
+        if !body {
+            copy.weightKg = nil
+            copy.bmi = nil
+        }
+        return copy
     }
 
     var displayInitials: String {
@@ -109,7 +150,14 @@ final class HealthSyncCoordinator {
         static let healthSectionEnabled = "health.section.enabled"
         static let healthSharingEnabled = "health.share.enabled"
         static let lastDailySyncDayID = "health.lastDailySyncDayID"
+        static let lastQuickSync = "health.lastQuickSync"
     }
+
+    static let shareHeartKey = "health.share.heart"
+    static let shareBodyKey = "health.share.body"
+    /// How often opening Health sends today's numbers, so the family dashboard keeps up
+    /// during the day without uploading on every visit.
+    private static let quickSyncInterval: TimeInterval = 20 * 60
 
     private init() {}
 
@@ -157,6 +205,21 @@ final class HealthSyncCoordinator {
         await publishSnapshots(taskStore: taskStore, organizerStore: organizerStore, sharedHouseholdStore: sharedHouseholdStore)
     }
 
+    /// Sends the last week, today included, if it's been a while since the last send.
+    func syncRecentIfStale(
+        taskStore: TaskStore,
+        organizerStore: OrganizerStore,
+        sharedHouseholdStore: SharedHouseholdStore
+    ) async {
+        guard isHealthSharingEnabled else { return }
+        if let last = defaults.object(forKey: DefaultsKey.lastQuickSync) as? Date,
+           Date().timeIntervalSince(last) < Self.quickSyncInterval {
+            return
+        }
+        defaults.set(Date(), forKey: DefaultsKey.lastQuickSync)
+        await publishSnapshots(taskStore: taskStore, organizerStore: organizerStore, sharedHouseholdStore: sharedHouseholdStore, daysBack: 7)
+    }
+
     private func handleBackgroundRefresh(task: BGAppRefreshTask?) async {
         scheduleDailyRefresh()
 
@@ -185,7 +248,8 @@ final class HealthSyncCoordinator {
     private func publishSnapshots(
         taskStore: TaskStore,
         organizerStore: OrganizerStore,
-        sharedHouseholdStore: SharedHouseholdStore
+        sharedHouseholdStore: SharedHouseholdStore,
+        daysBack: Int = 370
     ) async {
         let email = (defaults.string(forKey: "profile.email") ?? "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -194,7 +258,10 @@ final class HealthSyncCoordinator {
 
         let initials = defaults.string(forKey: "profile.initials") ?? ""
         let service = HealthMetricsService()
-        let snapshots = await service.dailySnapshots(memberEmail: email, memberInitials: initials)
+        let shareHeart = defaults.bool(forKey: Self.shareHeartKey)
+        let shareBody = defaults.bool(forKey: Self.shareBodyKey)
+        let snapshots = await service.dailySnapshots(memberEmail: email, memberInitials: initials, daysBack: daysBack)
+            .map { $0.sharing(heart: shareHeart, body: shareBody) }
         guard !snapshots.isEmpty else {
             scheduleDailyRefresh()
             return
@@ -205,7 +272,9 @@ final class HealthSyncCoordinator {
             await sharedHouseholdStore.uploadNow()
         }
 
-        defaults.set(todayDayID(), forKey: DefaultsKey.lastDailySyncDayID)
+        if daysBack >= 370 {
+            defaults.set(todayDayID(), forKey: DefaultsKey.lastDailySyncDayID)
+        }
         scheduleDailyRefresh()
     }
 
@@ -237,16 +306,47 @@ final class HealthSyncCoordinator {
     }
 }
 
+/// A measurement and when it was taken, such as the latest weight.
+struct HealthReading: Equatable {
+    var value: Double
+    var date: Date
+}
+
 @MainActor
 final class HealthMetricsService: ObservableObject {
     @Published private(set) var authorizationStatus = "Health access not requested."
     @Published private(set) var summaries: [HealthMetricSummary] = []
+    /// This person's last five weeks, one summary a day, today last.
+    @Published private(set) var recentDays: [HealthSnapshot] = []
+    /// The night that ended this morning, with stages when the watch recorded them.
+    @Published private(set) var lastNight: SleepNight?
+    @Published private(set) var height: HealthReading?
+    @Published private(set) var weight: HealthReading?
     @Published private(set) var isLoading = false
 
     private let healthStore = HKHealthStore()
 
+    /// Raised when more kinds of data are read, so people who allowed the earlier ones are
+    /// asked once about the new ones.
+    private static let readTypesVersion = 2
+    private static let readTypesVersionKey = "health.readTypesVersion"
+    static let recentDayCount = 35
+
     var isHealthAvailable: Bool {
         HKHealthStore.isHealthDataAvailable()
+    }
+
+    private static var readTypes: Set<HKObjectType> {
+        let quantities: [HKQuantityTypeIdentifier] = [
+            .stepCount, .activeEnergyBurned, .appleExerciseTime,
+            .restingHeartRate, .heartRateVariabilitySDNN, .vo2Max,
+            .bodyMass, .height,
+        ]
+        var types = Set<HKObjectType>(quantities.compactMap { HKObjectType.quantityType(forIdentifier: $0) })
+        if let sleep = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) {
+            types.insert(sleep)
+        }
+        return types
     }
 
     func requestAccessAndRefresh() async {
@@ -255,14 +355,9 @@ final class HealthMetricsService: ObservableObject {
             return
         }
 
-        guard let stepType = HKObjectType.quantityType(forIdentifier: .stepCount),
-              let sleepType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) else {
-            authorizationStatus = "Steps or sleep data is not available."
-            return
-        }
-
         do {
-            try await healthStore.requestAuthorization(toShare: [], read: [stepType, sleepType])
+            try await healthStore.requestAuthorization(toShare: [], read: Self.readTypes)
+            UserDefaults.standard.set(Self.readTypesVersion, forKey: Self.readTypesVersionKey)
             authorizationStatus = "Health access allowed for this device."
             await refresh()
         } catch {
@@ -276,10 +371,10 @@ final class HealthMetricsService: ObservableObject {
             return
         }
 
-        guard let stepType = HKObjectType.quantityType(forIdentifier: .stepCount),
-              let sleepType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) else {
-            authorizationStatus = "Steps or sleep data is not available."
-            return
+        if UserDefaults.standard.integer(forKey: Self.readTypesVersionKey) < Self.readTypesVersion {
+            // iOS only asks about the kinds not answered yet.
+            try? await healthStore.requestAuthorization(toShare: [], read: Self.readTypes)
+            UserDefaults.standard.set(Self.readTypesVersion, forKey: Self.readTypesVersionKey)
         }
 
         isLoading = true
@@ -287,11 +382,17 @@ final class HealthMetricsService: ObservableObject {
 
         let calendar = Calendar.current
         let now = Date()
+        let today = calendar.startOfDay(for: now)
+        let recentStart = calendar.date(byAdding: .day, value: -(Self.recentDayCount - 1), to: today) ?? today
         let intervalsByScope = HealthMetricScope.allCases.map { scope in
             (scope, detailIntervals(for: scope, now: now, calendar: calendar))
         }
-        let earliest = intervalsByScope.flatMap(\.1).map(\.interval.start).min() ?? calendar.startOfDay(for: now)
-        let data = await fetchHealthData(stepType: stepType, sleepType: sleepType, from: earliest, now: now, calendar: calendar)
+        let earliest = min(intervalsByScope.flatMap(\.1).map(\.interval.start).min() ?? today, recentStart)
+        async let latestHeight = latestReading(.height, unit: .meter())
+        async let latestWeight = latestReading(.bodyMass, unit: .gramUnit(with: .kilo))
+        let data = await fetchHealthData(from: earliest, now: now, calendar: calendar)
+        let height = await latestHeight
+        let weight = await latestWeight
 
         summaries = intervalsByScope.map { scope, intervals in
             let points = intervals.map { interval in
@@ -307,14 +408,16 @@ final class HealthMetricsService: ObservableObject {
             let totalSleep = points.reduce(0) { $0 + $1.sleepSeconds }
             return HealthMetricSummary(scope: scope, steps: totalSteps, sleepSeconds: totalSleep, points: points)
         }
+        recentDays = dayIntervals(from: recentStart, through: now, calendar: calendar, style: .dayNumber).map {
+            snapshot(for: $0, data: data, memberEmail: HabitStore.currentProfileEmail(), memberInitials: "", heightMeters: height?.value, now: now)
+        }
+        lastNight = data.night(in: DateInterval(start: today, end: now), now: now)
+        self.height = height
+        self.weight = weight
     }
 
     func dailySnapshots(memberEmail: String, memberInitials: String, daysBack: Int = 370) async -> [HealthSnapshot] {
         guard isHealthAvailable else { return [] }
-        guard let stepType = HKObjectType.quantityType(forIdentifier: .stepCount),
-              let sleepType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) else {
-            return []
-        }
 
         let trimmedEmail = memberEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard !trimmedEmail.isEmpty else { return [] }
@@ -324,18 +427,42 @@ final class HealthMetricsService: ObservableObject {
         let today = calendar.startOfDay(for: now)
         let start = calendar.date(byAdding: .day, value: -max(daysBack, 0), to: today) ?? today
         let intervals = dayIntervals(from: start, through: now, calendar: calendar, style: .dayNumber)
-        let data = await fetchHealthData(stepType: stepType, sleepType: sleepType, from: start, now: now, calendar: calendar)
+        async let height = latestReading(.height, unit: .meter())
+        let data = await fetchHealthData(from: start, now: now, calendar: calendar)
+        let heightMeters = await height?.value
 
-        return intervals.map { interval in
-            HealthSnapshot(
-                memberEmail: trimmedEmail,
-                memberInitials: memberInitials,
-                date: interval.interval.start,
-                dayID: interval.id,
-                steps: data.steps(in: interval.interval, calendar: calendar),
-                sleepSeconds: data.sleep(in: interval.interval, now: now)
-            )
+        return intervals.map {
+            snapshot(for: $0, data: data, memberEmail: trimmedEmail, memberInitials: memberInitials, heightMeters: heightMeters, now: now)
         }
+    }
+
+    private func snapshot(
+        for interval: HealthDetailInterval,
+        data: HealthRangeData,
+        memberEmail: String,
+        memberInitials: String,
+        heightMeters: Double?,
+        now: Date
+    ) -> HealthSnapshot {
+        let day = interval.interval.start
+        let night = data.night(in: interval.interval, now: now)
+        let weight = data.weightByDay[day]
+        return HealthSnapshot(
+            memberEmail: memberEmail,
+            memberInitials: memberInitials,
+            date: day,
+            dayID: interval.id,
+            steps: data.stepsByDay[day] ?? 0,
+            sleepSeconds: night.asleep,
+            activeEnergy: data.activeEnergyByDay[day],
+            exerciseMinutes: data.exerciseByDay[day],
+            sleepScore: SleepScore.score(for: night),
+            restingHeartRate: data.restingHeartRateByDay[day],
+            hrv: data.hrvByDay[day],
+            vo2Max: data.vo2MaxByDay[day],
+            weightKg: weight,
+            bmi: weight.flatMap { kg in heightMeters.flatMap { BodyMath.bmi(weightKg: kg, heightMeters: $0) } }
+        )
     }
 
     private func detailIntervals(for scope: HealthMetricScope, now: Date, calendar: Calendar) -> [HealthDetailInterval] {
@@ -407,11 +534,22 @@ final class HealthMetricsService: ObservableObject {
         let title: String
         let interval: DateInterval
     }
-    /// Daily step totals plus merged sleep periods for the whole range, fetched with
-    /// two HealthKit queries; per-day/week/month numbers are then summed in memory.
+
+    /// Daily totals and averages plus merged sleep periods for the whole range, fetched
+    /// once; per-day/week/month numbers are then worked out in memory.
     struct HealthRangeData {
         let stepsByDay: [Date: Double]
         let asleep: [DateInterval]
+        /// Deep and REM sleep, from sources that record stages.
+        var restorative: [DateInterval] = []
+        /// Awake in the night, from sources that record stages.
+        var awake: [DateInterval] = []
+        var activeEnergyByDay: [Date: Double] = [:]
+        var exerciseByDay: [Date: Double] = [:]
+        var restingHeartRateByDay: [Date: Double] = [:]
+        var hrvByDay: [Date: Double] = [:]
+        var vo2MaxByDay: [Date: Double] = [:]
+        var weightByDay: [Date: Double] = [:]
 
         func steps(in interval: DateInterval, calendar: Calendar) -> Double {
             stepsByDay.reduce(0) { total, entry in
@@ -423,41 +561,88 @@ final class HealthMetricsService: ObservableObject {
             let window = HealthMetricsService.sleepWindow(start: interval.start, end: interval.end, now: now)
             return HealthMetricsService.totalDuration(of: asleep, in: window)
         }
+
+        /// The night counted toward the day `interval` starts on. Stages only count when
+        /// that night has some deep or REM sleep recorded, since sources without stages
+        /// record neither.
+        func night(in interval: DateInterval, now: Date) -> SleepNight {
+            let window = HealthMetricsService.sleepWindow(start: interval.start, end: interval.end, now: now)
+            let asleepTime = HealthMetricsService.totalDuration(of: asleep, in: window)
+            let restorativeTime = HealthMetricsService.totalDuration(of: restorative, in: window)
+            guard restorativeTime > 0 else { return SleepNight(asleep: asleepTime) }
+            let inBed = HealthMetricsService.totalDuration(of: HealthMetricsService.mergedIntervals(asleep + awake), in: window)
+            return SleepNight(asleep: asleepTime, deepAndREM: restorativeTime, awake: max(0, inBed - asleepTime))
+        }
     }
 
-    private func fetchHealthData(
-        stepType: HKQuantityType,
-        sleepType: HKCategoryType,
-        from start: Date,
-        now: Date,
-        calendar: Calendar
-    ) async -> HealthRangeData {
+    private func fetchHealthData(from start: Date, now: Date, calendar: Calendar) async -> HealthRangeData {
         let dayStart = calendar.startOfDay(for: start)
-        async let steps = dailyStepTotals(type: stepType, from: dayStart, to: now, calendar: calendar)
-        async let asleep = asleepIntervals(
-            type: sleepType,
-            overlapping: DateInterval(start: dayStart.addingTimeInterval(Self.sleepDayOffset), end: max(now, dayStart))
+        let end = max(now, dayStart)
+        async let steps = dailyStatistics(.stepCount, unit: .count(), cumulative: true, from: dayStart, to: end, calendar: calendar)
+        async let energy = dailyStatistics(.activeEnergyBurned, unit: .kilocalorie(), cumulative: true, from: dayStart, to: end, calendar: calendar)
+        async let exercise = dailyStatistics(.appleExerciseTime, unit: .minute(), cumulative: true, from: dayStart, to: end, calendar: calendar)
+        async let resting = dailyStatistics(.restingHeartRate, unit: .count().unitDivided(by: .minute()), cumulative: false, from: dayStart, to: end, calendar: calendar)
+        async let hrv = dailyStatistics(.heartRateVariabilitySDNN, unit: .secondUnit(with: .milli), cumulative: false, from: dayStart, to: end, calendar: calendar)
+        async let vo2Max = dailyStatistics(.vo2Max, unit: HKUnit(from: "ml/kg*min"), cumulative: false, from: dayStart, to: end, calendar: calendar)
+        async let weight = dailyStatistics(.bodyMass, unit: .gramUnit(with: .kilo), cumulative: false, from: dayStart, to: end, calendar: calendar)
+        async let sleep = sleepPeriods(overlapping: DateInterval(start: dayStart.addingTimeInterval(Self.sleepDayOffset), end: end))
+        let periods = await sleep
+        return await HealthRangeData(
+            stepsByDay: steps,
+            asleep: periods.asleep,
+            restorative: periods.restorative,
+            awake: periods.awake,
+            activeEnergyByDay: energy,
+            exerciseByDay: exercise,
+            restingHeartRateByDay: resting,
+            hrvByDay: hrv,
+            vo2MaxByDay: vo2Max,
+            weightByDay: weight
         )
-        return await HealthRangeData(stepsByDay: steps, asleep: asleep)
     }
 
-    private func dailyStepTotals(type: HKQuantityType, from start: Date, to end: Date, calendar: Calendar) async -> [Date: Double] {
-        await withCheckedContinuation { continuation in
+    /// A value per day from `start` to `end`: the day's total for steps and the like, the
+    /// day's average for heart rate and weight. Days with no data are left out.
+    private func dailyStatistics(
+        _ identifier: HKQuantityTypeIdentifier,
+        unit: HKUnit,
+        cumulative: Bool,
+        from start: Date,
+        to end: Date,
+        calendar: Calendar
+    ) async -> [Date: Double] {
+        guard let type = HKObjectType.quantityType(forIdentifier: identifier) else { return [:] }
+        return await withCheckedContinuation { continuation in
             let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
             let query = HKStatisticsCollectionQuery(
                 quantityType: type,
                 quantitySamplePredicate: predicate,
-                options: .cumulativeSum,
+                options: cumulative ? .cumulativeSum : .discreteAverage,
                 anchorDate: start,
                 intervalComponents: DateComponents(day: 1)
             )
             query.initialResultsHandler = { _, collection, _ in
-                var totals: [Date: Double] = [:]
+                var values: [Date: Double] = [:]
                 collection?.enumerateStatistics(from: start, to: end) { statistics, _ in
-                    let day = calendar.startOfDay(for: statistics.startDate)
-                    totals[day, default: 0] += statistics.sumQuantity()?.doubleValue(for: .count()) ?? 0
+                    guard let quantity = cumulative ? statistics.sumQuantity() : statistics.averageQuantity() else { return }
+                    values[calendar.startOfDay(for: statistics.startDate), default: 0] += quantity.doubleValue(for: unit)
                 }
-                continuation.resume(returning: totals)
+                continuation.resume(returning: values)
+            }
+            healthStore.execute(query)
+        }
+    }
+
+    /// The most recent sample of a measurement, such as height.
+    private func latestReading(_ identifier: HKQuantityTypeIdentifier, unit: HKUnit) async -> HealthReading? {
+        guard let type = HKObjectType.quantityType(forIdentifier: identifier) else { return nil }
+        return await withCheckedContinuation { continuation in
+            let newestFirst = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
+            let query = HKSampleQuery(sampleType: type, predicate: nil, limit: 1, sortDescriptors: [newestFirst]) { _, samples, _ in
+                let reading = (samples?.first as? HKQuantitySample).map {
+                    HealthReading(value: $0.quantity.doubleValue(for: unit), date: $0.endDate)
+                }
+                continuation.resume(returning: reading)
             }
             healthStore.execute(query)
         }
@@ -471,10 +656,20 @@ final class HealthMetricsService: ObservableObject {
         return DateInterval(start: shiftedStart, end: max(shiftedStart, shiftedEnd))
     }
 
-    /// Asleep periods overlapping the window, with overlaps from different sources
-    /// (Watch, iPhone, third-party apps) merged so time is only counted once.
-    private func asleepIntervals(type: HKCategoryType, overlapping window: DateInterval) async -> [DateInterval] {
-        await withCheckedContinuation { continuation in
+    private struct SleepPeriods: Sendable {
+        var asleep: [DateInterval]
+        var restorative: [DateInterval]
+        var awake: [DateInterval]
+    }
+
+    /// Asleep, deep-or-REM and awake periods overlapping the window, each with overlaps
+    /// from different sources (Watch, iPhone, third-party apps) merged so time is only
+    /// counted once.
+    private func sleepPeriods(overlapping window: DateInterval) async -> SleepPeriods {
+        guard let type = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) else {
+            return SleepPeriods(asleep: [], restorative: [], awake: [])
+        }
+        return await withCheckedContinuation { continuation in
             let predicate = HKQuery.predicateForSamples(withStart: window.start, end: window.end, options: [])
             let query = HKSampleQuery(sampleType: type, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { _, samples, _ in
                 let asleepValues: Set<Int> = [
@@ -483,10 +678,19 @@ final class HealthMetricsService: ObservableObject {
                     HKCategoryValueSleepAnalysis.asleepDeep.rawValue,
                     HKCategoryValueSleepAnalysis.asleepREM.rawValue
                 ]
-                let intervals = ((samples as? [HKCategorySample]) ?? [])
-                    .filter { asleepValues.contains($0.value) && $0.endDate > $0.startDate }
-                    .map { DateInterval(start: $0.startDate, end: $0.endDate) }
-                continuation.resume(returning: Self.mergedIntervals(intervals))
+                let restorativeValues: Set<Int> = [
+                    HKCategoryValueSleepAnalysis.asleepDeep.rawValue,
+                    HKCategoryValueSleepAnalysis.asleepREM.rawValue
+                ]
+                let valid = ((samples as? [HKCategorySample]) ?? []).filter { $0.endDate > $0.startDate }
+                func periods(_ values: Set<Int>) -> [DateInterval] {
+                    Self.mergedIntervals(valid.filter { values.contains($0.value) }.map { DateInterval(start: $0.startDate, end: $0.endDate) })
+                }
+                continuation.resume(returning: SleepPeriods(
+                    asleep: periods(asleepValues),
+                    restorative: periods(restorativeValues),
+                    awake: periods([HKCategoryValueSleepAnalysis.awake.rawValue])
+                ))
             }
             healthStore.execute(query)
         }

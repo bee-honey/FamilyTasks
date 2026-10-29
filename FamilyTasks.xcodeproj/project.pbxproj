@@ -48,9 +48,14 @@
 		3DD28E028918977E37FF9148 /* HealthAggregationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF4226E63FDF989D31BEA8BF /* HealthAggregationTests.swift */; };
 		441BB0E0F9BAD9779AF2D01F /* WidgetDataTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1959E02C60CB8BEF62319D0D /* WidgetDataTests.swift */; };
 		4A1B17000000000000000002 /* HabitModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B17000000000000000001 /* HabitModels.swift */; };
+		4A1B17000000000000000012 /* HealthModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B17000000000000000011 /* HealthModels.swift */; };
 		4A1B17000000000000000004 /* HabitStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B17000000000000000003 /* HabitStore.swift */; };
+		4A1B17000000000000000014 /* HealthGoalStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B17000000000000000013 /* HealthGoalStore.swift */; };
 		4A1B17000000000000000006 /* HabitsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B17000000000000000005 /* HabitsView.swift */; };
+		4A1B17000000000000000018 /* HealthGoalsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B17000000000000000017 /* HealthGoalsView.swift */; };
+		4A1B17000000000000000016 /* HealthCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B17000000000000000015 /* HealthCards.swift */; };
 		4A1B17000000000000000008 /* HabitStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B17000000000000000007 /* HabitStoreTests.swift */; };
+		4A1B1700000000000000001A /* HealthModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B17000000000000000019 /* HealthModelTests.swift */; };
 		4A1B1700000000000000000A /* MealCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B17000000000000000009 /* MealCatalog.swift */; };
 		4A1B1700000000000000000C /* MealCatalogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B1700000000000000000B /* MealCatalogView.swift */; };
 		4A1B1700000000000000000E /* MealCatalogTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B1700000000000000000D /* MealCatalogTests.swift */; };
@@ -162,9 +167,14 @@
 		33B236709ED79055EFC132AD /* WidgetData.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WidgetData.swift; sourceTree = "<group>"; };
 		38838F69E4D0761A7610CF61 /* FamilyTasksTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FamilyTasksTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		4A1B17000000000000000001 /* HabitModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HabitModels.swift; sourceTree = "<group>"; };
+		4A1B17000000000000000011 /* HealthModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HealthModels.swift; sourceTree = "<group>"; };
 		4A1B17000000000000000003 /* HabitStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HabitStore.swift; sourceTree = "<group>"; };
+		4A1B17000000000000000013 /* HealthGoalStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HealthGoalStore.swift; sourceTree = "<group>"; };
 		4A1B17000000000000000005 /* HabitsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HabitsView.swift; sourceTree = "<group>"; };
+		4A1B17000000000000000017 /* HealthGoalsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HealthGoalsView.swift; sourceTree = "<group>"; };
+		4A1B17000000000000000015 /* HealthCards.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HealthCards.swift; sourceTree = "<group>"; };
 		4A1B17000000000000000007 /* HabitStoreTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HabitStoreTests.swift; sourceTree = "<group>"; };
+		4A1B17000000000000000019 /* HealthModelTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HealthModelTests.swift; sourceTree = "<group>"; };
 		4A1B17000000000000000009 /* MealCatalog.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MealCatalog.swift; sourceTree = "<group>"; };
 		4A1B1700000000000000000B /* MealCatalogView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MealCatalogView.swift; sourceTree = "<group>"; };
 		4A1B1700000000000000000D /* MealCatalogTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MealCatalogTests.swift; sourceTree = "<group>"; };
@@ -282,6 +292,7 @@
 				2C0A003C2C0A000000000001 /* ShoppingModels.swift */,
 				C817928FC24BEF3835312223 /* ChoreModels.swift */,
 				4A1B17000000000000000001 /* HabitModels.swift */,
+				4A1B17000000000000000011 /* HealthModels.swift */,
 				4A1B17000000000000000009 /* MealCatalog.swift */,
 			);
 			path = Models;
@@ -294,6 +305,7 @@
 				2C0A003E2C0A000000000001 /* OrganizerStore.swift */,
 				AE8CC412E6186E109604CD94 /* ChoreStore.swift */,
 				4A1B17000000000000000003 /* HabitStore.swift */,
+				4A1B17000000000000000013 /* HealthGoalStore.swift */,
 				8B0EC2604850424CAB3067DC /* MealPlanGenerator.swift */,
 			);
 			path = Stores;
@@ -331,6 +343,8 @@
 				2C0A00482C0A000000000001 /* MealPlanView.swift */,
 				2C0A00422C0A000000000001 /* RecurringTasksView.swift */,
 				4A1B17000000000000000005 /* HabitsView.swift */,
+				4A1B17000000000000000017 /* HealthGoalsView.swift */,
+				4A1B17000000000000000015 /* HealthCards.swift */,
 				4A1B1700000000000000000B /* MealCatalogView.swift */,
 				2C0A00522C0A000000000001 /* IdeaNotebookView.swift */,
 				2C0A00562C0A000000000001 /* HealthView.swift */,
@@ -389,6 +403,7 @@
 				747F46D17D2A6BEB99E04FF4 /* TaskIntentsTests.swift */,
 				2AB649E7E7354FE110CDFCA7 /* ChoreTests.swift */,
 				4A1B17000000000000000007 /* HabitStoreTests.swift */,
+				4A1B17000000000000000019 /* HealthModelTests.swift */,
 				4A1B1700000000000000000D /* MealCatalogTests.swift */,
 				FB6B27E570B66274E040165F /* MealPlanGeneratorTests.swift */,
 			);
@@ -562,6 +577,8 @@
 				2C0A004C2C0A000000000001 /* ShoppingListIntent.swift in Sources */,
 				2C0A00432C0A000000000001 /* RecurringTasksView.swift in Sources */,
 				4A1B17000000000000000006 /* HabitsView.swift in Sources */,
+				4A1B17000000000000000018 /* HealthGoalsView.swift in Sources */,
+				4A1B17000000000000000016 /* HealthCards.swift in Sources */,
 				4A1B1700000000000000000C /* MealCatalogView.swift in Sources */,
 				2C0A00452C0A000000000001 /* AppTheme.swift in Sources */,
 				BCAFBD55818EE04C0DF7D8BB /* WidgetData.swift in Sources */,
@@ -571,8 +588,10 @@
 				37B9E1677D74E24B22D3A7DC /* ChoreModels.swift in Sources */,
 				56D116660832334365FC31BD /* ChoreStore.swift in Sources */,
 				4A1B17000000000000000002 /* HabitModels.swift in Sources */,
+				4A1B17000000000000000012 /* HealthModels.swift in Sources */,
 				4A1B1700000000000000000A /* MealCatalog.swift in Sources */,
 				4A1B17000000000000000004 /* HabitStore.swift in Sources */,
+				4A1B17000000000000000014 /* HealthGoalStore.swift in Sources */,
 				26A57217B63A6D03B4F5955C /* ChoresView.swift in Sources */,
 				C3C5421C98381E6DD2DE3A19 /* WrappingStack.swift in Sources */,
 				3A13BD42E01E2675D9D5CFA1 /* IconTile.swift in Sources */,
@@ -612,6 +631,7 @@
 				A0D6248961D596E2C5FF32D5 /* TaskIntentsTests.swift in Sources */,
 				B1E2AA5145911A15F49052F0 /* ChoreTests.swift in Sources */,
 				4A1B17000000000000000008 /* HabitStoreTests.swift in Sources */,
+				4A1B1700000000000000001A /* HealthModelTests.swift in Sources */,
 				4A1B1700000000000000000E /* MealCatalogTests.swift in Sources */,
 				6062FFDBAC250836B207C41A /* MealPlanGeneratorTests.swift in Sources */,
 			);

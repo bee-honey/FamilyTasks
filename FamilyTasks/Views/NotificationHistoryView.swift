@@ -81,6 +81,9 @@ struct NotificationHistoryView: View {
         case .assigned, .updated: AppTheme.primary
         case .completed: AppTheme.success
         case .habit: AppTheme.goldAccent
+        case .cheer, .healthGoal: SettingsTint.health
+        case .windDown: AppTheme.softAccent
+        case .healthTip: AppTheme.success
         case .other: AppTheme.softAccent
         }
     }

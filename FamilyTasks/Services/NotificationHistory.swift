@@ -30,6 +30,10 @@ final class NotificationHistory: ObservableObject {
         case updated
         case completed
         case habit
+        case cheer
+        case healthGoal
+        case windDown
+        case healthTip
         case other
 
         var systemImage: String {
@@ -43,6 +47,10 @@ final class NotificationHistory: ObservableObject {
             case .updated: "square.and.pencil"
             case .completed: "checkmark.circle"
             case .habit: "flame"
+            case .cheer: "hands.clap"
+            case .healthGoal: "trophy"
+            case .windDown: "moon.zzz"
+            case .healthTip: "lightbulb"
             case .other: "bell"
             }
         }
@@ -112,6 +120,8 @@ final class NotificationHistory: ObservableObject {
         if identifier.hasPrefix("familytasks.dueSoon.") { return .dueSoon }
         if identifier.hasPrefix("familytasks.recurringDueSoon.") { return .recurringDueSoon }
         if identifier.hasPrefix("familytasks.shoppingDone.") { return .shopping }
+        if identifier.hasPrefix("familytasks.windDown.") { return .windDown }
+        if identifier.hasPrefix("familytasks.healthTip.") { return .healthTip }
         if let query = CKNotification(fromRemoteNotificationDictionary: userInfo) as? CKQueryNotification,
            let raw = query.recordFields?["kind"] as? String,
            let kind = Kind(rawValue: raw) {

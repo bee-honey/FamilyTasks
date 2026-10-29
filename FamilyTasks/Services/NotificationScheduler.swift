@@ -31,17 +31,22 @@ final class NotificationScheduler: ObservableObject {
         static let taskChanges = "notifications.taskChanges"
         static let familyShopping = "notifications.familyShopping"
         static let familyHabits = "notifications.familyHabits"
+        static let familyHealth = "notifications.familyHealth"
     }
 
     /// iOS keeps at most 64 pending local notifications per app; leave room for
-    /// test and shared-task alerts.
+    /// test and shared-task alerts. Health reminders come out of this too.
     private static let maxScheduledAlerts = 58
+    /// Tips are scheduled a few days ahead, each its own notification so each day's differs.
+    private static let tipDays = 3
 
     private enum IdentifierPrefix {
         static let todayDigest = "familytasks.todayDigest."
         static let dueSoon = "familytasks.dueSoon."
         static let recurringDueSoon = "familytasks.recurringDueSoon."
         static let shoppingDone = "familytasks.shoppingDone."
+        static let windDown = "familytasks.windDown."
+        static let healthTip = "familytasks.healthTip."
     }
 
     private init() {
@@ -101,6 +106,11 @@ final class NotificationScheduler: ObservableObject {
             .filter { !$0.hasSuffix(".catchup") }
         center.removePendingNotificationRequests(withIdentifiers: pendingIdentifiers)
 
+        let healthRequests = healthRoutineRequests(now: Date())
+        for request in healthRequests {
+            try? await center.add(request)
+        }
+
         guard let taskStore else { return }
         let activeTasks = taskStore.exportVisibleTasks().filter { !$0.isDone }
         let activeRecurringTasks = organizerStore?.exportVisibleRecurringTasks().filter(\.isActive) ?? []
@@ -109,7 +119,7 @@ final class NotificationScheduler: ObservableObject {
         alerts += dueSoonAlerts(for: activeTasks)
         alerts += recurringDueSoonAlerts(for: activeRecurringTasks)
 
-        for alert in alerts.sorted(by: { $0.fireDate < $1.fireDate }).prefix(Self.maxScheduledAlerts) {
+        for alert in alerts.sorted(by: { $0.fireDate < $1.fireDate }).prefix(Self.maxScheduledAlerts - healthRequests.count) {
             try? await center.add(alert.request)
         }
 
@@ -159,6 +169,13 @@ final class NotificationScheduler: ObservableObject {
             DefaultsKey.familyCompletions: true,
             DefaultsKey.familyShopping: true,
             DefaultsKey.familyHabits: true,
+            DefaultsKey.familyHealth: true,
+            WindDownSettings.bedtimeHourKey: WindDownSettings.defaultBedtimeHour,
+            WindDownSettings.bedtimeMinuteKey: WindDownSettings.defaultBedtimeMinute,
+            WindDownSettings.dailyTipHourKey: WindDownSettings.defaultTipHour,
+            WindDownStep.food.settingsKey: true,
+            WindDownStep.drinks.settingsKey: true,
+            WindDownStep.screens.settingsKey: true,
             DefaultsKey.todayDigestHour: 8,
             DefaultsKey.todayDigestMinute: 0,
             DefaultsKey.eveningDigest: true,
@@ -177,7 +194,9 @@ final class NotificationScheduler: ObservableObject {
                 $0.hasPrefix(IdentifierPrefix.todayDigest) ||
                 $0.hasPrefix(IdentifierPrefix.dueSoon) ||
                 $0.hasPrefix(IdentifierPrefix.recurringDueSoon) ||
-                $0.hasPrefix(IdentifierPrefix.shoppingDone)
+                $0.hasPrefix(IdentifierPrefix.shoppingDone) ||
+                $0.hasPrefix(IdentifierPrefix.windDown) ||
+                $0.hasPrefix(IdentifierPrefix.healthTip)
             }
     }
 
@@ -283,6 +302,54 @@ final class NotificationScheduler: ObservableObject {
 
         defaults.set(Array(Set(handled)).sorted(), forKey: DefaultsKey.dailyListsHandled)
         return alerts
+    }
+
+    // MARK: Health
+
+    /// The 3-2-1 wind-down reminders, repeating every night, and the next few days' tips.
+    private func healthRoutineRequests(now: Date) -> [UNNotificationRequest] {
+        let calendar = Calendar.current
+        var requests: [UNNotificationRequest] = []
+
+        if defaults.bool(forKey: WindDownSettings.enabledKey) {
+            let hour = defaults.integer(forKey: WindDownSettings.bedtimeHourKey)
+            let minute = defaults.integer(forKey: WindDownSettings.bedtimeMinuteKey)
+            let bedtime = WindDownSettings.timeText(hour: hour, minute: minute, calendar: calendar)
+            for step in WindDownStep.allCases where defaults.bool(forKey: step.settingsKey) {
+                let time = step.time(bedtimeHour: hour, bedtimeMinute: minute)
+                let content = UNMutableNotificationContent()
+                content.title = step.notificationTitle
+                content.body = step.notificationBody(bedtime: bedtime)
+                content.sound = .default
+                requests.append(UNNotificationRequest(
+                    identifier: "\(IdentifierPrefix.windDown)\(step.rawValue)",
+                    content: content,
+                    trigger: UNCalendarNotificationTrigger(dateMatching: DateComponents(hour: time.hour, minute: time.minute), repeats: true)
+                ))
+            }
+        }
+
+        if defaults.bool(forKey: WindDownSettings.dailyTipKey) {
+            let hour = defaults.integer(forKey: WindDownSettings.dailyTipHourKey)
+            let minute = defaults.integer(forKey: WindDownSettings.dailyTipMinuteKey)
+            for offset in 0..<Self.tipDays {
+                guard let day = calendar.date(byAdding: .day, value: offset, to: now),
+                      let fireDate = calendar.date(bySettingHour: hour, minute: minute, second: 0, of: day),
+                      fireDate > now else { continue }
+                let tip = HealthTips.tip(for: day, calendar: calendar)
+                let content = UNMutableNotificationContent()
+                content.title = "Tip: \(tip.title)"
+                content.body = tip.body
+                content.sound = .default
+                let components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: fireDate)
+                requests.append(UNNotificationRequest(
+                    identifier: "\(IdentifierPrefix.healthTip)\(digestIdentifierSuffix(for: day, calendar: calendar))",
+                    content: content,
+                    trigger: UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+                ))
+            }
+        }
+        return requests
     }
 
     private func dailyListAlert(_ list: DailyTaskList, title: String, on triggerDate: Date, identifierSuffix: String) -> ScheduledAlert {

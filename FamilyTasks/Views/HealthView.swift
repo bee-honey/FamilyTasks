@@ -2,162 +2,387 @@ import SwiftUI
 
 struct HealthView: View {
     @EnvironmentObject private var organizerStore: OrganizerStore
+    @EnvironmentObject private var taskStore: TaskStore
+    @EnvironmentObject private var sharedHouseholdStore: SharedHouseholdStore
+    @EnvironmentObject private var goalStore: HealthGoalStore
     @AppStorage("profile.email") private var profileEmail = ""
     @StateObject private var healthService = HealthMetricsService()
-    @State private var selectedScope = HealthMetricScope.day
+    @State private var selectedScope = HealthMetricScope.week
     @AppStorage("health.section.enabled") private var healthSectionEnabled = false
+    @AppStorage("health.share.enabled") private var healthSharingEnabled = false
     @State private var isShowingSettings = false
+    @State private var editingGoal: GoalEditing?
+
+    /// Which goal editor is open: a new goal or challenge, or an existing one.
+    private enum GoalEditing: Identifiable {
+        case new(HealthGoal.Kind)
+        case existing(HealthGoal)
+
+        var id: String {
+            switch self {
+            case .new(let kind): "new-\(kind.rawValue)"
+            case .existing(let goal): goal.id.uuidString
+            }
+        }
+    }
 
     var body: some View {
         // Pushed from Family.
-        Group {
-            List {
-                Section {
-                    ScreenHeader(eyebrow: "Steps and sleep", title: "Health") {
-                        if healthSectionEnabled {
-                            Button {
-                                Task { await healthService.refresh() }
-                            } label: {
-                                Group {
-                                    if healthService.isLoading {
-                                        ProgressView()
-                                    } else {
-                                        Image(systemName: "arrow.clockwise")
-                                            .font(.headline)
-                                    }
+        List {
+            Section {
+                ScreenHeader(eyebrow: "You and your family", title: "Health") {
+                    if healthSectionEnabled {
+                        Button {
+                            Task { await refresh() }
+                        } label: {
+                            Group {
+                                if healthService.isLoading {
+                                    ProgressView()
+                                } else {
+                                    Image(systemName: "arrow.clockwise")
+                                        .font(.headline)
                                 }
-                                .foregroundStyle(AppTheme.ink)
-                                .frame(width: 44, height: 44)
-                                .background(AppTheme.surface, in: Circle())
                             }
-                            .buttonStyle(.plain)
-                            .disabled(healthService.isLoading)
-                            .accessibilityLabel(healthService.isLoading ? "Refreshing health data" : "Refresh health data")
+                            .foregroundStyle(AppTheme.ink)
+                            .frame(width: 44, height: 44)
+                            .background(AppTheme.surface, in: Circle())
                         }
+                        .buttonStyle(.plain)
+                        .disabled(healthService.isLoading)
+                        .accessibilityLabel(healthService.isLoading ? "Refreshing health data" : "Refresh health data")
+                    }
+                    Button {
+                        isShowingSettings = true
+                    } label: {
+                        Image(systemName: "gearshape")
+                            .font(.headline)
+                            .foregroundStyle(AppTheme.ink)
+                            .frame(width: 44, height: 44)
+                            .background(AppTheme.surface, in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Health settings")
+                }
+            }
+            .listRowInsets(EdgeInsets(top: 8, leading: 4, bottom: 0, trailing: 4))
+            .listRowBackground(Color.clear)
+
+            if healthSectionEnabled {
+                mySections
+                familySections
+            } else {
+                Section {
+                    VStack(alignment: .leading, spacing: 12) {
+                        IconTile(systemImage: "heart.fill", tint: SettingsTint.health, size: 44)
+                        Text("Health is off")
+                            .font(.headline)
+                        Text("Turn it on to see your activity, sleep score, heart and BMI, set goals, and cheer each other on if you share with your family. Each person turns it on on their own phone.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
                         Button {
                             isShowingSettings = true
                         } label: {
-                            Image(systemName: "gearshape")
-                                .font(.headline)
-                                .foregroundStyle(AppTheme.ink)
-                                .frame(width: 44, height: 44)
-                                .background(AppTheme.surface, in: Circle())
+                            PillButtonLabel(title: "Set Up Health", systemImage: "heart", isProminent: true)
                         }
                         .buttonStyle(.plain)
-                        .accessibilityLabel("Health settings")
                     }
+                    .padding(.vertical, 6)
                 }
-                .listRowInsets(EdgeInsets(top: 8, leading: 4, bottom: 0, trailing: 4))
-                .listRowBackground(Color.clear)
+            }
 
-                if !healthSectionEnabled {
-                    Section {
-                        VStack(alignment: .leading, spacing: 12) {
-                            IconTile(systemImage: "heart.fill", tint: SettingsTint.health, size: 44)
-                            Text("Health is off")
-                                .font(.headline)
-                            Text("Turn it on to see your steps and sleep, and share a daily summary with your family if you like. Each person turns it on on their own phone.")
-                                .font(.subheadline)
+            Section {
+                HealthTipCard(tip: HealthTips.tip(for: Date()))
+            } header: {
+                SectionTitle(text: "Tip of the Day")
+            }
+
+            Section {
+                WindDownCard()
+            } header: {
+                SectionTitle(text: "3-2-1 Wind-Down")
+            } footer: {
+                Text("No food 3 hours before bed, no drinks 2 hours before, no screens in the last hour.")
+            }
+
+            if healthSectionEnabled {
+                historySections
+            }
+
+            Section {
+                EmptyView()
+            } footer: {
+                Text("Family Tasks isn't a medical app. Scores, BMI and tips are general guidance, not a diagnosis. Talk to a doctor about anything that worries you.")
+            }
+        }
+        .listRowBackground(AppTheme.surface)
+        .scrollContentBackground(.hidden)
+        .background(AppTheme.background)
+        .mainScreenNavigationBar(title: "Health", isPushed: true)
+        .navigationDestination(isPresented: $isShowingSettings) {
+            HealthSettingsView()
+        }
+        .sheet(item: $editingGoal) { editing in
+            switch editing {
+            case .new(let kind):
+                HealthGoalEditorView(kind: kind, familySize: familySize)
+            case .existing(let goal):
+                HealthGoalEditorView(goal: goal, familySize: familySize)
+            }
+        }
+        .task {
+            if healthSectionEnabled {
+                await refresh()
+            }
+        }
+        .refreshable {
+            if healthSectionEnabled {
+                await refresh()
+            }
+        }
+    }
+
+    // MARK: You
+
+    @ViewBuilder
+    private var mySections: some View {
+        Section {
+            TodayActivityCard(today: healthService.recentDays.last, goals: goalStore.myGoals)
+        } header: {
+            SectionTitle(text: "Today")
+        }
+
+        Section {
+            SleepCard(night: healthService.lastNight, recentDays: healthService.recentDays)
+        } header: {
+            SectionTitle(text: "Sleep")
+        }
+
+        if HeartCard.hasData(healthService.recentDays) {
+            Section {
+                HeartCard(recentDays: healthService.recentDays)
+            } header: {
+                SectionTitle(text: "Heart")
+            }
+        }
+
+        Section {
+            BodyCard(weight: healthService.weight, height: healthService.height)
+        } header: {
+            SectionTitle(text: "Body")
+        }
+
+        Section {
+            ForEach(goalStore.myGoals) { goal in
+                Button {
+                    editingGoal = .existing(goal)
+                } label: {
+                    HealthGoalRow(goal: goal, snapshots: healthService.recentDays)
+                }
+                .buttonStyle(.plain)
+            }
+            Button {
+                editingGoal = .new(.personal)
+            } label: {
+                Label(goalStore.myGoals.isEmpty ? "Set a Goal" : "Add a Goal", systemImage: "plus.circle.fill")
+                    .font(.body.weight(.semibold))
+            }
+        } header: {
+            SectionTitle(text: "Your Goals")
+        } footer: {
+            if goalStore.myGoals.isEmpty {
+                Text("Pick a daily target for steps, exercise, active energy or sleep. Share it and the family sees your streak and can cheer you on.")
+            }
+        }
+    }
+
+    // MARK: Family
+
+    @ViewBuilder
+    private var familySections: some View {
+        if !healthSharingEnabled {
+            Section {
+                Button {
+                    isShowingSettings = true
+                } label: {
+                    Label {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Share With Your Family")
+                                .font(.body.weight(.semibold))
+                                .foregroundStyle(AppTheme.ink)
+                            Text("See each other's steps, sleep and goals, start family challenges and cheer each other on.")
+                                .font(.footnote)
                                 .foregroundStyle(.secondary)
-                            Button {
-                                isShowingSettings = true
-                            } label: {
-                                PillButtonLabel(title: "Set Up Health", systemImage: "heart", isProminent: true)
-                            }
-                            .buttonStyle(.plain)
                         }
-                        .padding(.vertical, 6)
+                    } icon: {
+                        IconTile(systemImage: "person.2.fill", tint: AppTheme.primary, size: 36)
                     }
+                }
+                .buttonStyle(.plain)
+            } header: {
+                SectionTitle(text: "Family")
+            }
+        } else {
+            Section {
+                ForEach(goalStore.challenges) { goal in
+                    Button {
+                        editingGoal = .existing(goal)
+                    } label: {
+                        FamilyChallengeRow(goal: goal, snapshots: everyone, name: memberName)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!goalStore.isMine(goal))
+                }
+                Button {
+                    editingGoal = .new(.family)
+                } label: {
+                    Label("Start a Family Challenge", systemImage: "flag.checkered")
+                        .font(.body.weight(.semibold))
+                }
+            } header: {
+                SectionTitle(text: "Family Challenges")
+            } footer: {
+                if goalStore.challenges.isEmpty {
+                    Text("Set a target to reach together this week, like 300,000 steps between you.")
+                }
+            }
+
+            Section {
+                if latestByMember.isEmpty {
+                    Text("Nobody else is sharing Health yet. When family members turn on sharing in Health Settings on their phones, they show up here.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
                 } else {
-                Section {
-                    HStack(spacing: 8) {
-                        ForEach(HealthMetricScope.allCases) { scope in
-                            ChoiceChip(title: scope.title, isSelected: selectedScope == scope) {
-                                selectedScope = scope
-                            }
-                        }
+                    ForEach(latestByMember, id: \.memberEmail) { latest in
+                        FamilyMemberHealthCard(
+                            email: latest.memberEmail,
+                            name: memberName(latest.memberEmail),
+                            latest: latest,
+                            goals: goalStore.familyGoals.filter { $0.ownerEmail == latest.memberEmail },
+                            snapshots: organizerStore.healthSnapshots
+                        )
                     }
-                    .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets())
                 }
+            } header: {
+                SectionTitle(text: "Family")
+            }
 
+            if latestByMember.count > 0 {
                 Section {
-                    if !familySummaries.isEmpty {
-                        ForEach(familySummaries) { summary in
-                            HealthMemberMetricRow(
-                                email: summary.memberEmail,
-                                name: memberName(summary.memberEmail),
-                                steps: HealthMetricSummary.stepText(for: summary.steps),
-                                sleep: HealthMetricSummary.sleepText(for: summary.sleepSeconds)
-                            )
-                        }
-                    } else if healthService.isLoading {
-                        ProgressView("Loading health data")
-                    } else if let summary = selectedSummary {
-                        HealthMemberMetricRow(
-                            email: profileEmail,
-                            name: "You",
-                            steps: summary.stepText,
-                            sleep: summary.sleepText
-                        )
-                    } else {
-                        ContentUnavailableView(
-                            "No Health Data",
-                            systemImage: "heart.slash",
-                            description: Text("Allow Health access and turn on Health sharing in Health Settings.")
-                        )
-                    }
+                    WeeklyStepsBoard(snapshots: everyone, me: me, name: memberName)
                 } header: {
-                    SectionTitle(text: "Family")
-                } footer: {
-                    Text("Each member opts in on their own device. Shared Health keeps only daily steps and sleep summaries in family iCloud data.")
-                }
-
-                // Day has nothing to break down beyond the summary above.
-                if selectedScope == .day {
-                    EmptyView()
-                } else if !familyDailyGroups.isEmpty {
-                    Section {
-                        switch selectedScope {
-                        case .day, .week, .month:
-                            FamilyHealthDetailList(groups: familyDailyGroups)
-                        case .year:
-                            FamilyHealthDetailList(groups: familyMonthlyGroups)
-                        }
-                    } header: {
-                        SectionTitle(text: detailTitle)
-                    }
-                } else if let summary = selectedSummary, !summary.points.isEmpty {
-                    Section {
-                        switch selectedScope {
-                        case .day:
-                            HealthDetailList(points: summary.points)
-                        case .week:
-                            HealthDetailList(points: summary.points)
-                        case .month:
-                            HealthCalendarGrid(points: summary.points)
-                        case .year:
-                            HealthDetailList(points: summary.points)
-                        }
-                    } header: {
-                        SectionTitle(text: detailTitle)
-                    }
-                }
-                }
-            }
-            .listRowBackground(AppTheme.surface)
-            .scrollContentBackground(.hidden)
-            .background(AppTheme.background)
-            .mainScreenNavigationBar(title: "Health", isPushed: true)
-            .navigationDestination(isPresented: $isShowingSettings) {
-                HealthSettingsView()
-            }
-            .task {
-                if healthSectionEnabled {
-                    await healthService.refresh()
+                    SectionTitle(text: "Steps This Week")
                 }
             }
         }
+    }
+
+    // MARK: History
+
+    @ViewBuilder
+    private var historySections: some View {
+        Section {
+            HStack(spacing: 8) {
+                ForEach(HealthMetricScope.allCases) { scope in
+                    ChoiceChip(title: scope.title, isSelected: selectedScope == scope) {
+                        selectedScope = scope
+                    }
+                }
+            }
+            .listRowBackground(Color.clear)
+            .listRowInsets(EdgeInsets())
+        } header: {
+            SectionTitle(text: "History")
+        }
+
+        Section {
+            if !familySummaries.isEmpty {
+                ForEach(familySummaries) { summary in
+                    HealthMemberMetricRow(
+                        email: summary.memberEmail,
+                        name: memberName(summary.memberEmail),
+                        steps: HealthMetricSummary.stepText(for: summary.steps),
+                        sleep: HealthMetricSummary.sleepText(for: summary.sleepSeconds)
+                    )
+                }
+            } else if healthService.isLoading {
+                ProgressView("Loading health data")
+            } else if let summary = selectedSummary {
+                HealthMemberMetricRow(
+                    email: profileEmail,
+                    name: "You",
+                    steps: summary.stepText,
+                    sleep: summary.sleepText
+                )
+            } else {
+                ContentUnavailableView(
+                    "No Health Data",
+                    systemImage: "heart.slash",
+                    description: Text("Allow Health access and turn on Health sharing in Health Settings.")
+                )
+            }
+        } header: {
+            SectionTitle(text: "Total Steps and Sleep")
+        }
+
+        // Day has nothing to break down beyond the summary above.
+        if selectedScope == .day {
+            EmptyView()
+        } else if !familyDailyGroups.isEmpty {
+            Section {
+                switch selectedScope {
+                case .day, .week, .month:
+                    FamilyHealthDetailList(groups: familyDailyGroups)
+                case .year:
+                    FamilyHealthDetailList(groups: familyMonthlyGroups)
+                }
+            } header: {
+                SectionTitle(text: detailTitle)
+            }
+        } else if let summary = selectedSummary, !summary.points.isEmpty {
+            Section {
+                switch selectedScope {
+                case .day, .week, .year:
+                    HealthDetailList(points: summary.points)
+                case .month:
+                    HealthCalendarGrid(points: summary.points)
+                }
+            } header: {
+                SectionTitle(text: detailTitle)
+            }
+        }
+    }
+
+    // MARK: Data
+
+    private func refresh() async {
+        await healthService.refresh()
+        await HealthSyncCoordinator.shared.syncRecentIfStale(
+            taskStore: taskStore,
+            organizerStore: organizerStore,
+            sharedHouseholdStore: sharedHouseholdStore
+        )
+        goalStore.announceAchievements(mine: healthService.recentDays, family: organizerStore.healthSnapshots)
+    }
+
+    private var me: String {
+        FamilyAlert.normalized(profileEmail)
+    }
+
+    private var familySize: Int {
+        max(Set(organizerStore.healthSnapshots.map(\.memberEmail)).union([me]).count, 1)
+    }
+
+    /// Everyone's shared days, with this person's own fresh from Health.
+    private var everyone: [HealthSnapshot] {
+        HealthGoalStore.replacingOwn(organizerStore.healthSnapshots, with: healthService.recentDays, owner: me)
+    }
+
+    /// Each other family member's most recent day from the last week.
+    private var latestByMember: [HealthSnapshot] {
+        let cutoff = Calendar.current.date(byAdding: .day, value: -7, to: Calendar.current.startOfDay(for: Date())) ?? .distantPast
+        return Dictionary(grouping: organizerStore.healthSnapshots.filter { $0.memberEmail != me && $0.date >= cutoff }, by: \.memberEmail)
+            .compactMap { _, days in days.max { $0.date < $1.date } }
+            .sorted { memberName($0.memberEmail).localizedCaseInsensitiveCompare(memberName($1.memberEmail)) == .orderedAscending }
     }
 
     private var selectedSummary: HealthMetricSummary? {

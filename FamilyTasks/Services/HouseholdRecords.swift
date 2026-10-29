@@ -23,6 +23,7 @@ struct SyncRecord: Codable, Equatable {
         case choreSettings
         case habit
         case habitDay
+        case healthGoal
         /// The item was deleted at `updatedAt`; kept so older copies cannot bring it back.
         case deleted
     }
@@ -73,6 +74,7 @@ enum HouseholdRecords {
         add(payload.chores.payouts, as: .chorePayout)
         add(payload.habits.habits, as: .habit)
         add(payload.habits.days, as: .habitDay)
+        add(payload.healthGoals, as: .healthGoal)
 
         if payload.chores.settings.updatedAt > unknownDate, let data = try? JSONEncoder().encode(payload.chores.settings) {
             records[choreSettingsRecordName] = SyncRecord(
@@ -176,6 +178,8 @@ enum HouseholdRecords {
                 decode(Habit.self, record).map { payload.habits.habits.append($0) }
             case .habitDay:
                 decode(HabitDay.self, record).map { payload.habits.days.append($0) }
+            case .healthGoal:
+                decode(HealthGoal.self, record).map { payload.healthGoals.append($0) }
             case .member:
                 guard let email = decode(String.self, record) else { continue }
                 payload.familyMembers.append(email)

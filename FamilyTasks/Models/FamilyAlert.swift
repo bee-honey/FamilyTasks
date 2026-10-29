@@ -42,6 +42,10 @@ struct FamilyAlert: Equatable, Codable, Sendable {
         case completed
         case shopping
         case habit
+        /// A family member cheering someone on from the Health dashboard.
+        case cheer
+        /// A shared health goal met, or a family challenge finished.
+        case healthGoal
     }
 
     var kind: Kind
@@ -288,12 +292,58 @@ extension FamilyAlert {
     }
 }
 
+extension FamilyAlert {
+    /// "Sam cheered you on 👏" to one person, with what they're being cheered for.
+    static func cheer(recipient: String, senderName: String, highlight: String?) -> FamilyAlert {
+        FamilyAlert(
+            kind: .cheer,
+            recipient: normalized(recipient),
+            title: "\(senderName) cheered you on 👏",
+            body: highlight.map { "For your \($0). Keep it up!" } ?? "Keep it up!",
+            itemID: "health"
+        )
+    }
+
+    /// "Sam reached their goal of 10,000 steps a day: 12,345 steps today · 🔥 4 days in a
+    /// row", or for a family
+    /// challenge "Together you reached 300,000 steps this week", to everyone but the sender.
+    static func healthGoalReached(
+        _ goal: HealthGoal,
+        value: Double,
+        streak: Int,
+        sender: String,
+        senderName: String,
+        familyMembers: [String]
+    ) -> [FamilyAlert] {
+        guard goal.isVisibleToFamily else { return [] }
+        let sender = normalized(sender)
+        let people = Set(familyMembers.map(normalized).filter { !$0.isEmpty && $0 != sender })
+        let title: String
+        let body: String
+        switch goal.kind {
+        case .personal:
+            let run = streak > 1 ? " · 🔥 \(streak) days in a row" : ""
+            title = "Goal reached"
+            let target = goal.metric.targetText(goal.target, kind: .personal)
+            body = "\(senderName) reached their goal of \(target.prefix(1).lowercased() + target.dropFirst()): \(goal.metric.format(value)) today\(run)"
+        case .family:
+            title = "Family challenge done 🎉"
+            body = "Together you reached \(goal.metric.format(value)) this week. The goal was \(goal.metric.format(goal.target))."
+        }
+        return people.sorted().map {
+            FamilyAlert(kind: .healthGoal, recipient: $0, title: title, body: body, itemID: goal.id.uuidString)
+        }
+    }
+}
+
 enum LocalItemChange {
     case task(before: FamilyTask?, after: FamilyTask)
     case recurring(before: RecurringTask?, after: RecurringTask, completedOccurrence: Bool)
     case shoppingTrip(shopID: UUID, shopName: String, itemCount: Int)
     /// One of this person's shared habits reached today's target.
     case habitDone(habit: Habit, day: String, streak: Int)
+    /// This person met a shared health goal today, or the family finished a challenge they started.
+    case healthGoal(goal: HealthGoal, value: Double, streak: Int)
 }
 
 extension Notification.Name {

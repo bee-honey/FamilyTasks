@@ -207,13 +207,14 @@ final class FamilyAlertTests: XCTestCase {
         XCTAssertEqual(FamilyAlertService.wantedKinds(defaults: defaults), [])
 
         defaults.set(true, forKey: "notifications.enabled")
-        XCTAssertEqual(FamilyAlertService.wantedKinds(defaults: defaults), [.nudge, .assigned, .updated, .completed, .shopping, .habit])
+        XCTAssertEqual(FamilyAlertService.wantedKinds(defaults: defaults), [.nudge, .cheer, .assigned, .updated, .completed, .shopping, .habit, .healthGoal])
 
         defaults.set(false, forKey: "notifications.taskChanges")
         defaults.set(false, forKey: "notifications.familyCompletions")
         defaults.set(false, forKey: "notifications.familyShopping")
         defaults.set(false, forKey: "notifications.familyHabits")
-        XCTAssertEqual(FamilyAlertService.wantedKinds(defaults: defaults), [.nudge])
+        defaults.set(false, forKey: "notifications.familyHealth")
+        XCTAssertEqual(FamilyAlertService.wantedKinds(defaults: defaults), [.nudge, .cheer])
     }
 
     // MARK: Daily lists

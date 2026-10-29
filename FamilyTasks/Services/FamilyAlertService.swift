@@ -20,6 +20,7 @@ final class FamilyAlertService {
         case notSharing
         case nobodyElse
         case tooSoon
+        case alreadyCheered
         case cloud(Error)
 
         var errorDescription: String? {
@@ -27,6 +28,7 @@ final class FamilyAlertService {
             case .notSharing: "Share your household first, so there's someone to nudge."
             case .nobodyElse: "This task isn't for anyone else."
             case .tooSoon: "You just nudged about this. Give them a few minutes."
+            case .alreadyCheered: "You've already cheered them on today."
             case .cloud(let error): Self.message(for: error)
             }
         }
@@ -63,6 +65,7 @@ final class FamilyAlertService {
         static let lastSubscriptionError = "familyAlerts.lastSubscriptionError"
         static let lastNudge = "familyAlerts.lastNudge"
         static let habitsAnnounced = "familyAlerts.habitsAnnounced"
+        static let lastCheer = "familyAlerts.lastCheer"
     }
 
     private struct SentRecord: Codable {
@@ -164,6 +167,38 @@ final class FamilyAlertService {
         return alerts.map { Assignee.memberName(for: $0.recipient) }
     }
 
+    /// When each family member was last cheered from this phone, by email.
+    private var lastCheer: [String: Date] {
+        get { defaults.dictionary(forKey: DefaultsKey.lastCheer) as? [String: Date] ?? [:] }
+        set {
+            let cutoff = Date().addingTimeInterval(-86_400)
+            defaults.set(newValue.filter { $0.value > cutoff }, forKey: DefaultsKey.lastCheer)
+        }
+    }
+
+    func wasCheeredToday(_ email: String, calendar: Calendar = .current) -> Bool {
+        guard let date = lastCheer[FamilyAlert.normalized(email)] else { return false }
+        return calendar.isDateInToday(date)
+    }
+
+    /// Sends one family member a cheer, once a day, about `highlight` ("12,400 steps today").
+    func cheer(_ email: String, highlight: String?) async throws(NudgeError) {
+        guard SharedHouseholdStore.shared.isSharingConfigured else { throw .notSharing }
+        let key = FamilyAlert.normalized(email)
+        guard !key.isEmpty, key != senderEmail else { throw .nobodyElse }
+        guard !wasCheeredToday(key) else { throw .alreadyCheered }
+        lastCheer[key] = Date()
+
+        let alert = FamilyAlert.cheer(recipient: key, senderName: senderName, highlight: highlight)
+        do {
+            try await save([alert])
+        } catch {
+            lastCheer[key] = nil
+            if Self.isRetryable(error) { queue([alert]) }
+            throw .cloud(error)
+        }
+    }
+
     /// The day each habit was last announced, by habit ID, so undoing and redoing it
     /// doesn't tell the family twice.
     private var habitsAnnounced: [String: String] {
@@ -207,6 +242,15 @@ final class FamilyAlertService {
         case let .habitDone(habit, _, streak):
             FamilyAlert.habitDone(
                 habit,
+                streak: streak,
+                sender: senderEmail,
+                senderName: senderName,
+                familyMembers: familyMembers
+            )
+        case let .healthGoal(goal, value, streak):
+            FamilyAlert.healthGoalReached(
+                goal,
+                value: value,
                 streak: streak,
                 sender: senderEmail,
                 senderName: senderName,
@@ -336,7 +380,8 @@ final class FamilyAlertService {
     /// come through while notifications are on.
     nonisolated static func wantedKinds(defaults: UserDefaults) -> [FamilyAlert.Kind] {
         guard defaults.bool(forKey: "notifications.enabled") else { return [] }
-        var kinds: [FamilyAlert.Kind] = [.nudge]
+        // Cheers come through with nudges: someone chose to send them to you.
+        var kinds: [FamilyAlert.Kind] = [.nudge, .cheer]
         if defaults.object(forKey: "notifications.taskChanges") as? Bool ?? true {
             kinds += [.assigned, .updated]
         }
@@ -348,6 +393,9 @@ final class FamilyAlertService {
         }
         if defaults.object(forKey: "notifications.familyHabits") as? Bool ?? true {
             kinds.append(.habit)
+        }
+        if defaults.object(forKey: "notifications.familyHealth") as? Bool ?? true {
+            kinds.append(.healthGoal)
         }
         return kinds
     }
