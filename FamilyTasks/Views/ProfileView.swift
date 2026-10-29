@@ -335,6 +335,7 @@ struct HealthSettingsView: View {
     @AppStorage(WindDownStep.drinks.settingsKey) private var windDownDrinks = true
     @AppStorage(WindDownStep.screens.settingsKey) private var windDownScreens = true
     @AppStorage("notifications.enabled") private var notificationsEnabled = false
+    @State private var isShowingDataList = false
 
     var body: some View {
         // Shown inside a tab's NavigationStack.
@@ -364,8 +365,18 @@ struct HealthSettingsView: View {
 
                 if healthSectionEnabled {
                     Section {
-                        ForEach(HealthDataKind.allCases) { kind in
-                            dataRow(kind)
+                        DisclosureGroup(isExpanded: $isShowingDataList) {
+                            ForEach(HealthDataKind.allCases) { kind in
+                                dataRow(kind)
+                            }
+                        } label: {
+                            HStack {
+                                Label("Data Arriving", systemImage: "checklist")
+                                Spacer(minLength: 8)
+                                Text(receivingSummary)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                         Button {
                             openHealthApp()
@@ -504,14 +515,24 @@ struct HealthSettingsView: View {
         UIApplication.shared.open(url)
     }
 
-    /// One kind of Health data, with whether any of it is arriving.
-    private func dataRow(_ kind: HealthDataKind) -> some View {
-        let arriving = kind.isArriving(
+    private func isArriving(_ kind: HealthDataKind) -> Bool {
+        kind.isArriving(
             in: healthService.recentDays,
             sleepStages: healthService.receivesSleepStages,
             weight: healthService.weight,
             height: healthService.height
         )
+    }
+
+    /// "7 of 10", for the list while it's closed.
+    private var receivingSummary: String {
+        if healthService.isLoading && healthService.recentDays.isEmpty { return "Checking…" }
+        return "\(HealthDataKind.allCases.filter(isArriving).count) of \(HealthDataKind.allCases.count)"
+    }
+
+    /// One kind of Health data, with whether any of it is arriving.
+    private func dataRow(_ kind: HealthDataKind) -> some View {
+        let arriving = isArriving(kind)
         return HStack(spacing: 12) {
             Label {
                 VStack(alignment: .leading, spacing: 1) {
