@@ -12,6 +12,8 @@ struct TodayTasksView: View {
     @AppStorage(TodaySection.storageKey) private var sectionOrderRaw = ""
     @AppStorage(TodaySection.legacyPriorityKey) private var legacyPriorityRaw = ""
     @AppStorage(TodaySection.showHabitsKey) private var showHabits = true
+    @AppStorage(TodayKind.colorCodeKey) private var colorCode = true
+    @Environment(\.colorScheme) private var colorScheme
     @AppStorage("schedule.taskSortOrder") private var taskSortOrderRaw = ScheduleTaskSortOrder.priority.rawValue
     @State private var isAddingTask = false
     @State private var editingTask: FamilyTask?
@@ -336,7 +338,7 @@ struct TodayTasksView: View {
                     taskRow(task)
                 }
             } header: {
-                SectionHeader(title: Self.counted(dayTitle, selectedTasks.count), arrange: arrange)
+                SectionHeader(title: Self.counted(dayTitle, selectedTasks.count), dot: dot(.task), arrange: arrange)
             }
         }
 
@@ -347,7 +349,7 @@ struct TodayTasksView: View {
                     taskRow(task, isOverdue: true)
                 }
             } header: {
-                SectionHeader(title: Self.counted("Overdue", overdueTasks.count), color: AppTheme.overdue, arrange: firstHeader == 1 ? arrange : nil)
+                SectionHeader(title: Self.counted("Overdue", overdueTasks.count), color: AppTheme.overdue, dot: dot(.overdue), arrange: firstHeader == 1 ? arrange : nil)
             }
         }
 
@@ -357,7 +359,7 @@ struct TodayTasksView: View {
                     RecurringScheduleRow(task: task) {
                         organizerStore.markRecurringDone(task)
                     }
-                    .listRowBackground(AppTheme.surface)
+                    .listRowBackground(rowBackground(.recurring))
                     .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                         Button(role: .destructive) {
                             organizerStore.deleteRecurringTask(task)
@@ -367,7 +369,7 @@ struct TodayTasksView: View {
                     }
                 }
             } header: {
-                SectionHeader(title: Self.counted("Recurring", recurringTasks.count), arrange: firstHeader == 2 ? arrange : nil)
+                SectionHeader(title: Self.counted("Recurring", recurringTasks.count), dot: dot(.recurring), arrange: firstHeader == 2 ? arrange : nil)
             }
         }
     }
@@ -382,10 +384,10 @@ struct TodayTasksView: View {
                     HabitRow(habit: habit, date: selectedDate, canLog: selectedDate <= Date()) {
                         editingHabit = habit
                     }
-                    .listRowBackground(AppTheme.surface)
+                    .listRowBackground(rowBackground(.habit))
                 }
             } header: {
-                SectionHeader(title: "Habits (\(done)/\(habits.count))", arrange: arrange)
+                SectionHeader(title: "Habits (\(done)/\(habits.count))", dot: dot(.habit), arrange: arrange)
             }
         }
     }
@@ -396,7 +398,7 @@ struct TodayTasksView: View {
             Section {
                 ForEach(calendarEvents) { event in
                     CalendarEventRow(event: event)
-                        .listRowBackground(AppTheme.surface)
+                        .listRowBackground(rowBackground(.calendar))
                         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                             Button(role: .destructive) {
                                 calendarSync.removeTodayEvent(event)
@@ -406,9 +408,23 @@ struct TodayTasksView: View {
                         }
                 }
             } header: {
-                SectionHeader(title: "Calendar", arrange: arrange)
+                SectionHeader(title: "Calendar", dot: dot(.calendar), arrange: arrange)
             }
         }
+    }
+
+    /// The card color behind a row: the surface with a light wash of its kind's color.
+    private func rowBackground(_ kind: TodayKind) -> some View {
+        ZStack {
+            AppTheme.surface
+            if colorCode {
+                kind.tint.opacity(TodayKind.washOpacity(for: colorScheme))
+            }
+        }
+    }
+
+    private func dot(_ kind: TodayKind) -> Color? {
+        colorCode ? kind.tint : nil
     }
 
     private func taskRow(_ task: FamilyTask, isOverdue: Bool = false) -> some View {
@@ -422,7 +438,7 @@ struct TodayTasksView: View {
         } onEdit: {
             editingTask = task
         }
-        .listRowBackground(AppTheme.surface)
+        .listRowBackground(rowBackground(isOverdue ? .overdue : .task))
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             Button(role: .destructive) {
                 taskStore.delete(task)
@@ -883,6 +899,33 @@ enum TodaySection: String, CaseIterable, Identifiable {
     }
 }
 
+/// The kinds of item on Today, each with its own light color so they're easy to tell apart.
+/// The colors come from the theme, so they suit every theme and dark mode.
+enum TodayKind {
+    case task
+    case overdue
+    case recurring
+    case habit
+    case calendar
+
+    static let colorCodeKey = "schedule.colorCodeSections"
+    /// Light enough that text keeps its contrast, strong enough to see. Dark mode needs a
+    /// little more, since the theme's dark tints are pale and the cards are dark.
+    static func washOpacity(for colorScheme: ColorScheme) -> Double {
+        colorScheme == .dark ? 0.18 : 0.10
+    }
+
+    var tint: Color {
+        switch self {
+        case .task: AppTheme.coolAccent
+        case .overdue: AppTheme.overdue
+        case .recurring: AppTheme.softAccent
+        case .habit: AppTheme.success
+        case .calendar: AppTheme.goldAccent
+        }
+    }
+}
+
 /// What a section header needs to offer Move Up and Move Down.
 struct SectionArrangeMenu {
     let section: TodaySection
@@ -894,10 +937,18 @@ struct SectionArrangeMenu {
 private struct SectionHeader: View {
     let title: String
     var color: Color = .secondary
+    /// The kind's color, matching its rows, when Today is color-coded.
+    var dot: Color?
     let arrange: SectionArrangeMenu?
 
     var body: some View {
-        HStack {
+        HStack(spacing: 6) {
+            if let dot {
+                Circle()
+                    .fill(dot)
+                    .frame(width: 8, height: 8)
+                    .accessibilityHidden(true)
+            }
             SectionTitle(text: title, color: color)
             Spacer(minLength: 8)
             if let arrange {

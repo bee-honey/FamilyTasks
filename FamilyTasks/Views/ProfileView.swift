@@ -147,6 +147,7 @@ struct ViewSettingsView: View {
     @AppStorage(TodaySection.storageKey) private var sectionOrderRaw = ""
     @AppStorage(TodaySection.legacyPriorityKey) private var legacyPriorityRaw = ""
     @AppStorage(TodaySection.showHabitsKey) private var showHabits = true
+    @AppStorage(TodayKind.colorCodeKey) private var colorCodeToday = true
 
     private func tabSlotBinding(_ index: Int) -> Binding<TabSection> {
         Binding(
@@ -240,6 +241,10 @@ struct ViewSettingsView: View {
                     Toggle(isOn: $showHabits) {
                         Label("Show Habits on Today", systemImage: "flame.fill")
                             .labelStyle(.tile(AppTheme.success))
+                    }
+                    Toggle(isOn: $colorCodeToday) {
+                        Label("Color-Code Today", systemImage: "paintpalette.fill")
+                            .labelStyle(.tile(AppTheme.softAccent))
                     }
                 }
 
