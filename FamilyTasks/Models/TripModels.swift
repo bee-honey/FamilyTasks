@@ -262,15 +262,21 @@ struct TripsPayload: Codable, Equatable {
     var trips: [Trip] = []
     var packingItems: [PackingItem] = []
     var activities: [TripActivity] = []
+    /// Each trip's weather, looked up by one phone and shared.
+    var weather: [TripWeather] = []
+    /// The family's weather lookup today; at most one entry.
+    var weatherCalls: [WeatherCallLog] = []
 
-    init(trips: [Trip] = [], packingItems: [PackingItem] = [], activities: [TripActivity] = []) {
+    init(trips: [Trip] = [], packingItems: [PackingItem] = [], activities: [TripActivity] = [], weather: [TripWeather] = [], weatherCalls: [WeatherCallLog] = []) {
         self.trips = trips
         self.packingItems = packingItems
         self.activities = activities
+        self.weather = weather
+        self.weatherCalls = weatherCalls
     }
 
     private enum CodingKeys: String, CodingKey {
-        case trips, packingItems, activities
+        case trips, packingItems, activities, weather, weatherCalls
     }
 
     init(from decoder: Decoder) throws {
@@ -278,6 +284,8 @@ struct TripsPayload: Codable, Equatable {
         trips = (try? container.decode([Trip].self, forKey: .trips)) ?? []
         packingItems = (try? container.decode([PackingItem].self, forKey: .packingItems)) ?? []
         activities = (try? container.decode([TripActivity].self, forKey: .activities)) ?? []
+        weather = (try? container.decode([TripWeather].self, forKey: .weather)) ?? []
+        weatherCalls = (try? container.decode([WeatherCallLog].self, forKey: .weatherCalls)) ?? []
     }
 }
 

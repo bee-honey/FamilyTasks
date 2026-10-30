@@ -29,6 +29,8 @@ struct SyncRecord: Codable, Equatable {
         case tripActivity
         case expense
         case budgetLimit
+        case tripWeather
+        case weatherCallLog
         /// The item was deleted at `updatedAt`; kept so older copies cannot bring it back.
         case deleted
     }
@@ -83,6 +85,8 @@ enum HouseholdRecords {
         add(payload.trips.trips, as: .trip)
         add(payload.trips.packingItems, as: .packingItem)
         add(payload.trips.activities, as: .tripActivity)
+        add(payload.trips.weather, as: .tripWeather)
+        add(payload.trips.weatherCalls, as: .weatherCallLog)
         // Only "Family" money is ever written to the household.
         add(payload.budget.expenses.filter { $0.visibility == .family }, as: .expense)
         add(payload.budget.limits.filter { $0.visibility == .family }, as: .budgetLimit)
@@ -197,6 +201,10 @@ enum HouseholdRecords {
                 decode(PackingItem.self, record).map { payload.trips.packingItems.append($0) }
             case .tripActivity:
                 decode(TripActivity.self, record).map { payload.trips.activities.append($0) }
+            case .tripWeather:
+                decode(TripWeather.self, record).map { payload.trips.weather.append($0) }
+            case .weatherCallLog:
+                decode(WeatherCallLog.self, record).map { payload.trips.weatherCalls.append($0) }
             case .expense:
                 decode(Expense.self, record).map { payload.budget.expenses.append($0) }
             case .budgetLimit:

@@ -9,6 +9,8 @@ final class TripStore: ObservableObject {
     @Published private(set) var trips: [Trip] = []
     @Published private(set) var packingItems: [PackingItem] = []
     @Published private(set) var activities: [TripActivity] = []
+    @Published private(set) var weather: [TripWeather] = []
+    @Published private(set) var weatherCallLog: WeatherCallLog?
 
     private let storageURL: URL
     private let ownerEmail: () -> String
@@ -109,6 +111,7 @@ final class TripStore: ObservableObject {
             trips.removeAll { $0.id == trip.id }
             packingItems.removeAll { $0.tripID == trip.id }
             activities.removeAll { $0.tripID == trip.id }
+            weather.removeAll { $0.id == trip.id }
         }
     }
 
@@ -194,6 +197,23 @@ final class TripStore: ObservableObject {
         return cleaned
     }
 
+    // MARK: Weather
+
+    func weather(for trip: Trip) -> TripWeather? {
+        weather.first { $0.id == trip.id }
+    }
+
+    func saveWeather(_ tripWeather: TripWeather) {
+        change {
+            weather.removeAll { $0.id == tripWeather.id }
+            weather.append(tripWeather)
+        }
+    }
+
+    func setWeatherCallLog(_ log: WeatherCallLog) {
+        change { weatherCallLog = log }
+    }
+
     private func change(_ body: () -> Void) {
         let before = exportPayload()
         body()
@@ -201,6 +221,7 @@ final class TripStore: ObservableObject {
         SyncLedger.shared.recordRemovals(from: before.trips, to: after.trips)
         SyncLedger.shared.recordRemovals(from: before.packingItems, to: after.packingItems)
         SyncLedger.shared.recordRemovals(from: before.activities, to: after.activities)
+        SyncLedger.shared.recordRemovals(from: before.weather, to: after.weather)
         save()
         NotificationCenter.default.post(name: .familyDataDidChange, object: self)
     }
@@ -208,7 +229,7 @@ final class TripStore: ObservableObject {
     // MARK: Family sharing
 
     func exportPayload() -> TripsPayload {
-        TripsPayload(trips: trips, packingItems: packingItems, activities: activities)
+        TripsPayload(trips: trips, packingItems: packingItems, activities: activities, weather: weather, weatherCalls: weatherCallLog.map { [$0] } ?? [])
     }
 
     /// Takes the family's trips. Only assigns what changed; a change from someone else
@@ -218,8 +239,16 @@ final class TripStore: ObservableObject {
         if trips != payload.trips { trips = payload.trips; changed = true }
         if packingItems != payload.packingItems { packingItems = payload.packingItems; changed = true }
         if activities != payload.activities { activities = payload.activities; changed = true }
-        guard changed else { return }
+        // Weather doesn't change any reminders.
+        let newLog = payload.weatherCalls.max { $0.updatedAt < $1.updatedAt }
+        let weatherChanged = weather != payload.weather || weatherCallLog != newLog
+        if weatherChanged {
+            weather = payload.weather
+            weatherCallLog = newLog
+        }
+        guard changed || weatherChanged else { return }
         save()
+        guard changed else { return }
         Task { await NotificationScheduler.shared.reschedule() }
     }
 
@@ -234,6 +263,8 @@ final class TripStore: ObservableObject {
         trips = payload.trips
         packingItems = payload.packingItems
         activities = payload.activities
+        weather = payload.weather
+        weatherCallLog = payload.weatherCalls.max { $0.updatedAt < $1.updatedAt }
     }
 
     private func save() {

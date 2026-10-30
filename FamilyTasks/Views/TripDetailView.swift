@@ -48,6 +48,7 @@ struct TripDetailView: View {
             }
         }
         .background(AppTheme.background)
+        .task { await TripWeatherService.shared.refreshIfNeeded() }
     }
 
     private func content(_ trip: Trip) -> some View {
@@ -114,6 +115,10 @@ struct TripDetailView: View {
         }
     }
 
+    private func weatherDays(_ trip: Trip) -> [TripDayWeather]? {
+        TripWeatherPlanner.days(for: trip, weather: tripStore.weather, log: tripStore.weatherCallLog, now: Date())
+    }
+
     private func header(_ trip: Trip) -> some View {
         let packing = tripStore.packing(for: trip)
         let packed = packing.filter(\.isPacked).count
@@ -139,6 +144,9 @@ struct TripDetailView: View {
                 Text(trip.dateText())
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+            }
+            if let weather = weatherDays(trip) {
+                TripWeatherStrip(trip: trip, days: weather)
             }
             if !packing.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
@@ -197,6 +205,14 @@ struct TripDetailView: View {
             } header: {
                 HStack {
                     SectionTitle(text: "Day \(index + 1) · \(day.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))")
+                    if let weather = weatherDays(trip)?.first(where: { Calendar.current.isDate($0.date, inSameDayAs: day) }) {
+                        Text("\(Image(systemName: weather.symbolName)) \(weather.highText)")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .symbolRenderingMode(.multicolor)
+                            .textCase(nil)
+                            .accessibilityLabel("\(weather.isTypical ? "Last year" : "Forecast"): \(weather.conditionText), high \(weather.highText)")
+                    }
                     if Calendar.current.isDateInToday(day) {
                         Text("Today")
                             .font(.caption.weight(.bold))
@@ -925,5 +941,93 @@ final class TripPlaceSearch: NSObject, ObservableObject, @preconcurrency MKLocal
 
     func completer(_ completer: MKLocalSearchCompleter, didFailWithError error: Error) {
         suggestions = []
+    }
+}
+
+// MARK: Weather
+
+/// Each trip day's weather, with Apple Weather's required credit.
+private struct TripWeatherStrip: View {
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.openURL) private var openURL
+    let trip: Trip
+    let days: [TripDayWeather]
+    @State private var hasCredit = WeatherCredit.legalPage != nil
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(caption)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(days, id: \.date) { day in
+                        dayChip(day)
+                    }
+                }
+            }
+            if hasCredit {
+                HStack(spacing: 8) {
+                    if let mark = colorScheme == .dark ? WeatherCredit.darkMark : WeatherCredit.lightMark {
+                        AsyncImage(url: mark) { image in
+                            image.resizable().scaledToFit()
+                        } placeholder: {
+                            Text("\(Image(systemName: "apple.logo")) Weather")
+                                .font(.caption2.weight(.semibold))
+                        }
+                        .frame(height: 12)
+                        .accessibilityLabel("Apple Weather")
+                    }
+                    if let legal = WeatherCredit.legalPage {
+                        Button("Other data sources") { openURL(legal) }
+                            .font(.caption2)
+                            .buttonStyle(.borderless)
+                    }
+                }
+            }
+        }
+        .padding(12)
+        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .task {
+            // Another phone may have made the lookup; the credit is still needed here.
+            if !hasCredit {
+                await WeatherCredit.loadIfNeeded()
+                hasCredit = WeatherCredit.legalPage != nil
+            }
+        }
+    }
+
+    private var caption: String {
+        let typical = days.filter(\.isTypical).count
+        if typical == 0 { return "Forecast" }
+        if typical == days.count { return "Last year on these dates · forecast comes 10 days before" }
+        return "Forecast, then last year on later days"
+    }
+
+    private func dayChip(_ day: TripDayWeather) -> some View {
+        VStack(spacing: 4) {
+            Text(day.date.formatted(.dateTime.weekday(.abbreviated)))
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.secondary)
+            Image(systemName: day.symbolName)
+                .symbolRenderingMode(.multicolor)
+                .font(.title3)
+                .frame(height: 24)
+            Text(day.highText)
+                .font(.caption.weight(.semibold))
+            Text(day.lowText)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            if !day.isTypical, day.precipitationChance >= 0.3 {
+                Text(day.precipitationChance.formatted(.percent.precision(.fractionLength(0))))
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(AppTheme.coolAccent)
+            }
+        }
+        .frame(minWidth: 48)
+        .padding(.vertical, 6)
+        .opacity(day.isTypical ? 0.75 : 1)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(day.date.formatted(.dateTime.weekday(.wide))): \(day.conditionText), high \(day.highText), low \(day.lowText)\(day.isTypical ? ", last year" : "")")
     }
 }

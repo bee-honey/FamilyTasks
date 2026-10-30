@@ -159,7 +159,9 @@ struct SharedHouseholdPayload: Codable {
             trips: TripsPayload(
                 trips: mergeItems(local.trips.trips, remote.trips.trips, deletions: deletions, localOrderWins: keepLocalOrder),
                 packingItems: mergeItems(local.trips.packingItems, remote.trips.packingItems, deletions: deletions, localOrderWins: keepLocalOrder),
-                activities: mergeItems(local.trips.activities, remote.trips.activities, deletions: deletions, localOrderWins: keepLocalOrder)
+                activities: mergeItems(local.trips.activities, remote.trips.activities, deletions: deletions, localOrderWins: keepLocalOrder),
+                weather: mergeItems(local.trips.weather, remote.trips.weather, deletions: deletions, localOrderWins: keepLocalOrder),
+                weatherCalls: mergeItems(local.trips.weatherCalls, remote.trips.weatherCalls, deletions: deletions, localOrderWins: keepLocalOrder)
             ),
             budget: BudgetPayload(
                 expenses: mergeItems(local.budget.expenses, remote.budget.expenses, deletions: deletions, localOrderWins: keepLocalOrder),
@@ -236,6 +238,10 @@ extension HealthGoal: SyncMergeable { var syncID: String { id.uuidString } }
 extension Trip: SyncMergeable { var syncID: String { id.uuidString } }
 extension PackingItem: SyncMergeable { var syncID: String { id.uuidString } }
 extension TripActivity: SyncMergeable { var syncID: String { id.uuidString } }
+/// Kept apart from the trip's own record, which uses the trip's id.
+extension TripWeather: SyncMergeable { var syncID: String { "weather.\(id.uuidString)" } }
+/// One shared record: the family's weather lookup today.
+extension WeatherCallLog: SyncMergeable { var syncID: String { "trip-weather-calls" } }
 extension Expense: SyncMergeable { var syncID: String { id.uuidString } }
 extension BudgetLimit: SyncMergeable { var syncID: String { id.uuidString } }
 

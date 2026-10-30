@@ -7,16 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		4A1B17000000000000000042 /* BudgetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B17000000000000000041 /* BudgetTests.swift */; };
-		4A1B17000000000000000040 /* BudgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B1700000000000000003F /* BudgetView.swift */; };
-		4A1B1700000000000000003E /* BudgetStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B1700000000000000003D /* BudgetStore.swift */; };
-		4A1B1700000000000000003C /* BudgetModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B1700000000000000003B /* BudgetModels.swift */; };
-		4A1B1700000000000000003A /* IdeaTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B17000000000000000039 /* IdeaTests.swift */; };
-		4A1B17000000000000000026 /* SharedIdeas.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B17000000000000000025 /* SharedIdeas.swift */; };
-		4A1B17000000000000000027 /* SharedIdeas.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B17000000000000000025 /* SharedIdeas.swift */; };
-		4A1B17000000000000000028 /* IdeaModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A00502C0A000000000001 /* IdeaModels.swift */; };
-		4A1B1700000000000000002A /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B17000000000000000029 /* ShareViewController.swift */; };
-		4A1B1700000000000000002E /* FamilyTasksShare.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 4A1B1700000000000000002D /* FamilyTasksShare.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		4A1B17000000000000000044 /* TripWeather.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B17000000000000000043 /* TripWeather.swift */; };
 		17E9A20CA488A705BD001A56 /* FamilyTasksWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 8F254A3D5BB9563227948625 /* FamilyTasksWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		2661FD78FC3C8E13C2CF26C8 /* GenerateMealPlanView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CBF9125B07E0C1F783596E5 /* GenerateMealPlanView.swift */; };
 		26A57217B63A6D03B4F5955C /* ChoresView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB53E2CCC7AFC0F5493E24C0 /* ChoresView.swift */; };
@@ -58,23 +49,33 @@
 		3DD28E028918977E37FF9148 /* HealthAggregationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF4226E63FDF989D31BEA8BF /* HealthAggregationTests.swift */; };
 		441BB0E0F9BAD9779AF2D01F /* WidgetDataTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1959E02C60CB8BEF62319D0D /* WidgetDataTests.swift */; };
 		4A1B17000000000000000002 /* HabitModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B17000000000000000001 /* HabitModels.swift */; };
-		4A1B17000000000000000012 /* HealthModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B17000000000000000011 /* HealthModels.swift */; };
-		4A1B1700000000000000001C /* TripModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B1700000000000000001B /* TripModels.swift */; };
 		4A1B17000000000000000004 /* HabitStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B17000000000000000003 /* HabitStore.swift */; };
-		4A1B17000000000000000014 /* HealthGoalStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B17000000000000000013 /* HealthGoalStore.swift */; };
-		4A1B1700000000000000001E /* TripStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B1700000000000000001D /* TripStore.swift */; };
 		4A1B17000000000000000006 /* HabitsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B17000000000000000005 /* HabitsView.swift */; };
-		4A1B17000000000000000018 /* HealthGoalsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B17000000000000000017 /* HealthGoalsView.swift */; };
-		4A1B17000000000000000022 /* TripDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B17000000000000000021 /* TripDetailView.swift */; };
-		4A1B17000000000000000020 /* TripsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B1700000000000000001F /* TripsView.swift */; };
-		4A1B17000000000000000016 /* HealthCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B17000000000000000015 /* HealthCards.swift */; };
 		4A1B17000000000000000008 /* HabitStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B17000000000000000007 /* HabitStoreTests.swift */; };
-		4A1B1700000000000000001A /* HealthModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B17000000000000000019 /* HealthModelTests.swift */; };
-		4A1B17000000000000000024 /* TripModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B17000000000000000023 /* TripModelTests.swift */; };
 		4A1B1700000000000000000A /* MealCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B17000000000000000009 /* MealCatalog.swift */; };
 		4A1B1700000000000000000C /* MealCatalogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B1700000000000000000B /* MealCatalogView.swift */; };
 		4A1B1700000000000000000E /* MealCatalogTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B1700000000000000000D /* MealCatalogTests.swift */; };
 		4A1B17000000000000000010 /* MealCatalog in Resources */ = {isa = PBXBuildFile; fileRef = 4A1B1700000000000000000F /* MealCatalog */; };
+		4A1B17000000000000000012 /* HealthModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B17000000000000000011 /* HealthModels.swift */; };
+		4A1B17000000000000000014 /* HealthGoalStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B17000000000000000013 /* HealthGoalStore.swift */; };
+		4A1B17000000000000000016 /* HealthCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B17000000000000000015 /* HealthCards.swift */; };
+		4A1B17000000000000000018 /* HealthGoalsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B17000000000000000017 /* HealthGoalsView.swift */; };
+		4A1B1700000000000000001A /* HealthModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B17000000000000000019 /* HealthModelTests.swift */; };
+		4A1B1700000000000000001C /* TripModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B1700000000000000001B /* TripModels.swift */; };
+		4A1B1700000000000000001E /* TripStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B1700000000000000001D /* TripStore.swift */; };
+		4A1B17000000000000000020 /* TripsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B1700000000000000001F /* TripsView.swift */; };
+		4A1B17000000000000000022 /* TripDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B17000000000000000021 /* TripDetailView.swift */; };
+		4A1B17000000000000000024 /* TripModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B17000000000000000023 /* TripModelTests.swift */; };
+		4A1B17000000000000000026 /* SharedIdeas.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B17000000000000000025 /* SharedIdeas.swift */; };
+		4A1B17000000000000000027 /* SharedIdeas.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B17000000000000000025 /* SharedIdeas.swift */; };
+		4A1B17000000000000000028 /* IdeaModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C0A00502C0A000000000001 /* IdeaModels.swift */; };
+		4A1B1700000000000000002A /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B17000000000000000029 /* ShareViewController.swift */; };
+		4A1B1700000000000000002E /* FamilyTasksShare.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 4A1B1700000000000000002D /* FamilyTasksShare.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		4A1B1700000000000000003A /* IdeaTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B17000000000000000039 /* IdeaTests.swift */; };
+		4A1B1700000000000000003C /* BudgetModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B1700000000000000003B /* BudgetModels.swift */; };
+		4A1B1700000000000000003E /* BudgetStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B1700000000000000003D /* BudgetStore.swift */; };
+		4A1B17000000000000000040 /* BudgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B1700000000000000003F /* BudgetView.swift */; };
+		4A1B17000000000000000042 /* BudgetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1B17000000000000000041 /* BudgetTests.swift */; };
 		4E09B57482F13A855F83A401 /* MealPlanGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B0EC2604850424CAB3067DC /* MealPlanGenerator.swift */; };
 		56D116660832334365FC31BD /* ChoreStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE8CC412E6186E109604CD94 /* ChoreStore.swift */; };
 		58575D5FE2A2819E9B667AB9 /* AppShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91319003F12F08AE59850B1D /* AppShortcuts.swift */; };
@@ -109,19 +110,19 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		4A1B17000000000000000037 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 2C0A00002C0A000000000001 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 4A1B17000000000000000030;
-			remoteInfo = FamilyTasksShare;
-		};
 		08B8DA9DCA2BA8E4D41229E0 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 2C0A00002C0A000000000001 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 67457009923A5EA3C16C33C5;
 			remoteInfo = FamilyTasksWidgets;
+		};
+		4A1B17000000000000000037 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 2C0A00002C0A000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 4A1B17000000000000000030;
+			remoteInfo = FamilyTasksShare;
 		};
 		4BB863560D912E42627AF1ED /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -148,16 +149,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		4A1B17000000000000000041 /* BudgetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetTests.swift; sourceTree = "<group>"; };
-		4A1B1700000000000000003F /* BudgetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetView.swift; sourceTree = "<group>"; };
-		4A1B1700000000000000003D /* BudgetStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetStore.swift; sourceTree = "<group>"; };
-		4A1B1700000000000000003B /* BudgetModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetModels.swift; sourceTree = "<group>"; };
-		4A1B17000000000000000039 /* IdeaTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeaTests.swift; sourceTree = "<group>"; };
-		4A1B17000000000000000025 /* SharedIdeas.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedIdeas.swift; sourceTree = "<group>"; };
-		4A1B17000000000000000029 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
-		4A1B1700000000000000002B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		4A1B1700000000000000002C /* FamilyTasksShare.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FamilyTasksShare.entitlements; sourceTree = "<group>"; };
-		4A1B1700000000000000002D /* FamilyTasksShare.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = FamilyTasksShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		4A1B17000000000000000043 /* TripWeather.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TripWeather.swift; sourceTree = "<group>"; };
 		1959E02C60CB8BEF62319D0D /* WidgetDataTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WidgetDataTests.swift; sourceTree = "<group>"; };
 		1EE3F1FE8CB9085764096A06 /* OrganizerStoreTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = OrganizerStoreTests.swift; sourceTree = "<group>"; };
 		2A13A167718A0EF3814EA4E9 /* NotificationTimingTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NotificationTimingTests.swift; sourceTree = "<group>"; };
@@ -200,23 +192,33 @@
 		33B236709ED79055EFC132AD /* WidgetData.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WidgetData.swift; sourceTree = "<group>"; };
 		38838F69E4D0761A7610CF61 /* FamilyTasksTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FamilyTasksTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		4A1B17000000000000000001 /* HabitModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HabitModels.swift; sourceTree = "<group>"; };
-		4A1B17000000000000000011 /* HealthModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HealthModels.swift; sourceTree = "<group>"; };
-		4A1B1700000000000000001B /* TripModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TripModels.swift; sourceTree = "<group>"; };
 		4A1B17000000000000000003 /* HabitStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HabitStore.swift; sourceTree = "<group>"; };
-		4A1B17000000000000000013 /* HealthGoalStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HealthGoalStore.swift; sourceTree = "<group>"; };
-		4A1B1700000000000000001D /* TripStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TripStore.swift; sourceTree = "<group>"; };
 		4A1B17000000000000000005 /* HabitsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HabitsView.swift; sourceTree = "<group>"; };
-		4A1B17000000000000000017 /* HealthGoalsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HealthGoalsView.swift; sourceTree = "<group>"; };
-		4A1B17000000000000000021 /* TripDetailView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TripDetailView.swift; sourceTree = "<group>"; };
-		4A1B1700000000000000001F /* TripsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TripsView.swift; sourceTree = "<group>"; };
-		4A1B17000000000000000015 /* HealthCards.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HealthCards.swift; sourceTree = "<group>"; };
 		4A1B17000000000000000007 /* HabitStoreTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HabitStoreTests.swift; sourceTree = "<group>"; };
-		4A1B17000000000000000019 /* HealthModelTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HealthModelTests.swift; sourceTree = "<group>"; };
-		4A1B17000000000000000023 /* TripModelTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TripModelTests.swift; sourceTree = "<group>"; };
 		4A1B17000000000000000009 /* MealCatalog.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MealCatalog.swift; sourceTree = "<group>"; };
 		4A1B1700000000000000000B /* MealCatalogView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MealCatalogView.swift; sourceTree = "<group>"; };
 		4A1B1700000000000000000D /* MealCatalogTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MealCatalogTests.swift; sourceTree = "<group>"; };
 		4A1B1700000000000000000F /* MealCatalog */ = {isa = PBXFileReference; lastKnownFileType = folder; path = MealCatalog; sourceTree = "<group>"; };
+		4A1B17000000000000000011 /* HealthModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HealthModels.swift; sourceTree = "<group>"; };
+		4A1B17000000000000000013 /* HealthGoalStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HealthGoalStore.swift; sourceTree = "<group>"; };
+		4A1B17000000000000000015 /* HealthCards.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HealthCards.swift; sourceTree = "<group>"; };
+		4A1B17000000000000000017 /* HealthGoalsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HealthGoalsView.swift; sourceTree = "<group>"; };
+		4A1B17000000000000000019 /* HealthModelTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HealthModelTests.swift; sourceTree = "<group>"; };
+		4A1B1700000000000000001B /* TripModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TripModels.swift; sourceTree = "<group>"; };
+		4A1B1700000000000000001D /* TripStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TripStore.swift; sourceTree = "<group>"; };
+		4A1B1700000000000000001F /* TripsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TripsView.swift; sourceTree = "<group>"; };
+		4A1B17000000000000000021 /* TripDetailView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TripDetailView.swift; sourceTree = "<group>"; };
+		4A1B17000000000000000023 /* TripModelTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TripModelTests.swift; sourceTree = "<group>"; };
+		4A1B17000000000000000025 /* SharedIdeas.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedIdeas.swift; sourceTree = "<group>"; };
+		4A1B17000000000000000029 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
+		4A1B1700000000000000002B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		4A1B1700000000000000002C /* FamilyTasksShare.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FamilyTasksShare.entitlements; sourceTree = "<group>"; };
+		4A1B1700000000000000002D /* FamilyTasksShare.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = FamilyTasksShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		4A1B17000000000000000039 /* IdeaTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdeaTests.swift; sourceTree = "<group>"; };
+		4A1B1700000000000000003B /* BudgetModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetModels.swift; sourceTree = "<group>"; };
+		4A1B1700000000000000003D /* BudgetStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetStore.swift; sourceTree = "<group>"; };
+		4A1B1700000000000000003F /* BudgetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetView.swift; sourceTree = "<group>"; };
+		4A1B17000000000000000041 /* BudgetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetTests.swift; sourceTree = "<group>"; };
 		5EDC30D6C9571B5F9D9D3CFC /* TaskIntents.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TaskIntents.swift; sourceTree = "<group>"; };
 		5F9A5C2AF95CCEBDA865F6B7 /* FamilyTasksWidgets.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = FamilyTasksWidgets.entitlements; sourceTree = "<group>"; };
 		6CBF9125B07E0C1F783596E5 /* GenerateMealPlanView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GenerateMealPlanView.swift; sourceTree = "<group>"; };
@@ -255,14 +257,14 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		4A1B17000000000000000032 /* Frameworks */ = {
+		2C0A00042C0A000000000001 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		2C0A00042C0A000000000001 /* Frameworks */ = {
+		4A1B17000000000000000032 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -288,16 +290,6 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		4A1B1700000000000000002F /* FamilyTasksShare */ = {
-			isa = PBXGroup;
-			children = (
-				4A1B17000000000000000029 /* ShareViewController.swift */,
-				4A1B1700000000000000002B /* Info.plist */,
-				4A1B1700000000000000002C /* FamilyTasksShare.entitlements */,
-			);
-			path = FamilyTasksShare;
-			sourceTree = "<group>";
-		};
 		2C0A00012C0A000000000001 = {
 			isa = PBXGroup;
 			children = (
@@ -387,6 +379,7 @@
 				33B236709ED79055EFC132AD /* WidgetData.swift */,
 				A5E2990011171453CBC039DF /* WidgetBridge.swift */,
 				4A1B17000000000000000025 /* SharedIdeas.swift */,
+				4A1B17000000000000000043 /* TripWeather.swift */,
 				5EDC30D6C9571B5F9D9D3CFC /* TaskIntents.swift */,
 				91319003F12F08AE59850B1D /* AppShortcuts.swift */,
 			);
@@ -429,6 +422,16 @@
 				BCB382542C193CF747A96DA0 /* ScreenChrome.swift */,
 			);
 			path = Views;
+			sourceTree = "<group>";
+		};
+		4A1B1700000000000000002F /* FamilyTasksShare */ = {
+			isa = PBXGroup;
+			children = (
+				4A1B17000000000000000029 /* ShareViewController.swift */,
+				4A1B1700000000000000002B /* Info.plist */,
+				4A1B1700000000000000002C /* FamilyTasksShare.entitlements */,
+			);
+			path = FamilyTasksShare;
 			sourceTree = "<group>";
 		};
 		8DBE0BC2DA404646A9A142E1 /* Frameworks */ = {
@@ -527,23 +530,6 @@
 			productReference = 2C0A00072C0A000000000001 /* FamilyTasks.app */;
 			productType = "com.apple.product-type.application";
 		};
-		67457009923A5EA3C16C33C5 /* FamilyTasksWidgets */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = CF6C60CF291854DE4DB09080 /* Build configuration list for PBXNativeTarget "FamilyTasksWidgets" */;
-			buildPhases = (
-				450E132208CE2E46A8C907E2 /* Sources */,
-				8CF094EB8DB21BDF51D04425 /* Frameworks */,
-				2ADCE5CF11C725BAE3D21933 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			name = FamilyTasksWidgets;
-			productName = FamilyTasksWidgets;
-			productReference = 8F254A3D5BB9563227948625 /* FamilyTasksWidgets.appex */;
-			productType = "com.apple.product-type.app-extension";
-		};
 		4A1B17000000000000000030 /* FamilyTasksShare */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 4A1B17000000000000000034 /* Build configuration list for PBXNativeTarget "FamilyTasksShare" */;
@@ -559,6 +545,23 @@
 			name = FamilyTasksShare;
 			productName = FamilyTasksShare;
 			productReference = 4A1B1700000000000000002D /* FamilyTasksShare.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		67457009923A5EA3C16C33C5 /* FamilyTasksWidgets */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CF6C60CF291854DE4DB09080 /* Build configuration list for PBXNativeTarget "FamilyTasksWidgets" */;
+			buildPhases = (
+				450E132208CE2E46A8C907E2 /* Sources */,
+				8CF094EB8DB21BDF51D04425 /* Frameworks */,
+				2ADCE5CF11C725BAE3D21933 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = FamilyTasksWidgets;
+			productName = FamilyTasksWidgets;
+			productReference = 8F254A3D5BB9563227948625 /* FamilyTasksWidgets.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
@@ -598,13 +601,6 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		4A1B17000000000000000033 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		2ADCE5CF11C725BAE3D21933 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -623,6 +619,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		4A1B17000000000000000033 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		9D461A17159E44F4760C8E1C /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -633,16 +636,6 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		4A1B17000000000000000031 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				4A1B1700000000000000002A /* ShareViewController.swift in Sources */,
-				4A1B17000000000000000027 /* SharedIdeas.swift in Sources */,
-				4A1B17000000000000000028 /* IdeaModels.swift in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		2C0A00032C0A000000000001 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -691,6 +684,7 @@
 				BCAFBD55818EE04C0DF7D8BB /* WidgetData.swift in Sources */,
 				B7A8D40ABA07CDF7AF17409F /* WidgetBridge.swift in Sources */,
 				4A1B17000000000000000026 /* SharedIdeas.swift in Sources */,
+				4A1B17000000000000000044 /* TripWeather.swift in Sources */,
 				2DD97B59D957D90DD20C3329 /* TaskIntents.swift in Sources */,
 				58575D5FE2A2819E9B667AB9 /* AppShortcuts.swift in Sources */,
 				37B9E1677D74E24B22D3A7DC /* ChoreModels.swift in Sources */,
@@ -726,6 +720,16 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		4A1B17000000000000000031 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4A1B1700000000000000002A /* ShareViewController.swift in Sources */,
+				4A1B17000000000000000027 /* SharedIdeas.swift in Sources */,
+				4A1B17000000000000000028 /* IdeaModels.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		A9556F24209A2B2285D15190 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -755,17 +759,17 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		4A1B17000000000000000038 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			name = FamilyTasksShare;
-			target = 4A1B17000000000000000030 /* FamilyTasksShare */;
-			targetProxy = 4A1B17000000000000000037 /* PBXContainerItemProxy */;
-		};
 		164BE09DF99FD2B744E8E155 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			name = FamilyTasks;
 			target = 2C0A00052C0A000000000001 /* FamilyTasks */;
 			targetProxy = 4BB863560D912E42627AF1ED /* PBXContainerItemProxy */;
+		};
+		4A1B17000000000000000038 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = FamilyTasksShare;
+			target = 4A1B17000000000000000030 /* FamilyTasksShare */;
+			targetProxy = 4A1B17000000000000000037 /* PBXContainerItemProxy */;
 		};
 		60F87CAD59B8C7438C2BF02E /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -932,7 +936,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = FamilyTasks/FamilyTasks.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 30;
+				CURRENT_PROJECT_VERSION = 31;
 				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = 2X5AKN2Y8P;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -944,7 +948,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 6.0;
+				MARKETING_VERSION = 7.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.naveenkeerthy.FamilyTasks;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -964,7 +968,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = FamilyTasks/FamilyTasks.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 30;
+				CURRENT_PROJECT_VERSION = 31;
 				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = 2X5AKN2Y8P;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -976,12 +980,72 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 6.0;
+				MARKETING_VERSION = 7.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.naveenkeerthy.FamilyTasks;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		4A1B17000000000000000035 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_ENTITLEMENTS = FamilyTasksShare/FamilyTasksShare.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 30;
+				DEVELOPMENT_TEAM = 2X5AKN2Y8P;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = FamilyTasksShare/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Family Tasks";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 6.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.naveenkeerthy.FamilyTasks.Share;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		4A1B17000000000000000036 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_ENTITLEMENTS = FamilyTasksShare/FamilyTasksShare.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 30;
+				DEVELOPMENT_TEAM = 2X5AKN2Y8P;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = FamilyTasksShare/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Family Tasks";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 6.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.naveenkeerthy.FamilyTasks.Share;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = 1;
@@ -1053,66 +1117,6 @@
 			};
 			name = Debug;
 		};
-		4A1B17000000000000000035 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CLANG_ENABLE_OBJC_WEAK = NO;
-				CODE_SIGN_ENTITLEMENTS = FamilyTasksShare/FamilyTasksShare.entitlements;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 30;
-				DEVELOPMENT_TEAM = 2X5AKN2Y8P;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = FamilyTasksShare/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Family Tasks";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 6.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.naveenkeerthy.FamilyTasks.Share;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
-				SKIP_INSTALL = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SUPPORTS_MACCATALYST = NO;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 6.0;
-				TARGETED_DEVICE_FAMILY = 1;
-			};
-			name = Debug;
-		};
-		4A1B17000000000000000036 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CLANG_ENABLE_OBJC_WEAK = NO;
-				CODE_SIGN_ENTITLEMENTS = FamilyTasksShare/FamilyTasksShare.entitlements;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 30;
-				DEVELOPMENT_TEAM = 2X5AKN2Y8P;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = FamilyTasksShare/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Family Tasks";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 6.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.naveenkeerthy.FamilyTasks.Share;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
-				SKIP_INSTALL = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SUPPORTS_MACCATALYST = NO;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 6.0;
-				TARGETED_DEVICE_FAMILY = 1;
-			};
-			name = Release;
-		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -1134,6 +1138,15 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		4A1B17000000000000000034 /* Build configuration list for PBXNativeTarget "FamilyTasksShare" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4A1B17000000000000000036 /* Release */,
+				4A1B17000000000000000035 /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		7BB09F74E38B4CEA745A7EC1 /* Build configuration list for PBXNativeTarget "FamilyTasksTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -1148,15 +1161,6 @@
 			buildConfigurations = (
 				00099655D8FFDAE99305252C /* Release */,
 				F16C41EB7981EA1EE396BD4B /* Debug */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		4A1B17000000000000000034 /* Build configuration list for PBXNativeTarget "FamilyTasksShare" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				4A1B17000000000000000036 /* Release */,
-				4A1B17000000000000000035 /* Debug */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

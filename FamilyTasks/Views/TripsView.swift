@@ -72,6 +72,8 @@ struct TripsView: View {
         .sheet(isPresented: $isAdding) {
             TripEditorView()
         }
+        // The family's one weather lookup a day happens only when someone opens Trips.
+        .task { await TripWeatherService.shared.refreshIfNeeded() }
     }
 
     private func tripButton(_ trip: Trip) -> some View {

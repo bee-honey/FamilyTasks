@@ -204,6 +204,85 @@ final class TripModelTests: XCTestCase {
         XCTAssertEqual(old?.trips, TripsPayload())
     }
 
+    // MARK: Weather
+
+    private func weatherDay(_ month: Int, _ dayOfMonth: Int, high: Double = 20, typical: Bool = false) -> TripDayWeather {
+        TripDayWeather(date: day(month, dayOfMonth), symbolName: "sun.max", conditionText: "Sunny", highCelsius: high, lowCelsius: 10, precipitationChance: 0, isTypical: typical)
+    }
+
+    func testOneWeatherLookupADayForTheWholeFamily() {
+        let trip = thanksgiving()
+        let farAway = day(10, 30, hour: 9)
+
+        // Weeks out: last year's weather for the same dates, once.
+        let first = TripWeatherPlanner.nextRequest(trips: [trip], weather: [], log: nil, now: farAway, calendar: calendar)
+        XCTAssertEqual(first, .lastYear(tripID: trip.id, start: calendar.date(from: DateComponents(year: 2025, month: 11, day: 23))!, end: calendar.date(from: DateComponents(year: 2025, month: 11, day: 28))!))
+
+        // Anyone in the family already looked today: no more lookups, whatever happened.
+        for result in [WeatherCallLog.Result.pending, .succeeded, .failed] {
+            let log = WeatherCallLog(day: "2026-10-30", result: result, calledBy: "dad@example.com", updatedAt: farAway)
+            XCTAssertNil(TripWeatherPlanner.nextRequest(trips: [trip], weather: [], log: log, now: farAway, calendar: calendar))
+        }
+
+        // Once last year's weather is in, nothing more until the forecast range.
+        let key = TripWeatherPlanner.key(for: trip, calendar: calendar)
+        let saved = TripWeather(id: trip.id, key: key, typical: [weatherDay(11, 23, typical: true)])
+        let yesterday = WeatherCallLog(day: "2026-10-29", result: .succeeded, calledBy: "", updatedAt: farAway)
+        XCTAssertNil(TripWeatherPlanner.nextRequest(trips: [trip], weather: [saved], log: yesterday, now: farAway, calendar: calendar))
+
+        // Ten days before: a fresh forecast each day.
+        let close = day(11, 15, hour: 9)
+        XCTAssertEqual(
+            TripWeatherPlanner.nextRequest(trips: [trip], weather: [saved], log: yesterday, now: close, calendar: calendar),
+            .forecast(tripID: trip.id, start: day(11, 23), end: day(11, 25))
+        )
+        var fresh = saved
+        fresh.forecastDay = "2026-11-15"
+        XCTAssertNil(TripWeatherPlanner.nextRequest(trips: [trip], weather: [fresh], log: nil, now: close, calendar: calendar))
+
+        // Moving the trip looks it up again.
+        var moved = trip
+        moved.destination = "Seattle"
+        XCTAssertNotNil(TripWeatherPlanner.nextRequest(trips: [moved], weather: [fresh], log: yesterday, now: close, calendar: calendar))
+    }
+
+    func testWeatherIsHiddenWhenTodaysLookupFailed() {
+        let trip = thanksgiving()
+        let now = day(11, 22, hour: 9)
+        let saved = TripWeather(
+            id: trip.id,
+            key: TripWeatherPlanner.key(for: trip, calendar: calendar),
+            forecast: [weatherDay(11, 23, high: 22), weatherDay(11, 24, high: 23)],
+            forecastDay: "2026-11-22",
+            typical: [weatherDay(11, 23, high: 18, typical: true), weatherDay(11, 26, high: 17, typical: true)]
+        )
+
+        let shown = TripWeatherPlanner.days(for: trip, weather: [saved], log: nil, now: now, calendar: calendar)
+        XCTAssertEqual(shown?.map(\.highCelsius), [22, 23, 17], "Forecast first, then last year's for later days")
+
+        let failed = WeatherCallLog(day: "2026-11-22", result: .failed, calledBy: "", updatedAt: now)
+        XCTAssertNil(TripWeatherPlanner.days(for: trip, weather: [saved], log: failed, now: now, calendar: calendar))
+
+        // A forecast gets too old to show; last year's stays.
+        let later = day(11, 26, hour: 9)
+        XCTAssertEqual(TripWeatherPlanner.days(for: trip, weather: [saved], log: nil, now: later, calendar: calendar)?.map(\.highCelsius), [18, 17])
+
+        let lastYear = calendar.date(from: DateComponents(year: 2025, month: 11, day: 23))!
+        let moved = TripWeatherPlanner.movedToTrip([TripDayWeather(date: lastYear, symbolName: "cloud", conditionText: "", highCelsius: 1, lowCelsius: 0, precipitationChance: 0, isTypical: false)], calendar: calendar)
+        XCTAssertEqual(moved.first?.date, day(11, 23))
+        XCTAssertEqual(moved.first?.isTypical, true)
+    }
+
+    func testWeatherTravelsWithTheTripRecords() {
+        let trip = thanksgiving()
+        let weather = TripWeather(id: trip.id, key: "k", typical: [weatherDay(11, 23, typical: true)])
+        let log = WeatherCallLog(day: "2026-10-30", result: .succeeded, calledBy: "me@example.com", updatedAt: day(10, 30))
+        let trips = TripsPayload(trips: [trip], weather: [weather], weatherCalls: [log])
+        let records = HouseholdRecords.records(from: SharedHouseholdPayload(trips: trips), updatedBy: "me@example.com")
+        XCTAssertEqual(records[trip.id.uuidString]?.kind, .trip, "The weather doesn't replace the trip's own record")
+        XCTAssertEqual(HouseholdRecords.payload(from: Array(records.values)).trips, trips)
+    }
+
     func testReminderText() {
         XCTAssertEqual(TripReminders.reminderText(nil), "None")
         XCTAssertEqual(TripReminders.reminderText(0), "At the time")
