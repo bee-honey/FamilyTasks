@@ -23,6 +23,7 @@ struct SharedHouseholdPayload: Codable {
     var chores: ChoresPayload
     var habits: HabitsPayload
     var healthGoals: [HealthGoal]
+    var trips: TripsPayload
 
     init(
         schemaVersion: Int = SharedHouseholdPayload.currentSchemaVersion,
@@ -40,7 +41,8 @@ struct SharedHouseholdPayload: Codable {
         memberAdditions: [String: Date] = [:],
         chores: ChoresPayload = ChoresPayload(),
         habits: HabitsPayload = HabitsPayload(),
-        healthGoals: [HealthGoal] = []
+        healthGoals: [HealthGoal] = [],
+        trips: TripsPayload = TripsPayload()
     ) {
         self.schemaVersion = schemaVersion
         self.updatedAt = updatedAt
@@ -58,6 +60,7 @@ struct SharedHouseholdPayload: Codable {
         self.chores = chores
         self.habits = habits
         self.healthGoals = healthGoals
+        self.trips = trips
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -77,6 +80,7 @@ struct SharedHouseholdPayload: Codable {
         case chores
         case habits
         case healthGoals
+        case trips
     }
 
     init(from decoder: Decoder) throws {
@@ -97,6 +101,7 @@ struct SharedHouseholdPayload: Codable {
         chores = (try? container.decode(ChoresPayload.self, forKey: .chores)) ?? ChoresPayload()
         habits = (try? container.decode(HabitsPayload.self, forKey: .habits)) ?? HabitsPayload()
         healthGoals = (try? container.decode([HealthGoal].self, forKey: .healthGoals)) ?? []
+        trips = (try? container.decode(TripsPayload.self, forKey: .trips)) ?? TripsPayload()
     }
 
     /// Merges two copies of the household item by item: the newer `updatedAt` wins,
@@ -144,7 +149,12 @@ struct SharedHouseholdPayload: Codable {
                 habits: mergeItems(local.habits.habits, remote.habits.habits, deletions: deletions, localOrderWins: keepLocalOrder),
                 days: mergeItems(local.habits.days, remote.habits.days, deletions: deletions, localOrderWins: keepLocalOrder)
             ),
-            healthGoals: mergeItems(local.healthGoals, remote.healthGoals, deletions: deletions, localOrderWins: keepLocalOrder)
+            healthGoals: mergeItems(local.healthGoals, remote.healthGoals, deletions: deletions, localOrderWins: keepLocalOrder),
+            trips: TripsPayload(
+                trips: mergeItems(local.trips.trips, remote.trips.trips, deletions: deletions, localOrderWins: keepLocalOrder),
+                packingItems: mergeItems(local.trips.packingItems, remote.trips.packingItems, deletions: deletions, localOrderWins: keepLocalOrder),
+                activities: mergeItems(local.trips.activities, remote.trips.activities, deletions: deletions, localOrderWins: keepLocalOrder)
+            )
         )
     }
 
@@ -213,6 +223,9 @@ extension ChorePayout: SyncMergeable { var syncID: String { id.uuidString } }
 extension Habit: SyncMergeable { var syncID: String { id.uuidString } }
 extension HabitDay: SyncMergeable { var syncID: String { id } }
 extension HealthGoal: SyncMergeable { var syncID: String { id.uuidString } }
+extension Trip: SyncMergeable { var syncID: String { id.uuidString } }
+extension PackingItem: SyncMergeable { var syncID: String { id.uuidString } }
+extension TripActivity: SyncMergeable { var syncID: String { id.uuidString } }
 
 /// Remembers what this device deleted (and which family members it re-added) so a
 /// merge with an older copy of the household does not bring removed items back.
@@ -803,7 +816,8 @@ final class SharedHouseholdStore: ObservableObject, HouseholdDataSource {
             memberAdditions: SyncLedger.shared.memberAdditions,
             chores: ChoreStore.shared.exportPayload(),
             habits: HabitStore.shared.exportPayload(),
-            healthGoals: HealthGoalStore.shared.exportPayload()
+            healthGoals: HealthGoalStore.shared.exportPayload(),
+            trips: TripStore.shared.exportPayload()
         )
     }
 
@@ -823,6 +837,7 @@ final class SharedHouseholdStore: ObservableObject, HouseholdDataSource {
         ChoreStore.shared.applySharedData(payload.chores)
         HabitStore.shared.applySharedData(payload.habits)
         HealthGoalStore.shared.applySharedData(payload.healthGoals)
+        TripStore.shared.applySharedData(payload.trips)
     }
 
     private func userFacingMessage(for error: Error) -> String {

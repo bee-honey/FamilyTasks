@@ -32,6 +32,7 @@ final class NotificationScheduler: ObservableObject {
         static let familyShopping = "notifications.familyShopping"
         static let familyHabits = "notifications.familyHabits"
         static let familyHealth = "notifications.familyHealth"
+        static let trips = "notifications.trips"
     }
 
     /// iOS keeps at most 64 pending local notifications per app; leave room for
@@ -47,6 +48,7 @@ final class NotificationScheduler: ObservableObject {
         static let shoppingDone = "familytasks.shoppingDone."
         static let windDown = "familytasks.windDown."
         static let healthTip = "familytasks.healthTip."
+        static let trip = "familytasks.trip."
     }
 
     private init() {
@@ -118,6 +120,11 @@ final class NotificationScheduler: ObservableObject {
         var alerts = dailyListAlerts(tasks: activeTasks, recurringTasks: activeRecurringTasks)
         alerts += dueSoonAlerts(for: activeTasks)
         alerts += recurringDueSoonAlerts(for: activeRecurringTasks)
+        if defaults.bool(forKey: DefaultsKey.trips) {
+            alerts += Self.tripAlerts(TripStore.shared.exportPayload(), now: Date()).map {
+                ScheduledAlert(fireDate: $0.fireDate, request: $0.request)
+            }
+        }
 
         for alert in alerts.sorted(by: { $0.fireDate < $1.fireDate }).prefix(Self.maxScheduledAlerts - healthRequests.count) {
             try? await center.add(alert.request)
@@ -170,6 +177,7 @@ final class NotificationScheduler: ObservableObject {
             DefaultsKey.familyShopping: true,
             DefaultsKey.familyHabits: true,
             DefaultsKey.familyHealth: true,
+            DefaultsKey.trips: true,
             WindDownSettings.bedtimeHourKey: WindDownSettings.defaultBedtimeHour,
             WindDownSettings.bedtimeMinuteKey: WindDownSettings.defaultBedtimeMinute,
             WindDownSettings.dailyTipHourKey: WindDownSettings.defaultTipHour,
@@ -196,7 +204,8 @@ final class NotificationScheduler: ObservableObject {
                 $0.hasPrefix(IdentifierPrefix.recurringDueSoon) ||
                 $0.hasPrefix(IdentifierPrefix.shoppingDone) ||
                 $0.hasPrefix(IdentifierPrefix.windDown) ||
-                $0.hasPrefix(IdentifierPrefix.healthTip)
+                $0.hasPrefix(IdentifierPrefix.healthTip) ||
+                $0.hasPrefix(IdentifierPrefix.trip)
             }
     }
 
@@ -301,6 +310,90 @@ final class NotificationScheduler: ObservableObject {
         }
 
         defaults.set(Array(Set(handled)).sorted(), forKey: DefaultsKey.dailyListsHandled)
+        return alerts
+    }
+
+    // MARK: Trips
+
+    struct TripAlert {
+        let fireDate: Date
+        let request: UNNotificationRequest
+    }
+
+    /// For each trip still ahead: what's left to pack the evening before and the morning
+    /// it starts, the day's plan each morning of the trip, and a reminder before each
+    /// timed activity that asks for one.
+    nonisolated static func tripAlerts(_ payload: TripsPayload, now: Date, calendar: Calendar = .current) -> [TripAlert] {
+        var alerts: [TripAlert] = []
+
+        func add(_ suffix: String, at date: Date?, title: String, body: String) {
+            guard let date, date > now else { return }
+            let content = UNMutableNotificationContent()
+            content.title = title
+            content.body = body
+            content.sound = .default
+            let components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: date)
+            alerts.append(TripAlert(fireDate: date, request: UNNotificationRequest(
+                identifier: "\(IdentifierPrefix.trip)\(suffix)",
+                content: content,
+                trigger: UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+            )))
+        }
+
+        for trip in payload.trips {
+            let place = trip.placeName
+            let unpacked = payload.packingItems.filter { $0.tripID == trip.id && !$0.isPacked }.map(\.name)
+            let hasPacking = payload.packingItems.contains { $0.tripID == trip.id }
+            let start = calendar.startOfDay(for: trip.startDate)
+
+            if trip.packingReminderEnabled, hasPacking {
+                let morning = calendar.date(bySettingHour: trip.packingReminderHour, minute: trip.packingReminderMinute, second: 0, of: start)
+                add(
+                    "\(trip.id.uuidString).leaving",
+                    at: morning,
+                    title: "Off to \(place) today",
+                    body: unpacked.isEmpty
+                        ? "Everything's packed. Have a great trip!"
+                        : "Still to pack: \(TripReminders.listText(unpacked))"
+                )
+                if trip.remindEveningBefore, !unpacked.isEmpty,
+                   let eve = calendar.date(byAdding: .day, value: -1, to: start),
+                   let evening = calendar.date(bySettingHour: TripReminders.eveningBeforeHour, minute: 0, second: 0, of: eve) {
+                    add(
+                        "\(trip.id.uuidString).eve",
+                        at: evening,
+                        title: "\(place) tomorrow: \(unpacked.count) to pack",
+                        body: TripReminders.listText(unpacked)
+                    )
+                }
+            }
+
+            let tripActivities = payload.activities.filter { $0.tripID == trip.id }
+            if trip.dailyPlanEnabled {
+                for (index, day) in trip.days(calendar: calendar).enumerated() {
+                    let planned = tripActivities.filter { calendar.isDate($0.date, inSameDayAs: day) }.sorted(by: TripActivity.dayOrder)
+                    guard !planned.isEmpty else { continue }
+                    let lines = planned.map { activity in activity.timeText.map { "\($0) \(activity.title)" } ?? activity.title }
+                    add(
+                        "\(trip.id.uuidString).day\(index)",
+                        at: calendar.date(bySettingHour: TripReminders.dailyPlanHour, minute: 0, second: 0, of: day),
+                        title: "Day \(index + 1) in \(place)",
+                        body: lines.joined(separator: "\n")
+                    )
+                }
+            }
+
+            for activity in tripActivities {
+                guard let reminder = activity.reminderDate, let time = activity.timeText else { continue }
+                let location = activity.location.isEmpty ? "" : " · \(activity.location)"
+                add(
+                    "\(activity.id.uuidString).activity",
+                    at: reminder,
+                    title: activity.reminderMinutes == 0 ? "Now: \(activity.title)" : "\(activity.title) at \(time)",
+                    body: "\(place)\(location)" + (activity.notes.isEmpty ? "" : "\n\(activity.notes)")
+                )
+            }
+        }
         return alerts
     }
 

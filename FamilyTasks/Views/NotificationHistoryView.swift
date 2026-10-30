@@ -84,6 +84,7 @@ struct NotificationHistoryView: View {
         case .cheer, .healthGoal: SettingsTint.health
         case .windDown: AppTheme.softAccent
         case .healthTip: AppTheme.success
+        case .trip: AppTheme.coolAccent
         case .other: AppTheme.softAccent
         }
     }

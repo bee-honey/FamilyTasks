@@ -592,6 +592,7 @@ struct NotificationSettingsView: View {
     @AppStorage("notifications.familyShopping") private var familyShoppingEnabled = true
     @AppStorage("notifications.familyHabits") private var familyHabitsEnabled = true
     @AppStorage("notifications.familyHealth") private var familyHealthEnabled = true
+    @AppStorage("notifications.trips") private var tripRemindersEnabled = true
     @AppStorage("notifications.todayDigestHour") private var todayDigestHour = 8
     @AppStorage("notifications.todayDigestMinute") private var todayDigestMinute = 0
     @AppStorage("notifications.eveningDigest") private var eveningDigestEnabled = true
@@ -635,6 +636,15 @@ struct NotificationSettingsView: View {
                                 rescheduleNotifications()
                             }
                     }
+
+                    Toggle(isOn: $tripRemindersEnabled) {
+                        Label("Trip Reminders", systemImage: "suitcase.rolling.fill")
+                            .labelStyle(.tile(AppTheme.coolAccent))
+                    }
+                        .disabled(!notificationsEnabled)
+                        .onChange(of: tripRemindersEnabled) { _, _ in
+                            rescheduleNotifications()
+                        }
 
                     Text(notificationDetail)
                         .font(.caption)

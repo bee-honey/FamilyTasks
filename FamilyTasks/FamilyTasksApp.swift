@@ -8,6 +8,7 @@ struct FamilyTasksApp: App {
     @StateObject private var choreStore = ChoreStore.shared
     @StateObject private var habitStore = HabitStore.shared
     @StateObject private var healthGoalStore = HealthGoalStore.shared
+    @StateObject private var tripStore = TripStore.shared
     @StateObject private var calendarSync = CalendarSyncService()
     @StateObject private var sharedHouseholdStore = SharedHouseholdStore.shared
     @StateObject private var notificationScheduler = NotificationScheduler.shared
@@ -34,6 +35,7 @@ struct FamilyTasksApp: App {
             .environmentObject(choreStore)
             .environmentObject(habitStore)
             .environmentObject(healthGoalStore)
+            .environmentObject(tripStore)
             .environmentObject(calendarSync)
             .environmentObject(sharedHouseholdStore)
             .environmentObject(notificationScheduler)

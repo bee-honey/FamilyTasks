@@ -11,6 +11,7 @@ enum TabSection: String, CaseIterable, Identifiable {
     case habits
     case ideas
     case health
+    case trips
 
     var id: String { rawValue }
 
@@ -24,6 +25,7 @@ enum TabSection: String, CaseIterable, Identifiable {
         case .habits: "Habits"
         case .ideas: "Ideas"
         case .health: "Health"
+        case .trips: "Trips"
         }
     }
 
@@ -37,6 +39,7 @@ enum TabSection: String, CaseIterable, Identifiable {
         case .habits: "flame"
         case .ideas: "lightbulb"
         case .health: "heart.text.square"
+        case .trips: "suitcase.rolling"
         }
     }
 
@@ -172,6 +175,7 @@ struct TabSectionScreen: View {
         case .habits: HabitsView(isPushed: isPushed)
         case .ideas: IdeaNotebookView(isPushed: isPushed)
         case .health: HealthView(isPushed: isPushed)
+        case .trips: TripsView(isPushed: isPushed)
         }
     }
 }
@@ -183,6 +187,7 @@ struct FamilyHubView: View {
     @EnvironmentObject private var choreStore: ChoreStore
     @EnvironmentObject private var taskStore: TaskStore
     @EnvironmentObject private var habitStore: HabitStore
+    @EnvironmentObject private var tripStore: TripStore
     @AppStorage(TabSection.storageKey) private var slotsRaw = ""
     @AppStorage("health.section.enabled") private var healthSectionEnabled = false
 
@@ -238,6 +243,7 @@ struct FamilyHubView: View {
         case .habits: AppTheme.success
         case .ideas: SettingsTint.ideas
         case .health: SettingsTint.health
+        case .trips: AppTheme.coolAccent
         }
     }
 
@@ -274,6 +280,9 @@ struct FamilyHubView: View {
             return count == 0 ? "Notes for later" : "\(count) \(count == 1 ? "idea" : "ideas")"
         case .health:
             return healthSectionEnabled ? "Activity, sleep, goals and family" : "Off · tap to set up"
+        case .trips:
+            guard let next = tripStore.upcomingTrips.first else { return "Plan a getaway" }
+            return "\(next.placeName) · \(next.phaseText())"
         }
     }
 }
