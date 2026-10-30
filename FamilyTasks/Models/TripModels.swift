@@ -378,9 +378,30 @@ enum TripReminders {
 
 /// The whole trip as plain text to send in Messages, WhatsApp or email.
 enum TripShareText {
-    static func text(for trip: Trip, packing: [PackingItem], activities: [TripActivity], calendar: Calendar = .current) -> String {
+    /// What to share: the day-by-day plan, the packing list, or both.
+    enum Part: CaseIterable {
+        case plan, packing, everything
+
+        var title: String {
+            switch self {
+            case .plan: "Share Day-by-Day Plan"
+            case .packing: "Share Packing List"
+            case .everything: "Share Everything"
+            }
+        }
+
+        var systemImage: String {
+            switch self {
+            case .plan: "calendar"
+            case .packing: "checklist"
+            case .everything: "square.and.arrow.up"
+            }
+        }
+    }
+
+    static func text(for trip: Trip, packing: [PackingItem], activities: [TripActivity], part: Part = .everything, calendar: Calendar = .current) -> String {
         var lines: [String] = []
-        lines.append(trip.displayName)
+        lines.append(part == .packing ? "\(trip.displayName) · Packing List" : trip.displayName)
         var subtitle = trip.dateText(calendar: calendar)
         let days = trip.dayCount(calendar: calendar)
         subtitle += " · \(days) \(days == 1 ? "day" : "days")"
@@ -389,50 +410,94 @@ enum TripShareText {
         lines.append(subtitle)
 
         let notes = trip.notes.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !notes.isEmpty {
+        if !notes.isEmpty, part != .packing {
             lines.append("")
             lines.append(notes)
         }
 
-        let tripActivities = activities.filter { $0.tripID == trip.id }
-        if !tripActivities.isEmpty {
-            lines.append("")
-            lines.append("DAY BY DAY")
-            for (index, day) in trip.days(calendar: calendar).enumerated() {
-                let planned = tripActivities
-                    .filter { calendar.isDate($0.date, inSameDayAs: day) }
-                    .sorted(by: TripActivity.dayOrder)
-                guard !planned.isEmpty else { continue }
-                lines.append("")
-                lines.append("Day \(index + 1) · \(day.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))")
-                for activity in planned {
-                    var line = "• "
-                    if let time = activity.timeText { line += "\(time)  " }
-                    line += activity.title
-                    let location = activity.location.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if !location.isEmpty { line += " (\(location))" }
-                    lines.append(line)
-                    let activityNotes = activity.notes.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if !activityNotes.isEmpty { lines.append("   \(activityNotes)") }
-                }
-            }
+        if part != .packing {
+            lines += planLines(for: trip, activities: activities, calendar: calendar)
         }
-
-        let items = packing.filter { $0.tripID == trip.id }
-        if !items.isEmpty {
-            lines.append("")
-            lines.append("PACKING · \(items.filter(\.isPacked).count) of \(items.count) packed")
-            for category in PackingCategory.allCases {
-                let inCategory = items.filter { $0.category == category }
-                guard !inCategory.isEmpty else { continue }
-                lines.append("")
-                lines.append(category.title)
-                for item in inCategory {
-                    let who = item.forWhom.trimmingCharacters(in: .whitespacesAndNewlines)
-                    lines.append("\(item.isPacked ? "☑" : "☐") \(item.name)\(who.isEmpty ? "" : " (\(who))")")
-                }
-            }
+        if part != .plan {
+            lines += packingLines(for: trip, packing: packing)
         }
         return lines.joined(separator: "\n")
+    }
+
+    private static func planLines(for trip: Trip, activities: [TripActivity], calendar: Calendar) -> [String] {
+        let tripActivities = activities.filter { $0.tripID == trip.id }
+        guard !tripActivities.isEmpty else { return ["", "Nothing planned yet."] }
+        var lines = ["", "DAY BY DAY"]
+        for (index, day) in trip.days(calendar: calendar).enumerated() {
+            let planned = tripActivities
+                .filter { calendar.isDate($0.date, inSameDayAs: day) }
+                .sorted(by: TripActivity.dayOrder)
+            guard !planned.isEmpty else { continue }
+            lines.append("")
+            lines.append("Day \(index + 1) · \(day.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))")
+            for activity in planned {
+                var line = "• "
+                if let time = activity.timeText { line += "\(time)  " }
+                line += activity.title
+                let location = activity.location.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !location.isEmpty { line += " (\(location))" }
+                lines.append(line)
+                let activityNotes = activity.notes.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !activityNotes.isEmpty { lines.append("   \(activityNotes)") }
+            }
+        }
+        return lines
+    }
+
+    private static func packingLines(for trip: Trip, packing: [PackingItem]) -> [String] {
+        let items = packing.filter { $0.tripID == trip.id }
+        guard !items.isEmpty else { return ["", "Nothing on the packing list yet."] }
+        var lines = ["", "PACKING · \(items.filter(\.isPacked).count) of \(items.count) packed"]
+        for category in PackingCategory.allCases {
+            let inCategory = items.filter { $0.category == category }
+            guard !inCategory.isEmpty else { continue }
+            lines.append("")
+            lines.append(category.title)
+            for item in inCategory {
+                let who = item.forWhom.trimmingCharacters(in: .whitespacesAndNewlines)
+                lines.append("\(item.isPacked ? "☑" : "☐") \(item.name)\(who.isEmpty ? "" : " (\(who))")")
+            }
+        }
+        return lines
+    }
+}
+
+/// Opens a place in Apple Maps or Google Maps. Plans usually name just the spot
+/// ("Balboa Park"), so the trip's destination is added to find the right one.
+enum TripMaps {
+    enum App: CaseIterable {
+        case apple, google
+
+        var title: String { self == .apple ? "Open in Apple Maps" : "Open in Google Maps" }
+        var directionsTitle: String { self == .apple ? "Directions in Apple Maps" : "Directions in Google Maps" }
+    }
+
+    static func query(for location: String, near destination: String) -> String {
+        let place = location.trimmingCharacters(in: .whitespacesAndNewlines)
+        let area = destination.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !area.isEmpty, place.range(of: area, options: [.caseInsensitive, .diacriticInsensitive]) == nil else {
+            return place.isEmpty ? area : place
+        }
+        return place.isEmpty ? area : "\(place), \(area)"
+    }
+
+    static func url(for query: String, in app: App, directions: Bool = false) -> URL? {
+        var components: URLComponents
+        switch app {
+        case .apple:
+            components = URLComponents(string: "https://maps.apple.com/")!
+            components.queryItems = [URLQueryItem(name: directions ? "daddr" : "q", value: query)]
+        case .google:
+            components = URLComponents(string: directions ? "https://www.google.com/maps/dir/" : "https://www.google.com/maps/search/")!
+            components.queryItems = directions
+                ? [URLQueryItem(name: "api", value: "1"), URLQueryItem(name: "destination", value: query)]
+                : [URLQueryItem(name: "api", value: "1"), URLQueryItem(name: "query", value: query)]
+        }
+        return components.url
     }
 }

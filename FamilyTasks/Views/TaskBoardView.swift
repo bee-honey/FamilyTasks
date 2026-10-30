@@ -24,7 +24,7 @@ struct TaskBoardView: View {
                     LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
                         ForEach(TaskBucket.allCases) { bucket in
                             NavigationLink {
-                                BucketDetailView(bucket: bucket)
+                                BucketDetailView(bucket: bucket).backButton("Tasks")
                             } label: {
                                 QuadrantCard(bucket: bucket, openTasks: taskStore.tasks(in: bucket).filter { !$0.isDone })
                             }

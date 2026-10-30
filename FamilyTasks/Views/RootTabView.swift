@@ -218,7 +218,7 @@ struct FamilyHubView: View {
         .mainScreenNavigationBar(title: "More", isPushed: false)
         .navigationDestination(for: FamilyDestination.self) { destination in
             switch destination {
-            case .section(let section): TabSectionScreen(section: section, isPushed: true)
+            case .section(let section): TabSectionScreen(section: section, isPushed: true).backButton("More")
             }
         }
     }
@@ -311,22 +311,22 @@ private struct SettingsHomeView: View {
                 .listRowBackground(AppTheme.surface)
 
                 Section {
-                    NavigationLink { ProfileView() } label: {
+                    NavigationLink { ProfileView().backButton("Settings") } label: {
                         HubRow(title: "Profile", systemImage: "person.crop.circle", tint: SettingsTint.profile, detail: profileDetail)
                     }
-                    NavigationLink { SyncSettingsView() } label: {
+                    NavigationLink { SyncSettingsView().backButton("Settings") } label: {
                         HubRow(title: "Family & Sharing", systemImage: "person.2", tint: SettingsTint.iCloud, detail: sharedHouseholdStore.statusMessage)
                     }
-                    NavigationLink { NotificationSettingsView() } label: {
+                    NavigationLink { NotificationSettingsView().backButton("Settings") } label: {
                         HubRow(title: "Notifications", systemImage: "bell.badge", tint: SettingsTint.notifications, detail: notificationsEnabled ? "On" : "Off")
                     }
-                    NavigationLink { NotificationHistoryView() } label: {
+                    NavigationLink { NotificationHistoryView().backButton("Settings") } label: {
                         HubRow(title: "Notification History", systemImage: "clock.arrow.circlepath", tint: SettingsTint.notifications, detail: historyDetail)
                     }
-                    NavigationLink { CalendarSettingsView() } label: {
+                    NavigationLink { CalendarSettingsView().backButton("Settings") } label: {
                         HubRow(title: "Calendar", systemImage: "calendar.badge.clock", tint: SettingsTint.calendar, detail: calendarEnabled ? "Showing your calendar events" : "Off")
                     }
-                    NavigationLink { ViewSettingsView() } label: {
+                    NavigationLink { ViewSettingsView().backButton("Settings") } label: {
                         HubRow(title: "Appearance", systemImage: "paintbrush", tint: SettingsTint.appearance, detail: appearanceDetail)
                     }
                 }
@@ -342,7 +342,7 @@ private struct SettingsHomeView: View {
             .background(AppTheme.background)
             .navigationTitle("Settings")
             .navigationDestination(isPresented: $isShowingSharing) {
-                SyncSettingsView()
+                SyncSettingsView().backButton("Settings")
             }
         }
     }

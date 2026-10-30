@@ -1,3 +1,4 @@
+import MapKit
 import SwiftUI
 
 /// One trip: its day-by-day plan and its packing checklist, with a way to share the
@@ -58,8 +59,14 @@ struct TripDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
-                ShareLink(item: TripShareText.text(for: trip, packing: tripStore.packingItems, activities: tripStore.activities)) {
-                    Label("Share Trip", systemImage: "square.and.arrow.up")
+                Menu {
+                    ForEach(TripShareText.Part.allCases, id: \.self) { part in
+                        ShareLink(item: TripShareText.text(for: trip, packing: tripStore.packingItems, activities: tripStore.activities, part: part)) {
+                            Label(part.title, systemImage: part.systemImage)
+                        }
+                    }
+                } label: {
+                    Label("Share", systemImage: "square.and.arrow.up")
                 }
                 Button("Edit", systemImage: "pencil") { isEditingTrip = true }
             }
@@ -93,7 +100,17 @@ struct TripDetailView: View {
                 Text(trip.displayName)
                     .font(.title.weight(.bold))
                     .accessibilityAddTraits(.isHeader)
-                Text([trip.destination == trip.displayName ? "" : trip.destination, trip.dateText()].filter { !$0.isEmpty }.joined(separator: " · "))
+                if !trip.destination.isEmpty {
+                    Menu {
+                        MapsMenuItems(query: trip.destination)
+                    } label: {
+                        Text("\(Image(systemName: "mappin.and.ellipse")) \(trip.destination)")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(AppTheme.coolAccent)
+                    }
+                    .accessibilityHint("Opens in Maps")
+                }
+                Text(trip.dateText())
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -124,18 +141,25 @@ struct TripDetailView: View {
             let planned = tripStore.activities(for: trip, on: day)
             Section {
                 ForEach(planned) { activity in
-                    Button {
-                        editingActivity = activity
-                    } label: {
-                        TripActivityRow(activity: activity)
-                    }
-                    .buttonStyle(.plain)
-                    .listRowBackground(AppTheme.surface)
-                    .swipeActions(edge: .trailing) {
-                        Button("Delete", systemImage: "trash", role: .destructive) {
-                            tripStore.deleteActivity(activity)
+                    TripActivityRow(activity: activity, destination: trip.destination)
+                        .onTapGesture { editingActivity = activity }
+                        .accessibilityAddTraits(.isButton)
+                        .accessibilityAction { editingActivity = activity }
+                        .listRowBackground(AppTheme.surface)
+                        .swipeActions(edge: .trailing) {
+                            Button("Delete", systemImage: "trash", role: .destructive) {
+                                tripStore.deleteActivity(activity)
+                            }
                         }
-                    }
+                        .contextMenu {
+                            Button("Edit", systemImage: "pencil") { editingActivity = activity }
+                            if !activity.location.isEmpty {
+                                MapsMenuItems(query: TripMaps.query(for: activity.location, near: trip.destination))
+                            }
+                            Button("Delete", systemImage: "trash", role: .destructive) {
+                                tripStore.deleteActivity(activity)
+                            }
+                        }
                 }
                 Button {
                     newActivityDay = NewActivityDay(day: day)
@@ -254,6 +278,7 @@ private struct NewActivityDay: Identifiable {
 
 private struct TripActivityRow: View {
     let activity: TripActivity
+    let destination: String
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -266,9 +291,16 @@ private struct TripActivityRow: View {
                     .font(.body.weight(.semibold))
                     .foregroundStyle(AppTheme.ink)
                 if !activity.location.isEmpty {
-                    Text("\(Image(systemName: "mappin.and.ellipse")) \(activity.location)")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                    Menu {
+                        MapsMenuItems(query: TripMaps.query(for: activity.location, near: destination))
+                    } label: {
+                        Text("\(Image(systemName: "mappin.and.ellipse")) \(activity.location)")
+                            .font(.footnote.weight(.medium))
+                            .foregroundStyle(AppTheme.coolAccent)
+                            .multilineTextAlignment(.leading)
+                    }
+                    .buttonStyle(.borderless)
+                    .accessibilityHint("Opens in Maps")
                 }
                 if !activity.notes.isEmpty {
                     Text(activity.notes)
@@ -334,6 +366,8 @@ struct TripActivityEditorView: View {
     @State private var notes: String
     @State private var reminderMinutes: Int?
     @FocusState private var isTitleFocused: Bool
+    @FocusState private var isLocationFocused: Bool
+    @StateObject private var placeSearch = TripPlaceSearch()
 
     init(trip: Trip, activity: TripActivity?, day: Date) {
         self.trip = trip
@@ -357,6 +391,31 @@ struct TripActivityEditorView: View {
                         .focused($isTitleFocused)
                     TextField("Where", text: $location)
                         .textInputAutocapitalization(.words)
+                        .focused($isLocationFocused)
+                        .onChange(of: location) { _, text in
+                            if isLocationFocused { placeSearch.search(text) }
+                        }
+                    if isLocationFocused {
+                        ForEach(placeSearch.suggestions) { suggestion in
+                            Button {
+                                location = suggestion.title
+                                placeSearch.clear()
+                                isLocationFocused = false
+                            } label: {
+                                PlaceSuggestionRow(suggestion: suggestion)
+                            }
+                        }
+                    } else if !location.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        Menu {
+                            MapsMenuItems(query: TripMaps.query(for: location, near: trip.destination))
+                        } label: {
+                            Label("Show on Map", systemImage: "map")
+                        }
+                    }
+                } footer: {
+                    if isLocationFocused, !placeSearch.suggestions.isEmpty {
+                        Text("Places from Apple Maps\(trip.destination.isEmpty ? "" : " near \(trip.destination)").")
+                    }
                 }
                 Section {
                     Picker("Day", selection: $day) {
@@ -408,6 +467,7 @@ struct TripActivityEditorView: View {
             .onAppear {
                 if activity == nil { isTitleFocused = true }
             }
+            .task { await placeSearch.focus(on: trip.destination) }
         }
         .presentationDetents([.large])
     }
@@ -580,5 +640,107 @@ private struct AddPackingListsView: View {
         let added = tripStore.addPackingItems(items, to: trip)
         ToastCenter.shared.show(added == 0 ? "Everything's already on the list" : "Added \(added) \(added == 1 ? "item" : "items")", systemImage: "checklist")
         dismiss()
+    }
+}
+
+// MARK: Maps
+
+/// "Open in Apple Maps" and "Open in Google Maps", with directions, for a menu.
+struct MapsMenuItems: View {
+    @Environment(\.openURL) private var openURL
+    let query: String
+
+    var body: some View {
+        Section(query) {
+            ForEach(TripMaps.App.allCases, id: \.self) { app in
+                Button(app.title, systemImage: "map") { open(app, directions: false) }
+            }
+        }
+        Section {
+            ForEach(TripMaps.App.allCases, id: \.self) { app in
+                Button(app.directionsTitle, systemImage: "arrow.triangle.turn.up.right.diamond") { open(app, directions: true) }
+            }
+        }
+    }
+
+    private func open(_ app: TripMaps.App, directions: Bool) {
+        if let url = TripMaps.url(for: query, in: app, directions: directions) { openURL(url) }
+    }
+}
+
+/// A place Apple Maps suggests while typing.
+struct PlaceSuggestion: Identifiable, Hashable {
+    let title: String
+    let subtitle: String
+    var id: String { title + "|" + subtitle }
+}
+
+struct PlaceSuggestionRow: View {
+    let suggestion: PlaceSuggestion
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "mappin.circle.fill")
+                .font(.title3)
+                .foregroundStyle(AppTheme.coolAccent)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(suggestion.title)
+                    .foregroundStyle(AppTheme.ink)
+                if !suggestion.subtitle.isEmpty {
+                    Text(suggestion.subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+        }
+    }
+}
+
+/// Suggests places from Apple Maps as someone types, favoring ones near the trip. MapKit
+/// calls the delegate on the main thread, which the preconcurrency conformance checks.
+@MainActor
+final class TripPlaceSearch: NSObject, ObservableObject, @preconcurrency MKLocalSearchCompleterDelegate {
+    @Published private(set) var suggestions: [PlaceSuggestion] = []
+    private let completer = MKLocalSearchCompleter()
+
+    init(resultTypes: MKLocalSearchCompleter.ResultType = [.pointOfInterest, .address]) {
+        super.init()
+        completer.delegate = self
+        completer.resultTypes = resultTypes
+    }
+
+    /// Centers suggestions on the trip's destination, so "Zoo" finds the one there.
+    func focus(on destination: String) async {
+        let place = destination.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !place.isEmpty else { return }
+        let request = MKLocalSearch.Request()
+        request.naturalLanguageQuery = place
+        guard let response = try? await MKLocalSearch(request: request).start() else { return }
+        completer.region = response.boundingRegion
+    }
+
+    func search(_ text: String) {
+        let query = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard query.count >= 2 else {
+            clear()
+            return
+        }
+        completer.queryFragment = query
+    }
+
+    func clear() {
+        completer.cancel()
+        completer.queryFragment = ""
+        suggestions = []
+    }
+
+    func completerDidUpdateResults(_ completer: MKLocalSearchCompleter) {
+        guard !completer.queryFragment.isEmpty else { return }
+        suggestions = completer.results.prefix(5).map { PlaceSuggestion(title: $0.title, subtitle: $0.subtitle) }
+    }
+
+    func completer(_ completer: MKLocalSearchCompleter, didFailWithError error: Error) {
+        suggestions = []
     }
 }

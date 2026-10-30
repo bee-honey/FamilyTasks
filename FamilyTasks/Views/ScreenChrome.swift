@@ -106,6 +106,50 @@ extension View {
     }
 }
 
+extension View {
+    /// The back button names the screen it goes back to ("‹ More"), where iOS would
+    /// otherwise show only a chevron.
+    func backButton(_ title: String) -> some View {
+        modifier(NamedBackButton(title: title))
+    }
+}
+
+private struct NamedBackButton: ViewModifier {
+    @Environment(\.dismiss) private var dismiss
+    let title: String
+
+    func body(content: Content) -> some View {
+        content
+            .navigationBarBackButtonHidden(true)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        dismiss()
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "chevron.left")
+                                .fontWeight(.semibold)
+                            Text(title)
+                        }
+                    }
+                    .accessibilityLabel("Back to \(title)")
+                }
+            }
+    }
+}
+
+/// Hiding the system back button also turns off swipe-to-go-back; this keeps it.
+extension UINavigationController: @retroactive UIGestureRecognizerDelegate {
+    override open func viewDidLoad() {
+        super.viewDidLoad()
+        interactivePopGestureRecognizer?.delegate = self
+    }
+
+    public func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        viewControllers.count > 1
+    }
+}
+
 // MARK: Confirmations
 
 /// A short message after an action that changes another screen ("12 items added to

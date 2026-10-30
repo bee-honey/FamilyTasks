@@ -81,7 +81,7 @@ struct ChoresView: View {
             ChoreSettingsView()
         }
         .navigationDestination(item: $openKidID) { kidID in
-            KidDetailView(kidID: kidID)
+            KidDetailView(kidID: kidID).backButton("Chores")
         }
     }
 
@@ -543,7 +543,7 @@ private struct ChoreSettingsView: View {
             Form {
                 Section {
                     NavigationLink {
-                        CurrencyPickerView(selection: $currencyCode)
+                        CurrencyPickerView(selection: $currencyCode).backButton("Points Value")
                     } label: {
                         LabeledContent("Currency", value: CurrencyPickerView.name(for: currencyCode))
                     }

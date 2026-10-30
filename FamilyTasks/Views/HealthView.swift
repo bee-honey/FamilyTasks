@@ -121,7 +121,7 @@ struct HealthView: View {
         .background(AppTheme.background)
         .mainScreenNavigationBar(title: "Health", isPushed: isPushed)
         .navigationDestination(isPresented: $isShowingSettings) {
-            HealthSettingsView()
+            HealthSettingsView().backButton("Health")
         }
         .sheet(item: $editingGoal) { editing in
             switch editing {

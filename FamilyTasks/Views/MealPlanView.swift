@@ -22,7 +22,7 @@ struct MealPlanView: View {
             LazyVStack(alignment: .leading, spacing: 14) {
                 ScreenHeader(eyebrow: weekTitle, title: "Meal Plan") {
                     NavigationLink {
-                        MealLibraryView()
+                        MealLibraryView().backButton("Meal Plan")
                     } label: {
                         PillButtonLabel(title: "Meals", systemImage: "book")
                     }
@@ -37,7 +37,7 @@ struct MealPlanView: View {
                         Text("Add the meals your family makes, then plan them for breakfast, lunch or dinner.")
                     } actions: {
                         NavigationLink {
-                            MealLibraryView()
+                            MealLibraryView().backButton("Meal Plan")
                         } label: {
                             PillButtonLabel(title: "Add Your Meals", systemImage: "plus", isProminent: true)
                         }
@@ -1042,7 +1042,7 @@ struct MealLibraryView: View {
         ScrollView {
             LazyVStack(spacing: 12) {
                 NavigationLink {
-                    MealCatalogView()
+                    MealCatalogView().backButton("Your Meals")
                 } label: {
                     HStack(spacing: 12) {
                         IconTile(systemImage: "book.pages", tint: AppTheme.brightAccent, size: 40)

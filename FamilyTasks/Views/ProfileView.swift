@@ -767,7 +767,7 @@ struct NotificationSettingsView: View {
                     .disabled(!notificationsEnabled)
 
                     NavigationLink {
-                        FamilyAlertCheckView()
+                        FamilyAlertCheckView().backButton("Notifications")
                     } label: {
                         Label("Check Family Alerts", systemImage: "stethoscope")
                             .labelStyle(.tile(AppTheme.warmAccent))

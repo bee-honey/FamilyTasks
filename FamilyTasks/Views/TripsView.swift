@@ -67,7 +67,7 @@ struct TripsView: View {
         .background(AppTheme.background)
         .mainScreenNavigationBar(title: "Trips", isPushed: isPushed)
         .navigationDestination(item: $openTripID) { tripID in
-            TripDetailView(tripID: tripID)
+            TripDetailView(tripID: tripID).backButton("Trips")
         }
         .sheet(isPresented: $isAdding) {
             TripEditorView()
@@ -151,6 +151,8 @@ struct TripEditorView: View {
     @State private var packingLists: Set<PackingList> = PackingList.defaults
     @State private var copyFromID: UUID?
     @FocusState private var isNameFocused: Bool
+    @FocusState private var isDestinationFocused: Bool
+    @StateObject private var placeSearch = TripPlaceSearch(resultTypes: [.address, .pointOfInterest])
 
     init(trip: Trip? = nil, onDelete: (() -> Void)? = nil) {
         self.trip = trip
@@ -181,6 +183,32 @@ struct TripEditorView: View {
                         TextField("Where to? San Diego", text: $destination)
                             .textInputAutocapitalization(.words)
                             .foregroundStyle(.secondary)
+                            .focused($isDestinationFocused)
+                            .onChange(of: destination) { _, text in
+                                if isDestinationFocused { placeSearch.search(text) }
+                            }
+                        if isDestinationFocused, !placeSearch.suggestions.isEmpty {
+                            VStack(alignment: .leading, spacing: 0) {
+                                ForEach(placeSearch.suggestions) { suggestion in
+                                    Button {
+                                        destination = suggestion.title
+                                        placeSearch.clear()
+                                        isDestinationFocused = false
+                                    } label: {
+                                        PlaceSuggestionRow(suggestion: suggestion)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                            .padding(.horizontal, 12)
+                                            .padding(.vertical, 9)
+                                            .contentShape(Rectangle())
+                                    }
+                                    .buttonStyle(.plain)
+                                    if suggestion != placeSearch.suggestions.last {
+                                        Divider().padding(.leading, 44)
+                                    }
+                                }
+                            }
+                            .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        }
                     }
 
                     EditorSection("Dates") {

@@ -56,6 +56,36 @@ final class TripModelTests: XCTestCase {
         XCTAssertLessThan(text.range(of: "Passports")!.lowerBound, text.range(of: "Sunscreen")!.lowerBound)
     }
 
+    func testPlanAndPackingListShareSeparately() {
+        var trip = thanksgiving()
+        trip.notes = "Hotel: Hilton Bayfront"
+        let activities = [TripActivity(tripID: trip.id, title: "Zoo", date: day(11, 24, hour: 10), hasTime: true)]
+        let packing = [PackingItem(tripID: trip.id, name: "Passports", category: .documents)]
+
+        let plan = TripShareText.text(for: trip, packing: packing, activities: activities, part: .plan, calendar: calendar)
+        XCTAssertTrue(plan.contains("Zoo") && plan.contains("Hilton"))
+        XCTAssertFalse(plan.contains("PACKING") || plan.contains("Passports"))
+
+        let list = TripShareText.text(for: trip, packing: packing, activities: activities, part: .packing, calendar: calendar)
+        XCTAssertTrue(list.hasPrefix("Thanksgiving · Packing List\n"))
+        XCTAssertTrue(list.contains("☐ Passports"))
+        XCTAssertFalse(list.contains("Zoo") || list.contains("Hilton"))
+
+        XCTAssertTrue(TripShareText.text(for: trip, packing: [], activities: activities, part: .packing, calendar: calendar).contains("Nothing on the packing list yet."))
+    }
+
+    func testMapsLinksFindThePlaceNearTheDestination() {
+        XCTAssertEqual(TripMaps.query(for: "Balboa Park", near: "San Diego"), "Balboa Park, San Diego")
+        XCTAssertEqual(TripMaps.query(for: "Old Town San Diego", near: "san diego"), "Old Town San Diego")
+        XCTAssertEqual(TripMaps.query(for: "Balboa Park", near: ""), "Balboa Park")
+        XCTAssertEqual(TripMaps.query(for: "", near: "San Diego"), "San Diego")
+
+        XCTAssertEqual(TripMaps.url(for: "Balboa Park, San Diego", in: .apple)?.absoluteString, "https://maps.apple.com/?q=Balboa%20Park,%20San%20Diego")
+        XCTAssertEqual(TripMaps.url(for: "Zoo & Park", in: .google)?.absoluteString, "https://www.google.com/maps/search/?api=1&query=Zoo%20%26%20Park")
+        XCTAssertEqual(TripMaps.url(for: "Zoo", in: .google, directions: true)?.absoluteString, "https://www.google.com/maps/dir/?api=1&destination=Zoo")
+        XCTAssertEqual(TripMaps.url(for: "Zoo", in: .apple, directions: true)?.absoluteString, "https://maps.apple.com/?daddr=Zoo")
+    }
+
     func testTripAlertsRemindWhatsLeftToPackAndUpcomingPlans() throws {
         let trip = thanksgiving()
         let payload = TripsPayload(
