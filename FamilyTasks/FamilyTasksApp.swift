@@ -19,6 +19,16 @@ struct FamilyTasksApp: App {
     @AppStorage(ThemePalette.storageKey) private var themeID = ThemePalette.defaultTheme.id
     @AppStorage("health.share.enabled") private var healthSharingEnabled = false
 
+    /// Ideas saved from other apps' share sheets since the app was last open.
+    private func takeSharedIdeas() {
+        let added = organizerStore.takeSharedIdeas(from: IdeaInbox.shared)
+        guard let first = added.first else { return }
+        let message = added.count == 1 ? "Saved “\(first.title)” to Ideas" : "\(added.count) ideas saved to Ideas"
+        ToastCenter.shared.show(message, systemImage: "lightbulb.fill", actionTitle: "View") {
+            AppNavigator.shared.open(.section(.ideas))
+        }
+    }
+
     var body: some Scene {
         WindowGroup {
             Group {
@@ -60,6 +70,7 @@ struct FamilyTasksApp: App {
                 if phase == .active {
                     organizerStore.refreshShopping()
                     WidgetBridge.shared.applyPendingActions()
+                    takeSharedIdeas()
                     FamilyTasksShortcuts.updateAppShortcutParameters()
                     Task {
                         await FamilyAlertService.shared.refresh()

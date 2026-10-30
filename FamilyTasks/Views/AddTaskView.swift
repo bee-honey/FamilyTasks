@@ -10,6 +10,8 @@ struct AddTaskView: View {
 struct TaskEditorView: View {
     enum Mode {
         case new
+        /// A new task started from something else, like a saved idea.
+        case prefilled(TaskDraft, due: TaskDueChoice)
         case edit(FamilyTask)
     }
 
@@ -30,6 +32,11 @@ struct TaskEditorView: View {
             draft.dueDate = TaskDueChoice.today.dueDate() ?? draft.dueDate
             _draft = State(initialValue: draft)
             _dueChoice = State(initialValue: .today)
+        case .prefilled(var draft, let due):
+            draft.dueDate = due.dueDate() ?? draft.dueDate
+            draft.includeDueDate = due != .noDate
+            _draft = State(initialValue: draft)
+            _dueChoice = State(initialValue: due)
         case .edit(let task):
             _draft = State(initialValue: TaskDraft(task: task))
             _dueChoice = State(initialValue: TaskDueChoice.matching(task.dueDate))
@@ -104,8 +111,8 @@ struct TaskEditorView: View {
     }
 
     private var isNew: Bool {
-        if case .new = mode { return true }
-        return false
+        if case .edit = mode { return false }
+        return true
     }
 
     @ViewBuilder
@@ -156,7 +163,7 @@ struct TaskEditorView: View {
 
     private func save() {
         switch mode {
-        case .new:
+        case .new, .prefilled:
             taskStore.add(draft)
         case .edit(let task):
             taskStore.update(task, with: draft)

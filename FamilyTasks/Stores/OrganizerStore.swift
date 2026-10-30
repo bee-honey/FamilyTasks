@@ -467,28 +467,103 @@ final class OrganizerStore: ObservableObject {
             }
     }
 
-    func addIdea(_ draft: IdeaDraft) {
+    @discardableResult
+    func addIdea(_ draft: IdeaDraft) -> IdeaNote? {
         let title = draft.title.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !title.isEmpty else { return }
-        ideaNotes.append(
-            IdeaNote(
-                title: title,
-                notes: draft.notes.trimmingCharacters(in: .whitespacesAndNewlines),
-                link: draft.link.trimmingCharacters(in: .whitespacesAndNewlines),
-                tags: draft.normalizedTags
-            )
-        )
+        guard !title.isEmpty else { return nil }
+        var idea = IdeaNote(title: title, addedBy: HabitStore.currentProfileEmail())
+        Self.apply(draft, to: &idea)
+        ideaNotes.append(idea)
+        return idea
     }
 
     func updateIdea(_ idea: IdeaNote, with draft: IdeaDraft) {
         guard let index = ideaNotes.firstIndex(where: { $0.id == idea.id }) else { return }
         let title = draft.title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty else { return }
-        ideaNotes[index].title = title
-        ideaNotes[index].notes = draft.notes.trimmingCharacters(in: .whitespacesAndNewlines)
-        ideaNotes[index].link = draft.link.trimmingCharacters(in: .whitespacesAndNewlines)
-        ideaNotes[index].tags = draft.normalizedTags
-        ideaNotes[index].updatedAt = Date()
+        var updated = ideaNotes[index]
+        updated.title = title
+        Self.apply(draft, to: &updated)
+        guard updated != ideaNotes[index] else { return }
+        updated.updatedAt = Date()
+        ideaNotes[index] = updated
+    }
+
+    private static func apply(_ draft: IdeaDraft, to idea: inout IdeaNote) {
+        idea.notes = draft.notes.trimmingCharacters(in: .whitespacesAndNewlines)
+        idea.link = draft.link.trimmingCharacters(in: .whitespacesAndNewlines)
+        idea.tags = draft.normalizedTags
+        idea.kind = draft.kind
+        idea.location = draft.location.trimmingCharacters(in: .whitespacesAndNewlines)
+        idea.imageURL = draft.imageURL
+        idea.siteName = draft.siteName
+        // Coordinates belong to the place they came with.
+        let keepsCoordinates = !idea.location.isEmpty
+        idea.latitude = keepsCoordinates ? draft.latitude : nil
+        idea.longitude = keepsCoordinates ? draft.longitude : nil
+    }
+
+    /// Marks it done ("Visited", "Cooked") or back to try.
+    func setIdeaDone(_ idea: IdeaNote, _ done: Bool, at date: Date = Date()) {
+        changeIdea(idea) { updated in
+            updated.doneAt = done ? (updated.doneAt ?? date) : nil
+            if !done {
+                updated.rating = nil
+            }
+        }
+    }
+
+    func rateIdea(_ idea: IdeaNote, stars: Int?) {
+        changeIdea(idea) { $0.rating = stars.map { min(max($0, 1), 5) } }
+    }
+
+    func setIdeaDoneNote(_ idea: IdeaNote, _ note: String) {
+        changeIdea(idea) { $0.doneNote = note.trimmingCharacters(in: .whitespacesAndNewlines) }
+    }
+
+    /// Fills in a link's title and picture once looked up, keeping anything already there.
+    func applyPreview(_ preview: LinkPreview, to ideaID: UUID) {
+        guard let idea = ideaNotes.first(where: { $0.id == ideaID }) else { return }
+        changeIdea(idea) { updated in
+            var draft = IdeaDraft(note: updated)
+            draft.apply(preview)
+            updated.imageURL = draft.imageURL
+            updated.siteName = draft.siteName
+            if updated.location.isEmpty, updated.kind == .place {
+                updated.location = draft.location
+                updated.latitude = draft.latitude
+                updated.longitude = draft.longitude
+            }
+        }
+    }
+
+    private func changeIdea(_ idea: IdeaNote, _ body: (inout IdeaNote) -> Void) {
+        guard let index = ideaNotes.firstIndex(where: { $0.id == idea.id }) else { return }
+        var updated = ideaNotes[index]
+        body(&updated)
+        guard updated != ideaNotes[index] else { return }
+        updated.updatedAt = Date()
+        ideaNotes[index] = updated
+    }
+
+    /// Takes in ideas saved from other apps' share sheets. A link already saved is
+    /// skipped. Returns the ideas added.
+    @discardableResult
+    func takeSharedIdeas(from inbox: IdeaInbox?) -> [IdeaNote] {
+        guard let inbox else { return [] }
+        var added: [IdeaNote] = []
+        var notes = ideaNotes
+        for (url, shared) in inbox.pending() {
+            defer { inbox.remove(at: url) }
+            let isDuplicate = !shared.link.isEmpty && notes.contains { IdeaNote.sameLink($0.link, shared.link) }
+            guard !isDuplicate, !shared.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { continue }
+            var idea = shared
+            if idea.addedBy.isEmpty { idea.addedBy = HabitStore.currentProfileEmail() }
+            notes.append(idea)
+            added.append(idea)
+        }
+        if !added.isEmpty { ideaNotes = notes }
+        return added
     }
 
     func deleteIdea(_ idea: IdeaNote) {
