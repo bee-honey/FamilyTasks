@@ -22,10 +22,18 @@ struct TaskEditorView: View {
     @State private var draft: TaskDraft
     @State private var dueChoice: TaskDueChoice
     @State private var isChoosingLocation = false
+    @State private var costText = ""
+    @State private var costCategory: SpendingCategory = .other
+    @State private var costVisibility: MoneyVisibility = .defaultForNew
     @FocusState private var isTitleFocused: Bool
 
     init(mode: Mode) {
         self.mode = mode
+        if case .edit(let task) = mode, let cost = BudgetStore.shared.expense(forTask: task.id) {
+            _costText = State(initialValue: cost.amount.editingText)
+            _costCategory = State(initialValue: cost.category)
+            _costVisibility = State(initialValue: cost.visibility)
+        }
         switch mode {
         case .new:
             var draft = TaskDraft()
@@ -70,6 +78,10 @@ struct TaskEditorView: View {
 
                     EditorSection("Priority") {
                         PriorityPicker(draft: $draft)
+                    }
+
+                    EditorSection("Cost") {
+                        costEditor
                     }
 
                     if case .edit(let task) = mode {
@@ -162,11 +174,47 @@ struct TaskEditorView: View {
     }
 
     private func save() {
+        let taskID: UUID
         switch mode {
         case .new, .prefilled:
-            taskStore.add(draft)
+            taskID = taskStore.add(draft).id
         case .edit(let task):
             taskStore.update(task, with: draft)
+            taskID = task.id
+        }
+        let cost = Money.parse(costText)
+        guard cost != nil || BudgetStore.shared.expense(forTask: taskID) != nil else { return }
+        BudgetStore.shared.setCost(
+            cost,
+            taskID: taskID,
+            title: draft.title.trimmingCharacters(in: .whitespacesAndNewlines),
+            date: draft.includeDueDate ? draft.dueDate : nil,
+            category: costCategory,
+            visibility: costVisibility
+        )
+    }
+
+    /// What it costs, if anything: it goes into Budget.
+    private var costEditor: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 12) {
+                AmountField(title: "No cost", text: $costText, font: .body.weight(.semibold))
+                Menu {
+                    Picker("Category", selection: $costCategory) {
+                        ForEach(SpendingCategory.allCases) { category in
+                            Label(category.title, systemImage: category.systemImage).tag(category)
+                        }
+                    }
+                } label: {
+                    Label(costCategory.title, systemImage: costCategory.systemImage)
+                        .font(.subheadline.weight(.semibold))
+                }
+            }
+            .padding(12)
+            .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            if Money.parse(costText) != nil {
+                MoneyVisibilityPicker(visibility: $costVisibility)
+            }
         }
     }
 

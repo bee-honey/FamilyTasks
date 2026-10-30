@@ -12,6 +12,7 @@ enum TabSection: String, CaseIterable, Identifiable {
     case ideas
     case health
     case trips
+    case budget
 
     var id: String { rawValue }
 
@@ -26,6 +27,7 @@ enum TabSection: String, CaseIterable, Identifiable {
         case .ideas: "Ideas"
         case .health: "Health"
         case .trips: "Trips"
+        case .budget: "Budget"
         }
     }
 
@@ -40,6 +42,7 @@ enum TabSection: String, CaseIterable, Identifiable {
         case .ideas: "lightbulb"
         case .health: "heart.text.square"
         case .trips: "suitcase.rolling"
+        case .budget: "chart.pie"
         }
     }
 
@@ -176,6 +179,7 @@ struct TabSectionScreen: View {
         case .ideas: IdeaNotebookView(isPushed: isPushed)
         case .health: HealthView(isPushed: isPushed)
         case .trips: TripsView(isPushed: isPushed)
+        case .budget: BudgetView(isPushed: isPushed)
         }
     }
 }
@@ -188,6 +192,7 @@ struct FamilyHubView: View {
     @EnvironmentObject private var taskStore: TaskStore
     @EnvironmentObject private var habitStore: HabitStore
     @EnvironmentObject private var tripStore: TripStore
+    @EnvironmentObject private var budgetStore: BudgetStore
     @AppStorage(TabSection.storageKey) private var slotsRaw = ""
     @AppStorage("health.section.enabled") private var healthSectionEnabled = false
 
@@ -244,6 +249,7 @@ struct FamilyHubView: View {
         case .ideas: SettingsTint.ideas
         case .health: SettingsTint.health
         case .trips: AppTheme.coolAccent
+        case .budget: AppTheme.success
         }
     }
 
@@ -283,6 +289,11 @@ struct FamilyHubView: View {
         case .trips:
             guard let next = tripStore.upcomingTrips.first else { return "Plan a getaway" }
             return "\(next.placeName) · \(next.phaseText())"
+        case .budget:
+            let month = BudgetMath.month(containing: Date())
+            let spent = BudgetMath.total(budgetStore.expenses(in: month))
+            if spent == 0 { return "Track spending" }
+            return "\(Money.text(spent)) this month"
         }
     }
 }

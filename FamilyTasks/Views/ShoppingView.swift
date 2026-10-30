@@ -2,7 +2,6 @@ import SwiftUI
 
 struct ShoppingView: View {
     @EnvironmentObject private var organizerStore: OrganizerStore
-    @EnvironmentObject private var sharedHouseholdStore: SharedHouseholdStore
     /// Opened from Family rather than as a tab, so it needs the bar's back button.
     var showsNavigationBar = false
     @AppStorage("shopping.selectedShopID") private var selectedShopID = ""
@@ -14,6 +13,7 @@ struct ShoppingView: View {
     @State private var itemToMove: ShoppingItem?
     @State private var itemForNote: ShoppingItem?
     @State private var noteText = ""
+    @State private var spendForShop: ShoppingSpend?
 
     var body: some View {
         // Shown inside a tab's NavigationStack, or pushed from Family.
@@ -103,6 +103,9 @@ struct ShoppingView: View {
                 Button("Cancel", role: .cancel) {}
             }
             .onAppear { organizerStore.mergeDuplicateShoppingItems() }
+            .sheet(item: $spendForShop) { spend in
+                ShoppingSpendView(shop: spend.shop, itemCount: spend.itemCount)
+            }
         }
     }
 
@@ -348,12 +351,8 @@ struct ShoppingView: View {
                     Spacer()
                     Button("Done Shopping") {
                         withAnimation { organizerStore.closeTrip(for: shop) }
-                        ToastCenter.shared.show(
-                            sharedHouseholdStore.isSharingConfigured
-                                ? "\(shop.name) trip done · shared with your family"
-                                : "\(shop.name) trip done · \(items.count) \(items.count == 1 ? "item" : "items") bought",
-                            systemImage: "bag.fill"
-                        )
+                        // Asks what it cost, for Budget.
+                        spendForShop = ShoppingSpend(shop: shop, itemCount: items.count)
                     }
                     .font(.footnote.weight(.semibold))
                     .foregroundStyle(AppTheme.primary)
@@ -523,4 +522,11 @@ private struct EditShopView: View {
         organizerStore.updateShop(shop, name: trimmedShopName)
         dismiss()
     }
+}
+
+/// A finished trip to a shop, waiting for what it cost.
+private struct ShoppingSpend: Identifiable {
+    let id = UUID()
+    let shop: Shop
+    let itemCount: Int
 }

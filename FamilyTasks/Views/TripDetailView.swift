@@ -6,15 +6,31 @@ import SwiftUI
 struct TripDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var tripStore: TripStore
+    @EnvironmentObject private var budgetStore: BudgetStore
     let tripID: UUID
 
     enum Tab: String, CaseIterable, Identifiable {
-        case plan, packing
+        case plan, packing, spending
         var id: String { rawValue }
-        var title: String { self == .plan ? "Day by Day" : "Packing" }
+        var title: String {
+            switch self {
+            case .plan: "Day by Day"
+            case .packing: "Packing"
+            case .spending: "Spending"
+            }
+        }
     }
 
-    @State private var tab: Tab = .plan
+    @State private var tab: Tab
+    @State private var newExpense: NewTripExpense?
+    @State private var editingExpense: Expense?
+    @State private var isSettingBudget = false
+
+    init(tripID: UUID, initialTab: Tab = .plan) {
+        self.tripID = tripID
+        _tab = State(initialValue: initialTab)
+    }
+
     @State private var isEditingTrip = false
     @State private var newActivityDay: NewActivityDay?
     @State private var editingActivity: TripActivity?
@@ -50,6 +66,7 @@ struct TripDetailView: View {
             switch tab {
             case .plan: planSections(trip)
             case .packing: packingSections(trip)
+            case .spending: spendingSections(trip)
             }
         }
         .listStyle(.insetGrouped)
@@ -85,6 +102,15 @@ struct TripDetailView: View {
         }
         .sheet(isPresented: $isAddingLists) {
             AddPackingListsView(trip: trip)
+        }
+        .sheet(item: $newExpense) { new in
+            ExpenseEditorView(expense: nil, prefill: ExpensePrefill(date: new.date, category: new.category, tripID: trip.id))
+        }
+        .sheet(item: $editingExpense) { expense in
+            ExpenseEditorView(expense: expense)
+        }
+        .sheet(isPresented: $isSettingBudget) {
+            TripBudgetView(trip: trip)
         }
     }
 
@@ -267,6 +293,163 @@ struct TripDetailView: View {
             ToastCenter.shared.show("\(name) is already on the list", systemImage: "checklist")
         }
         newItemName = ""
+    }
+}
+
+// MARK: Spending
+
+extension TripDetailView {
+    @ViewBuilder
+    private func spendingSections(_ trip: Trip) -> some View {
+        let expenses = budgetStore.expenses(for: trip)
+        let days = trip.days()
+        let calendar = Calendar.current
+        let bookedAhead = expenses.filter { expense in !days.contains { calendar.isDate($0, inSameDayAs: expense.date) } }
+
+        Section {
+            tripBudgetCard(trip, expenses: expenses)
+        }
+        .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
+        .listRowBackground(Color.clear)
+
+        Section {
+            ForEach(bookedAhead) { expense in
+                expenseRow(expense, showsDate: true)
+            }
+            Button {
+                newExpense = NewTripExpense(date: Date(), category: .travel)
+            } label: {
+                Label(bookedAhead.isEmpty ? "Add Flights, Hotel or Tickets" : "Add a Booking", systemImage: "plus")
+                    .font(.subheadline.weight(.semibold))
+            }
+            .listRowBackground(AppTheme.surface)
+        } header: {
+            SectionTitle(text: bookedAhead.isEmpty ? "Booked Ahead" : "Booked Ahead · \(Money.text(BudgetMath.total(bookedAhead)))")
+        }
+
+        ForEach(Array(days.enumerated()), id: \.element) { index, day in
+            let spent = expenses.filter { calendar.isDate($0.date, inSameDayAs: day) }
+            Section {
+                ForEach(spent) { expense in
+                    expenseRow(expense, showsDate: false)
+                }
+                Button {
+                    newExpense = NewTripExpense(date: day.addingTimeInterval(12 * 3_600), category: .dining)
+                } label: {
+                    Label("Add Expense", systemImage: "plus")
+                        .font(.subheadline.weight(.semibold))
+                }
+                .listRowBackground(AppTheme.surface)
+            } header: {
+                let dayText = "Day \(index + 1) · \(day.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))"
+                SectionTitle(text: spent.isEmpty ? dayText : "\(dayText) · \(Money.text(BudgetMath.total(spent)))")
+            }
+        }
+    }
+
+    private func expenseRow(_ expense: Expense, showsDate: Bool) -> some View {
+        Button {
+            editingExpense = expense
+        } label: {
+            ExpenseRow(expense: expense, showsDate: showsDate)
+        }
+        .buttonStyle(.plain)
+        .listRowBackground(AppTheme.surface)
+        .swipeActions(edge: .trailing) {
+            Button("Delete", systemImage: "trash", role: .destructive) {
+                budgetStore.delete(expense)
+            }
+        }
+    }
+
+    private func tripBudgetCard(_ trip: Trip, expenses: [Expense]) -> some View {
+        let total = BudgetMath.total(expenses)
+        let limit = budgetStore.tripLimit(for: trip)
+        let top = BudgetMath.byCategory(expenses).prefix(3)
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Trip spending")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    Text(Money.text(total))
+                        .font(.system(.title, design: .rounded).weight(.bold))
+                }
+                Spacer()
+                Button(limit == nil ? "Set Budget" : "Edit Budget") { isSettingBudget = true }
+                    .font(.subheadline.weight(.semibold))
+                    .buttonStyle(.borderless)
+            }
+            if let limit {
+                let progress = BudgetMath.progress(spent: total, limit: limit.amount)
+                ProgressView(value: min(progress, 1))
+                    .tint(progress > 1 ? AppTheme.destructive : progress > 0.85 ? AppTheme.warning : AppTheme.success)
+                Text(total <= limit.amount ? "\(Money.text(limit.amount - total)) left of \(Money.text(limit.amount)) · \(limit.visibility.title)" : "\(Money.text(total - limit.amount)) over \(Money.text(limit.amount))")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(total <= limit.amount ? Color.secondary : AppTheme.destructive)
+            }
+            if !top.isEmpty {
+                Text(top.map { "\($0.category.title) \(Money.text($0.total))" }.joined(separator: " · "))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(14)
+        .background(AppTheme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+}
+
+/// An expense being added to a trip, on a day or booked ahead.
+private struct NewTripExpense: Identifiable {
+    let id = UUID()
+    let date: Date
+    let category: SpendingCategory
+}
+
+/// A budget for the whole trip.
+private struct TripBudgetView: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var budgetStore: BudgetStore
+    let trip: Trip
+    @State private var amountText = ""
+    @State private var visibility: MoneyVisibility = .defaultForNew
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    AmountField(title: "Trip budget", text: $amountText)
+                } footer: {
+                    Text("Everything for \(trip.displayName), including bookings made ahead. Leave empty for no budget.")
+                }
+                Section("Who Can See It") {
+                    MoneyVisibilityPicker(visibility: $visibility)
+                }
+            }
+            .scrollContentBackground(.hidden)
+            .background(AppTheme.background)
+            .navigationTitle("Trip Budget")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        budgetStore.setLimit(Money.parse(amountText), tripID: trip.id, visibility: visibility)
+                        dismiss()
+                    }
+                    .fontWeight(.semibold)
+                }
+            }
+            .onAppear {
+                if let limit = budgetStore.tripLimit(for: trip) {
+                    amountText = limit.amount.editingText
+                    visibility = limit.visibility
+                }
+            }
+        }
+        .presentationDetents([.medium])
     }
 }
 

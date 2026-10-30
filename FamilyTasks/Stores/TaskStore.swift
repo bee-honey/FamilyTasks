@@ -92,7 +92,8 @@ final class TaskStore: ObservableObject {
             .sorted(by: taskScheduleSort)
     }
 
-    func add(_ draft: TaskDraft) {
+    @discardableResult
+    func add(_ draft: TaskDraft) -> FamilyTask {
         let assignment = normalizedAssignment(from: draft)
         let task = FamilyTask(
             title: draft.title.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -108,6 +109,7 @@ final class TaskStore: ObservableObject {
         )
         tasks.append(task)
         LocalItemChange.task(before: nil, after: task).post()
+        return task
     }
 
     func update(_ task: FamilyTask, with draft: TaskDraft) {

@@ -357,7 +357,7 @@ struct TodayTasksView: View {
             Section {
                 ForEach(recurringTasks) { task in
                     RecurringScheduleRow(task: task) {
-                        organizerStore.markRecurringDone(task)
+                        RecurringPayment.markDone(task, organizer: organizerStore)
                     }
                     .listRowBackground(rowBackground(.recurring))
                     .swipeActions(edge: .trailing, allowsFullSwipe: true) {

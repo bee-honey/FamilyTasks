@@ -27,6 +27,8 @@ struct SyncRecord: Codable, Equatable {
         case trip
         case packingItem
         case tripActivity
+        case expense
+        case budgetLimit
         /// The item was deleted at `updatedAt`; kept so older copies cannot bring it back.
         case deleted
     }
@@ -81,6 +83,9 @@ enum HouseholdRecords {
         add(payload.trips.trips, as: .trip)
         add(payload.trips.packingItems, as: .packingItem)
         add(payload.trips.activities, as: .tripActivity)
+        // Only "Family" money is ever written to the household.
+        add(payload.budget.expenses.filter { $0.visibility == .family }, as: .expense)
+        add(payload.budget.limits.filter { $0.visibility == .family }, as: .budgetLimit)
 
         if payload.chores.settings.updatedAt > unknownDate, let data = try? JSONEncoder().encode(payload.chores.settings) {
             records[choreSettingsRecordName] = SyncRecord(
@@ -192,6 +197,10 @@ enum HouseholdRecords {
                 decode(PackingItem.self, record).map { payload.trips.packingItems.append($0) }
             case .tripActivity:
                 decode(TripActivity.self, record).map { payload.trips.activities.append($0) }
+            case .expense:
+                decode(Expense.self, record).map { payload.budget.expenses.append($0) }
+            case .budgetLimit:
+                decode(BudgetLimit.self, record).map { payload.budget.limits.append($0) }
             case .member:
                 guard let email = decode(String.self, record) else { continue }
                 payload.familyMembers.append(email)

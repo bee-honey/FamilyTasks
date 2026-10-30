@@ -71,7 +71,7 @@ struct RecurringTasksView: View {
 
     private func row(_ task: RecurringTask) -> some View {
         RecurringTaskRow(task: task) {
-            organizerStore.markRecurringDone(task)
+            RecurringPayment.markDone(task, organizer: organizerStore)
         } onEdit: {
             editingTask = task
         }
