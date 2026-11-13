@@ -699,8 +699,7 @@ final class SharedHouseholdStore: ObservableObject, HouseholdDataSource {
             lastErrorMessage = nil
 
             do {
-                try await accept(metadata)
-                store(recordID: try Self.rootRecordID(of: metadata), databaseScope: .shared)
+                try await join(metadata)
                 statusMessage = "Joined shared family list"
                 await synchronize(mode: .adoptRemote)
             } catch {
@@ -726,8 +725,7 @@ final class SharedHouseholdStore: ObservableObject, HouseholdDataSource {
 
         do {
             let metadata = try await shareMetadata(for: shareURL)
-            try await accept(metadata)
-            store(recordID: try Self.rootRecordID(of: metadata), databaseScope: .shared)
+            try await join(metadata)
             statusMessage = "Joined shared family list"
             await synchronize(mode: .adoptRemote)
         } catch {
@@ -769,8 +767,20 @@ final class SharedHouseholdStore: ObservableObject, HouseholdDataSource {
         defaults.set(databaseScope.rawValue, forKey: DefaultsKey.databaseScope)
     }
 
+    /// Includes the CloudKit environment: development and App Store builds on one device use the
+    /// same zone names, but a change token from one environment is meaningless in the other.
     private static func zoneKey(rootID: CKRecord.ID, scope: CKDatabase.Scope) -> String {
-        [String(scope.rawValue), rootID.zoneID.ownerName, rootID.zoneID.zoneName, rootID.recordName].joined(separator: "|")
+        [cloudEnvironment, String(scope.rawValue), rootID.zoneID.ownerName, rootID.zoneID.zoneName, rootID.recordName].joined(separator: "|")
+    }
+
+    /// Xcode builds use CloudKit's development environment; TestFlight and App Store builds
+    /// use production.
+    private static var cloudEnvironment: String {
+        #if DEBUG
+        "development"
+        #else
+        "production"
+        #endif
     }
 
     private func loadMirror() -> CloudMirror {
@@ -940,6 +950,19 @@ final class SharedHouseholdStore: ObservableObject, HouseholdDataSource {
         }
     }
 
+    /// Remembers the household an invite is for. The owner's other devices (same Apple ID)
+    /// can't accept their own share: the household is already in their private database.
+    private func join(_ metadata: CKShare.Metadata) async throws {
+        let rootID = try Self.rootRecordID(of: metadata)
+        if metadata.participantRole == .owner {
+            let zoneID = CKRecordZone.ID(zoneName: rootID.zoneID.zoneName, ownerName: CKCurrentUserDefaultName)
+            store(recordID: CKRecord.ID(recordName: rootID.recordName, zoneID: zoneID), databaseScope: .private)
+        } else {
+            try await accept(metadata)
+            store(recordID: rootID, databaseScope: .shared)
+        }
+    }
+
     private func accept(_ metadata: CKShare.Metadata) async throws {
         try await withCheckedThrowingContinuation { continuation in
             let operation = CKAcceptSharesOperation(shareMetadatas: [metadata])
@@ -996,6 +1019,10 @@ struct CloudKitHouseholdCloud: HouseholdCloud {
             result = try await database.recordZoneChanges(inZoneWith: rootID.zoneID, since: token)
         } catch let error as CKError where error.code == .changeTokenExpired {
             throw HouseholdCloudError.changeTokenExpired
+        } catch let error as CKError where token != nil && !Self.isTransient(error) {
+            // A token the server can't use (for example one saved by a build in the other
+            // CloudKit environment) would fail every sync; start over from the beginning.
+            throw HouseholdCloudError.changeTokenExpired
         }
 
         var changes = CloudChanges(
@@ -1012,6 +1039,17 @@ struct CloudKitHouseholdCloud: HouseholdCloud {
             }
         }
         return changes
+    }
+
+    /// Errors worth just trying again later, as opposed to ones about the request itself.
+    private static func isTransient(_ error: CKError) -> Bool {
+        switch error.code {
+        case .networkUnavailable, .networkFailure, .serviceUnavailable, .requestRateLimited,
+             .zoneBusy, .notAuthenticated, .quotaExceeded, .operationCancelled, .accountTemporarilyUnavailable:
+            true
+        default:
+            false
+        }
     }
 
     func save(_ entries: [CloudMirror.Entry], root: CloudRoot?) async throws -> (entries: [String: CloudSaveResult<CloudMirror.Entry>], root: CloudSaveResult<CloudRoot>?) {
