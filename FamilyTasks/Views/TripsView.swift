@@ -87,6 +87,9 @@ struct TripsView: View {
                     .font(.footnote.weight(.semibold))
                     .foregroundStyle(.tertiary)
             }
+            // The whole row, gaps included, opens the trip (a plain button is otherwise only
+            // clickable on its text and icons, which matters with a Mac pointer).
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
